@@ -101,7 +101,7 @@
     ; opaque string
     (re-matches #"^\w[-.@\w]*$" pattern) {:auth-type type :type :opaque :qualifier :exact :length nil :pattern [pattern]}
     ; regex
-    (re-matches #"^\/.*\/$" pattern) {:auth-type type :type :regex :qualifier :inexact :length nil :pattern pattern}
+    (re-matches #"^/.*/$" pattern) {:auth-type type :type :regex :qualifier :inexact :length nil :pattern (str/replace pattern #"^/(.*)/$" "$1")}
     :else
       (throw (Exception. (str "invalid domain pattern: " pattern)))
     ))
@@ -131,7 +131,7 @@
   (if (= ace allow-all) ; always match
     true
     (if (= (ace :type) :regex)
-      (false)
+      (boolean (re-find (re-pattern (ace :pattern)) name))
       (let [name (munge-name name)
             pattern (ace :pattern)
             exact (= (ace :qualifier) :exact)]

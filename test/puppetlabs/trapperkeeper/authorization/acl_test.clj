@@ -179,6 +179,15 @@
   (testing "match a similar PQDN"
     (is (not (acl/match? (acl/new-domain :allow "spirit.mars.nasa.gov.") "spirit.mars.nasa.gov" "127.0.0.1")))))
 
+(deftest test-regex
+  (let [acl (acl/new-domain :allow "/^(test-)?host[0-9]+\\.other-domain\\.(com|org|net)$|some-domain\\.com/")]
+    (doseq [host ["host5.other-domain.com" "test-host12.other-domain.net" "foo.some-domain.com"]]
+      (testing (str host "match regex")
+        (is (acl/match? acl host "127.0.0.1"))))
+    (doseq [host ["'host0.some-other-domain.com" ""]]
+      (testing (str host " doesn't match regex")
+        (is (not (acl/match? acl host "127.0.0.1")))))))
+
 (deftest test-backreference-interpolation
   (testing "injecting backreference values"
     (let [acl (acl/new-domain :allow "$1.$2.domain.com")]
