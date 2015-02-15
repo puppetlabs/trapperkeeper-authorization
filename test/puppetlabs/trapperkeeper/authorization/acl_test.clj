@@ -230,3 +230,14 @@
   (let [acl (acl/allow "*")]
     (testing "should allow anything"
       (is (acl/allowed? acl "anything" "127.0.0.1")))))
+
+(deftest test-acl-matching-with-captures
+  (testing "matching backreference of simple name"
+    (let [acl (acl/allow "$1.google.com")]
+      (is (acl/allowed? acl "www.google.com" "127.0.0.1" ["www"]))))
+  (testing "matching backreference of opaque name"
+    (let [acl (acl/allow "$1")]
+      (is (acl/allowed? acl "c216f41a-f902-4bfb-a222-850dd957bebb" "127.0.0.1" ["c216f41a-f902-4bfb-a222-850dd957bebb"]))))
+  (testing "matching backreference of name"
+    (let [acl (acl/allow "$1")]
+      (is (acl/allowed? acl "admin.mgmt.nym1" "127.0.0.1" ["admin.mgmt.nym1"])))))

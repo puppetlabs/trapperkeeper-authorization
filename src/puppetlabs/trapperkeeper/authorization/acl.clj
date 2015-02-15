@@ -117,7 +117,7 @@
             bits (* 8 (count segments))]
       {:auth-type type :type :ip :qualifier :inexact
        :length bits
-       :pattern (ip/network (str (str/join "." (map str (dbg (take 4 (concat segments [0 0 0]))))) "/" bits))})
+       :pattern (ip/network (str (str/join "." (map str (take 4 (concat segments [0 0 0])))) "/" bits))})
     (ip/network? pattern) {:auth-type type :type :ip :qualifier :inexact :length (ip/network-length pattern) :pattern (ip/network pattern)}
     (ip/address? pattern) {:auth-type type :type :ip :qualifier :exact :length nil :pattern (ip/address pattern)}
   ))
@@ -146,7 +146,7 @@
   "change all possible backreferences in ace patterns to values from the capture groups"
   [ace captures]
   (if (= (ace :type) :dynamic)
-    (assoc ace :pattern (map #(substitute-backreference % captures) (ace :pattern)))
+    (new-domain (ace :auth-type) (str/join "." (map #(substitute-backreference % captures) (reverse (ace :pattern)))))
     ace))
 
 (schema/defn match? :- schema/Bool
@@ -216,11 +216,17 @@
 
 (schema/defn allowed? :- schema/Bool
   "Returns true if either name or ip are allowed by acl, otherwise returns false"
-  [acl :- ACL
+  ([acl :- ACL
+    name :- schema/Str
+    ip :- schema/Str]
+    (allowed? acl name ip []))
+  ([acl :- ACL
    name :- schema/Str
-   ip :- schema/Str]
-  (let [match (some #(if (match? % name ip) % false) acl)]
+   ip :- schema/Str
+   captures :- [schema/Str]]
+  (let [interpolated-acl (map #(interpolate-backreference % captures) acl)
+        match (some #(if (match? % name ip) % false) interpolated-acl)]
       (if match
         (allow? match)
-        false)))
+        false))))
 
