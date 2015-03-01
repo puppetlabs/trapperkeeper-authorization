@@ -118,15 +118,15 @@
   "returns the rule if it matches the request URI, and also any capture groups of the Rule pattern if there are."
   [rule :- Rule
    request :- Request]
-  (if (method-match? (:method request) (:method rule)) ;; make sure method match
+  (if (method-match? (:request-method request) (:method rule)) ;; make sure method match
     (if-let [matches (re-find* (:path rule) (:uri request))] ;; check rule against request uri
       {:rule rule :matches (into [] (rest matches))})))
 
 (defn- request->description
   [request name rule]
-  (let [ip (:remote-address request)
+  (let [ip (:remote-addr request)
         path (:uri request)
-        method (:method request)]
+        method (:request-method request)]
     (str "Forbidden request: " (if name
           (format "%s(%s)" name ip)
           ip) " access to " path " (method " method ")"
@@ -151,7 +151,7 @@
    request :- Request
    name :- schema/Str]
   (if-let [ { matched-rule :rule matches :matches } (some #(match? % request) rules)]
-    (if (acl/allowed? (:acl matched-rule) name (:remote-address request) matches)
+    (if (acl/allowed? (:acl matched-rule) name (:remote-addr request) matches)
       {:authorized true :message ""}
       {:authorized false :message (request->description request name matched-rule)})
     {:authorized false :message "global deny all - no rules matched"}))

@@ -18,7 +18,7 @@
   ([path method]
    (request path method "127.0.0.1"))
   ([path method ip]
-  { :uri path :method method :remote-address ip}))
+  { :uri path :request-method method :remote-addr ip}))
 
 (deftest test-matching-path-rules
   (let [rule (rules/new-path-rule "/path/to/resource" :any)]
