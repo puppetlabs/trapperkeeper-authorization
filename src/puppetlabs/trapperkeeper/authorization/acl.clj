@@ -71,7 +71,7 @@
     (compare (deny? b) (deny? a))
     (if (ip? a)
       (compare (str (a :pattern)) (str (b :pattern)))
-      (compare (a :pattern) (b :pattern)))))
+      (compare (dbg (a :pattern)) (dbg (b :pattern))))))
 
 (def empty-acl (sorted-set-by ace-compare))
 
@@ -79,7 +79,7 @@
 
 (defn munge-name
   [pattern]
-  (-> pattern (str/lower-case) (str/split #"\.") reverse))
+  (-> pattern (str/lower-case) (str/split #"\.") reverse vec))
 
 (def allow-all { :auth-type :allow :type :allow-all :qualifier :exact :length nil :pattern [] })
 
@@ -94,7 +94,7 @@
     (re-matches #"^(\w[-\w]*\.)+[-\w]+$" pattern) { :auth-type type :type :domain :qualifier :exact :length nil :pattern (munge-name pattern) }
     ; *.domain.com
     (re-matches #"^\*(\.(\w[-\w]*)){1,}$" pattern)
-      (let [host_sans_star (drop-last (munge-name pattern))]
+      (let [host_sans_star (vec (drop-last (munge-name pattern)))]
         {:auth-type type :type :domain :qualifier :inexact :length (count host_sans_star) :pattern host_sans_star})
     ; backreference
     (re-find #"\$\d+" pattern) {:auth-type type :type :dynamic :qualifier :exact :length nil :pattern (munge-name pattern)}
