@@ -20,6 +20,8 @@
    :path Pattern
    :method (schema/enum :get :post :put :delete :head :any)
    :acl acl/ACL
+   (schema/optional-key :file) schema/Str
+   (schema/optional-key :line) schema/Int
    })
 
 (def RuleMatch
@@ -46,6 +48,16 @@
     pattern :- Pattern
     method :- Method]
     {:type type :path pattern :acl acl/empty-acl :method method}))
+
+(schema/defn tag-rule :- Rule
+  "Tag a rule with a file/line - useful for instance when the rule has been read
+  from an authorization file."
+  [rule :- Rule
+   file :- schema/Str
+   line :- schema/Int]
+  (-> rule
+      (assoc :file file)
+      (assoc :line line)))
 
 (defn- path->pattern
   "Returns a valid regex from a path"
@@ -111,13 +123,16 @@
       {:rule rule :matches (into [] (rest matches))})))
 
 (defn- request->description
-  [request name]
+  [request name rule]
   (let [ip (:remote-address request)
         path (:uri request)
         method (:method request)]
     (str "Forbidden request: " (if name
           (format "%s(%s)" name ip)
-          ip) " access to " path " (method " method ")")))
+          ip) " access to " path " (method " method ")"
+         (if-let [ file (:file rule) ]
+           (str " at " file ":" (:line rule))
+           ""))))
 
 ;; Rules creation
 
@@ -138,7 +153,7 @@
   (if-let [ { matched-rule :rule matches :matches } (some #(match? % request) rules)]
     (if (acl/allowed? (:acl matched-rule) name (:remote-address request) matches)
       {:authorized true :message ""}
-      {:authorized false :message (request->description request name)})
+      {:authorized false :message (request->description request name matched-rule)})
     {:authorized false :message "global deny all - no rules matched"}))
 
 (schema/defn authorized? :- schema/Bool
