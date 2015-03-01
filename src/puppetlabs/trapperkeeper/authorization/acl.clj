@@ -71,7 +71,7 @@
     (compare (deny? b) (deny? a))
     (if (ip? a)
       (compare (str (a :pattern)) (str (b :pattern)))
-      (compare (dbg (a :pattern)) (dbg (b :pattern))))))
+      (compare (a :pattern) (b :pattern)))))
 
 (def empty-acl (sorted-set-by ace-compare))
 
