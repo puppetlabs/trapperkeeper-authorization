@@ -20,6 +20,26 @@
   ([path method ip]
   { :uri path :request-method method :remote-addr ip}))
 
+(deftest test-rule-equality
+  (let [a (-> (rules/new-path-rule "/path/to/resource" :any) (rules/allow "*.domain.org"))
+        b (-> (rules/new-path-rule "/path/to/resource" :any) (rules/allow "*.domain.org"))
+        c (-> (rules/new-path-rule "/different/resource" :any) (rules/allow "*.domain.org"))
+        d (-> (rules/new-path-rule "/path/to/resource" :get) (rules/allow "*.domain.org"))
+        e (-> (rules/new-path-rule "/path/to/resource" :any) (rules/deny "*.domain.org"))
+        f (-> (rules/new-regex-rule "/path/to/resource" :any) (rules/deny "*.domain.org"))]
+    (testing "same instance equality"
+      (is (rules/equals-rule a a)))
+    (testing "same value equality"
+      (is (rules/equals-rule a b)))
+    (testing "regex inequality"
+      (is (not (rules/equals-rule a f))))
+    (testing "path inequality"
+      (is (not (rules/equals-rule a c))))
+    (testing "method inequality"
+      (is (not (rules/equals-rule a d))))
+    (testing "acl inequality"
+      (is (not (rules/equals-rule a e))))))
+
 (deftest test-matching-path-rules
   (let [rule (rules/new-path-rule "/path/to/resource" :any)]
     (testing "matching identical path"
@@ -103,6 +123,22 @@
         (is (not (rules/authorized? (rules/allowed? rules request "www.test.org"))))
         (is (= (:message (rules/allowed? rules request "www.test.org")) "Forbidden request: www.test.org(192.168.1.23) access to /stairway/to/heaven (method :get) at file.txt:23"))))))
 
+(deftest test-rules-equality
+  (let [a (build-rules ["/path/to/resource" "*.domain.org"] ["/stairway/to/heaven" "*.domain.org"])
+        b (build-rules ["/path/to/resource" "*.domain.org"] ["/stairway/to/heaven" "*.domain.org"])
+        c (build-rules ["/path/to/resource" "*.domain.org"] ["/stairway/to/heaven" "*.domain.org"] ["test" "*.test.org"])
+        e (build-rules ["/stairway/to/heaven" "*.domain.org"] ["/path/to/resource" "*.domain.org"])
+        f (build-rules ["/path/to/resource" "not-same.domain.org"] ["/stairway/to/heaven" "*.domain.org"])]
+    (testing "same rules instance equality"
+      (is (rules/equals-rules a a)))
+    (testing "same value equality"
+      (is (rules/equals-rules a b)))
+    (testing "more rule inequality"
+      (is (not (rules/equals-rules a c))))
+    (testing "order inequality"
+      (is (not (rules/equals-rules a e))))
+    (testing "acl inequality"
+      (is (not (rules/equals-rules a f))))))
 
 
 
