@@ -17,7 +17,9 @@
                  [me.raynes/fs "1.4.5"]
                  [org.clojure/tools.cli "0.3.0"]
                  [prismatic/schema "0.2.2"]
-                 [inet.data "0.5.5"]]
+                 [inet.data "0.5.5"]
+                 [clj-time "0.5.1"]
+                 [puppetlabs/typesafe-config "0.1.1"]]
 
   ;; By declaring a classifier here and a corresponding profile below we'll get an additional jar
   ;; during `lein jar` that has all the code in the test/ directory. Downstream projects can then
@@ -25,7 +27,8 @@
   ;; code that we have.
   :classifiers [["test" :testutils]]
 
-  :profiles {:dev {:dependencies [[spyscope "0.1.4"]]
+  :profiles {:dev {:dependencies [[spyscope "0.1.4"]
+                                  [puppetlabs/kitchensink ~"1.0.0" :classifier "test"]]
                    :injections [(require 'spyscope.core)]}
              :testutils {:source-paths ^:replace ["test"]}}
 
