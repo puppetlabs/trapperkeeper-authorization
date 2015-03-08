@@ -26,7 +26,7 @@
 
 (def RuleMatch
   "A match? result"
-  (schema/maybe {:rule Rules :matches [schema/Str]}))
+  (schema/maybe {:rule Rule :matches [schema/Str]}))
 
 (def AuthorizationResult
   "A result returned by rules/allowed? that can be either authorized or non-authorized. If non-authorized it also

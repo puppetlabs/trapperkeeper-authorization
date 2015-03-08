@@ -1,9 +1,10 @@
 (ns puppetlabs.trapperkeeper.authorization.rules-test
   (:require [clojure.test :refer :all]
+            [schema.test :as schema-test]
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
             [puppetlabs.trapperkeeper.authorization.acl :as acl]))
 
-;(use-fixtures :once schema-test/validate-schemas)
+(use-fixtures :once schema-test/validate-schemas)
 
 (defmacro dbg [x] `(let [x# ~x] (println "dbg:" '~x "=" x#) x#))
 
