@@ -1,13 +1,9 @@
 (ns puppetlabs.trapperkeeper.authorization.file.config-test
   (:import (com.typesafe.config ConfigFactory))
   (:require [clojure.test :refer :all]
-            [puppetlabs.trapperkeeper.authorization.acl :as acl]
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
             [puppetlabs.trapperkeeper.authorization.file.config :as config]
-            [clojure.string :as str]
-            [clojure.pprint :refer :all]
-            [schema.test :as schema-test]
-            [inet.data.ip :as ip]))
+            [schema.test :as schema-test]))
 
 (use-fixtures :once schema-test/validate-schemas)
 

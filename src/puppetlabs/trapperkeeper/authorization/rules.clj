@@ -1,7 +1,5 @@
 (ns puppetlabs.trapperkeeper.authorization.rules
   (:require [schema.core :as schema]
-            [clojure.string :as str]
-            [inet.data.ip :as ip]
             [puppetlabs.trapperkeeper.authorization.acl :as acl]
             [puppetlabs.trapperkeeper.authorization.ring :refer [Request]])
 (:import java.util.regex.Pattern))

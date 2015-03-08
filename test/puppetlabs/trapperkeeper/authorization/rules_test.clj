@@ -1,11 +1,7 @@
 (ns puppetlabs.trapperkeeper.authorization.rules-test
   (:require [clojure.test :refer :all]
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
-            [puppetlabs.trapperkeeper.authorization.acl :as acl]
-            [clojure.string :as str]
-            [schema.core :as schema]
-            [schema.test :as schema-test]
-            [inet.data.ip :as ip]))
+            [puppetlabs.trapperkeeper.authorization.acl :as acl]))
 
 ;(use-fixtures :once schema-test/validate-schemas)
 

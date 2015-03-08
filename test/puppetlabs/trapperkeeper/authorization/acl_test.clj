@@ -2,8 +2,7 @@
   (:require [clojure.test :refer :all]
             [puppetlabs.trapperkeeper.authorization.acl :as acl]
             [clojure.string :as str]
-            [schema.test :as schema-test]
-            [inet.data.ip :as ip]))
+            [schema.test :as schema-test]))
 
 (use-fixtures :once schema-test/validate-schemas)
 
