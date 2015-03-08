@@ -1,6 +1,5 @@
 (ns puppetlabs.trapperkeeper.authorization.ring
-  (:require [schema.core :as schema]
-            [clojure.string :as str])
+  (:require [schema.core :as schema])
   (:import (java.security.cert X509Certificate)))
 
 ;; schema
@@ -12,6 +11,6 @@
   {:uri schema/Str
    :request-method RequestMethod
    :remote-addr schema/Str
+   (schema/optional-key :ssl-client-cert) X509Certificate
    schema/Keyword schema/Any})
 
-;; utilities

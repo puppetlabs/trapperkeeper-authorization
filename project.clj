@@ -19,7 +19,8 @@
                  [prismatic/schema "0.2.2"]
                  [inet.data "0.5.5"]
                  [clj-time "0.5.1"]
-                 [puppetlabs/typesafe-config "0.1.1"]]
+                 [puppetlabs/typesafe-config "0.1.1"]
+                 [puppetlabs/ssl-utils "0.8.0"]]
 
   ;; By declaring a classifier here and a corresponding profile below we'll get an additional jar
   ;; during `lein jar` that has all the code in the test/ directory. Downstream projects can then
