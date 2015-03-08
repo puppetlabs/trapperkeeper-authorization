@@ -24,25 +24,25 @@ Then we have the rules which are an list of individual rules.
 
 This library supports several 4 types of entries:
 
-* allow: if the entry matches the incoming request host name, then the request will be allowed access
-* allow-ip: if the entry matches the incoming IP address, then the request will be allowed access
-* deny: if the entry matches the incoming request host name, then the resource access will be denied
-* deny-ip: if the entry matches the incoming request IP address, then the resource access will be denied
+* `allow`: if the entry matches the incoming request host name, then the request will be allowed access
+* `allow-ip`: if the entry matches the incoming IP address, then the request will be allowed access
+* `deny`: if the entry matches the incoming request host name, then the resource access will be denied
+* `deny-ip`: if the entry matches the incoming request IP address, then the resource access will be denied
 
 ### Restricting access by name
 
 This library supports those different possibilities:
 * _exact name_: `www.domain.org`, only host with this exact name will trigger a match
 * _wildcard name_: `*.domain.org`, only hosts whose name will be under domain.org will match
-* _regex_: '(this-host|other-host)\.domain\.org', only hosts whose name matches this regex will match
-* _backreferences_: '$1.domain.org', in combination with rule set as regex
+* _regex_: `(this-host|other-host)\.domain\.org`, only hosts whose name matches this regex will match
+* _backreferences_: `$1.domain.org`, in combination with rule set as regex
 
 ### Restricting access by IP addresses
 
 The library supports both IPv6 and IPv4.
-* _exact IP_: '192.168.1.1', only this IP address will match
-* _ip network_: '192.168.0.0/24', only IP in this network will match
-* _wildcard ip_: '192.168.*', only IP in 192.168.0.0/16 will match
+* _exact IP_: `192.168.1.1`, only this IP address will match
+* _ip network_: `192.168.0.0/24`, only IP in this network will match
+* _wildcard ip_: `192.168.*`, only IP in 192.168.0.0/16 will match
 
 ## ACL
 
@@ -61,7 +61,7 @@ A `Rule` is:
 
 Using the internal DSL to build a rule is very simple:
 
-```Clojure
+```clojure
 (-> (new-path-rule "/path/to/resource")
     (allow-ip "192.168.0.0/24")
     (allow "*.domain.org"))
@@ -69,30 +69,30 @@ Using the internal DSL to build a rule is very simple:
 
 Restricting a rule with a method:
 
-```Clojure
+```clojure
 (-> (new-path-rule "/path/to/resource" :get)
     (allow "*.domain.org"))
 ```
 
 A Regex rule:
-```Clojure
+```clojure
 (-> (new-regex-rule "(this|that)/resource")
     (allow "*.domain.org"))
 ```
 
 ### Rules
 
-A `Rules` is a list of `Rule`.
+A `Rules` is a vector of `Rule`.
 
 #### Building rules
 
 To build a set of rule:
 
-```Clojure
-(-> empty-rules
-    (add-rule (-> (new-path-rule "/path/to/resource")
+```clojure
+(-> rules/empty-rules
+    (rules/add-rule (-> (new-path-rule "/path/to/resource")
                   (allow "*.domain.org")))
-    (add-rule (-> (new-regex-rule "(this|that)-resource")
+    (rules/add-rule (-> (new-regex-rule "(this|that)-resource")
                   (allow "$1.domain.org"))))
 ```
 
@@ -101,8 +101,8 @@ To build a set of rule:
 Incoming Ring requests are matched against the list of rules (in insertion order), when a rule resource path (or regex)
 matches the request URI then the rule ACL is checked.
 
-```Clojure
-(allowed? rules request)
+```clojure
+(rules/allowed? rules request)
 ```
 
 This returns a `AuthorizationResult`, which tells us if the request was allowed, and if not, which rule prevented it 
@@ -139,10 +139,8 @@ rules = [
 
 To load and use an HOCON authorization file:
 
-```Clojure
-  (-> (io/file file-path)
-      (ConfigFactory/parseFileAnySyntax)
-      (config/config->rules))
+```clojure
+(def rules (config/config-file->rules "/path/to/rules.conf"))
 ```
 
 This returns a `Rules`.
@@ -151,5 +149,24 @@ This returns a `Rules`.
 
 This isn't yet supported.
 
+## Using in a Ring application
 
+The library defines a ring middleware that allows to check incoming requests against a set of rules.
 
+Warning: the library gets the `name` it uses to check `allow/deny` rules from either a client certificate subject CN embedded
+in the request, or if not present by doing a reverse name lookup (which might be slow).
+
+```clojure
+
+; loading rules from a file
+(def rules (rules/config-file->rules "rules.conf"))
+
+; our ring app
+(def app
+  (-> handler
+      (wrap-authorization-check rules)))
+
+```
+
+If a request is forbidden, the middleware will return an HTTP error 401 with a body contained information about which 
+rule triggered the deny if any.
