@@ -1,12 +1,9 @@
 (ns puppetlabs.trapperkeeper.authorization.file.config
   (:require [schema.core :as schema]
-            [clojure.string :as str]
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
             [puppetlabs.config.typesafe :as pl-config]
-            [inet.data.ip :as ip])
-  (:import com.typesafe.config.Config))
-
-(defmacro dbg [x] `(let [x# ~x] (println "dbg:" '~x "=" x#) x#))
+            [clojure.java.io :as io])
+  (:import (com.typesafe.config Config ConfigFactory)))
 
 ;; From Config rule to Rule
 
@@ -58,17 +55,51 @@
   (->> (select-keys config-map #{:allow :allow-ip :deny :deny-ip})
        (reduce #(add-individual-acl (first %2) (second %2) %1) rule)))
 
+(defn add-file-line
+  [rule config]
+  (let [file (.filename (.origin config))
+        line (.lineNumber (.origin config))]
+    (if (not (nil? file))
+      (rules/tag-rule rule file line)
+      rule)))
+
 (schema/defn config->rule :- rules/Rule
   [config :- Config]
   (let [m (config->map config)]
     (if (contains? m :path)
       (-> m
           build-rule
+          (add-file-line config)
           (add-acl m))
       (throw (Exception. "Invalid config - missing required `path` key")))))
 
 (schema/defn config->rules :- rules/Rules
+  "Create Rules from a Config object that contains the rules key
+  pointing to a config list object, for instance:
+    rules = [
+      {
+        path: /path/to/resource
+        type: path
+        allow: [ \"*.domain.org\", \"*.test.com\" ]
+        allow-ip: \"192.168.0.0/24\"
+        deny: \"bad.guy.com\"
+        deny-ip: \"192.168.1.0/24\"
+      },
+      {
+        type: regex
+        path: \"(incoming|outgoing)\"
+        allow: \"www.domain.org\"
+      }
+    ]
+  "
   [config :- Config]
   (if (.hasPath config "rules")
     (->> (.getConfigList config "rules") (map config->rule) vec)
-    (throw (.Exception "Invalid config no rules key"))))
+    (throw (Exception. (str "Invalid config no rules key in: " (.render (.root config)))))))
+
+(schema/defn config-file->rules :- rules/Rules
+  "Create Rules from a config file in either HOCON or JSON"
+  [file :- schema/Str]
+  (-> (io/file file)
+      (ConfigFactory/parseFileAnySyntax)
+      config->rules))

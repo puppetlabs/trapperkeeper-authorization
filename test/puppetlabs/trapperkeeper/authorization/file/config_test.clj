@@ -1,6 +1,5 @@
 (ns puppetlabs.trapperkeeper.authorization.file.config-test
-  (:import [com.typesafe.config.ConfigFactory]
-           (com.typesafe.config ConfigFactory))
+  (:import (com.typesafe.config ConfigFactory))
   (:require [clojure.test :refer :all]
             [puppetlabs.trapperkeeper.authorization.acl :as acl]
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
@@ -11,6 +10,8 @@
             [inet.data.ip :as ip]))
 
 (use-fixtures :once schema-test/validate-schemas)
+
+(def test-resources-dir "./dev-resources/puppetlabs/trapperkeeper/authorization/file/config")
 
 (def ConfigRuleFixture (ConfigFactory/parseString "
 {
@@ -53,7 +54,6 @@ rules = [
                                            (rules/allow "www.domain.org")))))
 
 
-
 (deftest config->rule-test
   (testing "produce a rule with the correct path, type and acl"
     (is (rules/equals-rule (config/config->rule ConfigRuleFixture) ExpectedRule))))
@@ -61,3 +61,15 @@ rules = [
 (deftest config->rules-test
   (testing "produce a vector of rules with the correct path, type and acl"
     (is (rules/equals-rules (config/config->rules ConfigRulesFixture) ExpectedRules))))
+
+(deftest config-file->rules-test
+  (let [fixture (str test-resources-dir "/fixture1.conf")]
+    (testing "produce a vector of rules with the correct path, type and acl from a file"
+      (is (rules/equals-rules (config/config-file->rules fixture) ExpectedRules)))
+    (testing "produce rules with file tags"
+      (is (= (:file (first (config/config-file->rules fixture))) fixture))
+      (is (= (:file (second (config/config-file->rules fixture))) fixture)))
+    (testing "produce rules with line tags"
+      (is (= (:line (first (config/config-file->rules fixture))) 2))
+      (is (= (:line (second (config/config-file->rules fixture))) 10)))))
+
