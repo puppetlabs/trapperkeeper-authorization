@@ -7,8 +7,6 @@
 
 (use-fixtures :once schema-test/validate-schemas)
 
-(defmacro dbg [x] `(let [x# ~x] (println "dbg:" '~x "=" x#) x#))
-
 (deftest test-compare-entry
   (let [ip (acl/new-ip :allow "127.0.0.1")
         host (acl/new-domain :allow "www.google.com")
@@ -34,8 +32,8 @@
           (testing (str ip " doesn't match other ip")
             (is (not (acl/match? acl "test.domain.com" "202.124.67.29")))))
       (doseq [i (range 1 4)]
-        (let [ip-pattern (dbg (str (str/join "." (take i (str/split ip #"\."))) ".*"))
-              acl (dbg (acl/new-ip :allow ip-pattern))]
+        (let [ip-pattern (str (str/join "." (take i (str/split ip #"\."))) ".*")
+              acl (acl/new-ip :allow ip-pattern)]
           (testing (str ip-pattern " match ip")
             (is (acl/match? acl "test.domain.com" ip)))
           (testing (str ip-pattern " doesn't match other ip")
@@ -163,8 +161,8 @@
   (doseq [name valid-names-wildcard]
     (let [name-split (str/split name #"\.")]
       (doseq [i (range 1 (count name-split))]
-        (let [host (dbg (str/join "." (concat ["*"] (reverse (take i (reverse name-split))))))
-             acl (dbg (acl/new-domain :allow host))]
+        (let [host (str/join "." (concat ["*"] (reverse (take i (reverse name-split)))))
+             acl (acl/new-domain :allow host)]
           (testing (str host " match input name")
             (is (acl/match? acl name "127.0.0.1")))
           (testing (str host " doesn't match www.testsite.gov")
@@ -172,7 +170,7 @@
           (testing (str host " doesn't match hosts that differ in the first non-wildcard segment")
             (let [other-split (str/split name #"\.")
                   pos (- (count other-split) i)
-                  other (dbg (str/join "." (assoc other-split pos (str "test" (nth other-split pos)))))]
+                  other (str/join "." (assoc other-split pos (str "test" (nth other-split pos))))]
               (is (not (acl/match? acl other "127.0.0.1"))))))))))
 
 (deftest test-fqdn

@@ -30,7 +30,7 @@
 (defn- build-rule
   "Build a new Rule based on the provided config-map"
   [config-map]
-  (let [rule-type (dbg (keyword (get (dbg config-map) :type :path)))]
+  (let [rule-type (keyword (get config-map :type :path))]
     (if (= rule-type :path)
       (-> (rules/new-path-rule (config-map :path) (method config-map)))
       (-> (rules/new-regex-rule (config-map :path) (method config-map))))))

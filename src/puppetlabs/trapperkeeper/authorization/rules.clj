@@ -6,8 +6,6 @@
             [puppetlabs.trapperkeeper.authorization.ring :refer [Request]])
 (:import java.util.regex.Pattern))
 
-(defmacro dbg [x] `(let [x# ~x] (println "dbg:" '~x "=" x#) x#))
-
 ;; Schemas
 
 (def Type (schema/enum :string :regex))

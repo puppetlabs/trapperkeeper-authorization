@@ -3,8 +3,6 @@
             [clojure.string :as str]
             [inet.data.ip :as ip]))
 
-(defmacro dbg [x] `(let [x# ~x] (println "dbg:" '~x "=" x#) x#))
-
 ;; Schemas
 
 (def auth-type (schema/enum :allow :deny))
