@@ -1,5 +1,7 @@
 # Trapperkeeper-authorization
 
+[![Build Status](https://travis-ci.org/masterzen/trapperkeeper-authorization.svg?branch=master)](https://travis-ci.org/masterzen/trapperkeeper-authorization)
+
 This clojure project is an authorization library for PuppetLabs Trapperkeeper based products.
 It aims to port Puppet's `auth.conf` feature to clojure, along with a different way to express
 authorization rules.
