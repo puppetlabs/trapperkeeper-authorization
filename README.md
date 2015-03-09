@@ -6,8 +6,15 @@ This clojure project is an authorization library for PuppetLabs Trapperkeeper ba
 It aims to port Puppet's `auth.conf` feature to clojure, along with a different way to express
 authorization rules.
 
-The core of this library is a system to express host-based authorization rules to access resources and
-to check incoming requests against them.
+The core of this library is a system to express host-based authorization rules to access resources and to check incoming requests against them.
+
+## Installation
+
+Add the following to your _leiningen_ `project.clj`:
+
+[![Clojars Project](http://clojars.org/masterzen/trapperkeeper-authorization/latest-version.svg)](http://clojars.org/masterzen/trapperkeeper-authorization)
+
+
 
 ## Terminology
 

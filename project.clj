@@ -1,7 +1,8 @@
 (def tk-authz-version "0.0.1")
 
-(defproject puppetlabs/trapperkeeper-authorization tk-authz-version
+(defproject masterzen/trapperkeeper-authorization tk-authz-version
   :description "TrapperKeeper authorization system"
+  :url "http://github.com/masterzen/trapperkeeper-authorization"
   :license {:name "Apache License, Version 2.0"
             :url "http://www.apache.org/licenses/LICENSE-2.0.html"}
 
@@ -41,7 +42,7 @@
                         :deploy-via   :lein-deploy}
 
   :deploy-repositories [["releases" {:url "https://clojars.org/repo"
-                                     :username :env/clojars_jenkins_username
-                                     :password :env/clojars_jenkins_password
+                                     :username :env/clojars_username
+                                     :password :env/clojars_password
                                      :sign-releases false}]
                         ["snapshots" "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/"]])
