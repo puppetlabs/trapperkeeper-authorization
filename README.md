@@ -1,60 +1,76 @@
 # Trapperkeeper-authorization
 
-[![Build Status](https://travis-ci.org/masterzen/trapperkeeper-authorization.svg?branch=master)](https://travis-ci.org/masterzen/trapperkeeper-authorization)
+[![Build Status](https://travis-ci.org/masterzen/trapperkeeper-authorization.svg?branch=master)](https://travis-ci.org/puppetlabs/trapperkeeper-authorization)
 
-This clojure project is an authorization library for PuppetLabs Trapperkeeper based products.
-It aims to port Puppet's `auth.conf` feature to clojure, along with a different way to express
-authorization rules.
+This clojure project is an authorization service for PuppetLabs Trapperkeeper.
+It aims to port Puppet's `auth.conf` feature to clojure, along with a different
+way to express authorization rules.
 
-The core of this library is a system to express host-based authorization rules to access resources and to check incoming requests against them.
+The core of this service is a configuration format to express authorization
+rules which govern the REST API by parsing authentication information out of
+the incoming request, then matching the request against the configured rules.
+
+# Credits
+
+The original work for this library, service, and the original REST authconfig
+work in Ruby Puppet were all contributed by [Brice
+Figureau](https://github.com/masterzen).  This project has been graciously
+transferred to Puppet Labs for further development and maintenance as it
+becomes a critical part of the [Puppet
+Server](https://github.com/puppetlabs/puppet-server) security model as
+authconfig became a critical part of Puppet's security model.
 
 ## Installation
 
 Add the following to your _leiningen_ `project.clj`:
 
-[![Clojars Project](http://clojars.org/masterzen/trapperkeeper-authorization/latest-version.svg)](http://clojars.org/masterzen/trapperkeeper-authorization)
-
+[![Clojars Project](http://clojars.org/puppetlabs/trapperkeeper-authorization/latest-version.svg)](http://clojars.org/puppetlabs/trapperkeeper-authorization)
 
 
 ## Terminology
 
-At the core of the library is the ACL. An ACL (access control list) is a list of ACE (access control entry).
-There are several types of ACE. 
+At the core of the library is the ACL. An ACL (access control list) is a list
+of ACE (access control entry).
 
-Then we have the rule. A rule protects a given resource (either by exact path or by regex). An ACL is attached to a rule. 
-When one need to check if an incoming request is allowed, this library will check the rule path matches the request and 
-then check the ACL allows the request (by name and/or ip address).
+A _rule_ protects a given resource, either by exact path or by regular
+expression. An ACL is attached to a rule.  When an incoming request goes
+through the process of checking if it is an authorized request, or not, this
+service will check if the pattern expressed in the rule matches the request and
+then check if the ACL allows the request by comparing the request identity
+against the list of allowed identities in the ACL.
 
-Then we have the rules which are an list of individual rules.
+The authorization service assumes authenticated identities are parsed from the
+CN attribute of a verified SSL client certificate.
+
+Finally, we have the top-level rules, which is an ordered list of discrete
+rules.  The authorization service always processes this list in-order until it
+matches an incoming request with a discrete rule.
 
 ## ACE
 
-This library supports several 4 types of entries:
+This library supports several 2 types of entries:
 
-* `allow`: if the entry matches the incoming request host name, then the request will be allowed access
-* `allow-ip`: if the entry matches the incoming IP address, then the request will be allowed access
-* `deny`: if the entry matches the incoming request host name, then the resource access will be denied
-* `deny-ip`: if the entry matches the incoming request IP address, then the resource access will be denied
+* `allow`: if the entry matches the incoming request identity, then the request will be allowed access
+* `deny`: if the entry matches the incoming request identity, then the resource access will be denied
+
+A third type is planned, something akin to Puppet's `allow any` behavior which
+is commonly used to authorize unauthenticated requests, which is common when
+bootstrapping a puppet agent that does not yet posses a valid client SSL
+certificate.
 
 ### Restricting access by name
 
 This library supports those different possibilities:
-* _exact name_: `www.domain.org`, only host with this exact name will trigger a match
-* _wildcard name_: `*.domain.org`, only hosts whose name will be under domain.org will match
-* _regex_: `(this-host|other-host)\.domain\.org`, only hosts whose name matches this regex will match
-* _backreferences_: `$1.domain.org`, in combination with rule set as regex
 
-### Restricting access by IP addresses
-
-The library supports both IPv6 and IPv4.
-* _exact IP_: `192.168.1.1`, only this IP address will match
-* _ip network_: `192.168.0.0/24`, only IP in this network will match
-* _wildcard ip_: `192.168.*`, only IP in 192.168.0.0/16 will match
+* _exact name_: `www.domain.org`, only client with this exact CN will trigger a match
+* _wildcard name_: `*.domain.org`, only client whose CN will be under domain.org will match
+* _regex_: `(this-host|other-host)\.domain\.org`, only clients whose CN matches this regex will match
+* _backreferences_: `$1.domain.org` in combination with rule set as regex
 
 ## ACL
 
-An ACL is an ordered list of ACE.
-The system works the same as Puppet, ordering _allows_ before _deny_, and with an implicit _deny all_.
+An ACL is an ordered list of ACE.  The system works the same as Puppet,
+ordering _allows_ before _deny_, and with an implicit _deny all_.
 
 ## Rules
 
@@ -70,8 +86,8 @@ Using the internal DSL to build a rule is very simple:
 
 ```clojure
 (-> (new-path-rule "/path/to/resource")
-    (allow-ip "192.168.0.0/24")
     (allow "*.domain.org"))
+    (deny "*.evil.com"))
 ```
 
 Restricting a rule with a method:
@@ -105,75 +121,20 @@ To build a set of rule:
 
 #### Checking a request
 
-Incoming Ring requests are matched against the list of rules (in insertion order), when a rule resource path (or regex)
-matches the request URI then the rule ACL is checked.
+Incoming Ring requests are matched against the list of rules (in insertion
+order), when a rule resource path (or regex) matches the request URI then the
+rule ACL is checked.
 
 ```clojure
 (rules/allowed? rules request)
 ```
 
-This returns a `AuthorizationResult`, which tells us if the request was allowed, and if not, which rule prevented it 
-to be allowed.
-
+This returns a `AuthorizationResult`, which tells us if the request was
+allowed, and if not, which rule prevented it to be allowed.
 
 ## authorization files
 
-Alongside with the programmatic access, this library also supports authorization files in two formats:
-* [HOCON](https://github.com/typesafehub/config#using-hocon-the-json-superset)
-* [Puppet's auth.conf](https://docs.puppetlabs.com/guides/rest_auth_conf.html)
-
-### HOCON
-
-The format must obey:
-
-```
-rules = [
-  {
-    path: /path/to/resource
-    type: path
-    allow: [ "*.domain.org", "*.test.com" ]
-    allow-ip: "192.168.0.0/24"
-    deny: "bad.guy.com"
-    deny-ip: "192.168.1.0/24"
-  },
-  {
-    type: regex
-    path: "(incoming|outgoing)"
-    allow: "www.domain.org"
-  }
-  ]
-```
-
-To load and use an HOCON authorization file:
-
-```clojure
-(def rules (config/config-file->rules "/path/to/rules.conf"))
-```
-
-This returns a `Rules`.
-
-### Auth.conf format
-
-This isn't yet supported.
-
-## Using in a Ring application
-
-The library defines a ring middleware that allows to check incoming requests against a set of rules.
-
-Warning: the library gets the `name` it uses to check `allow/deny` rules from either a client certificate subject CN embedded
-in the request, or if not present by doing a reverse name lookup (which might be slow).
-
-```clojure
-
-; loading rules from a file
-(def rules (rules/config-file->rules "rules.conf"))
-
-; our ring app
-(def app
-  (-> handler
-      (wrap-authorization-check rules)))
-
-```
-
-If a request is forbidden, the middleware will return an HTTP error 401 with a body contained information about which 
-rule triggered the deny if any.
+Alongside with the programmatic access, this service also supports
+authorization files in typical Trapperkeeper configuration file formats.  This
+format and specification is currently evolving, see SERVER-111 for more
+information about the format and expression of authorization rules.
