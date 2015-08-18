@@ -25,19 +25,12 @@
   (str/trim (ks/pprint-to-string rule)))
 
 (schema/defn transform-config-rule-to-acl :- acl/ACL
-  [{:keys [allow deny] :as config-rule}]
-  (let [type (if (= "regex" (.toLowerCase (:type config-rule)))
-               :regex :domain)
-        base {:qualifier :exact
-              :length nil
-              :type type}
-        allow-base (assoc base :auth-type :allow)
-        deny-base (assoc base :auth-type :deny)
-        allow (if (string? allow) [allow] allow)
+  [{:keys [allow deny]}]
+  (let [allow (if (string? allow) [allow] allow)
         deny (if (string? deny) [deny] deny)]
-    (set (concat
-           (map #(assoc allow-base :pattern %) allow)
-           (map #(assoc deny-base :pattern %) deny)))))
+    (let [allow-acl (reduce #(acl/allow %1 %2) acl/empty-acl allow)
+          full-acl (reduce #(acl/deny %1 %2) allow-acl deny)]
+      full-acl)))
 
 (schema/defn transform-config-rule :- rules/Rule
   [config-rule]
