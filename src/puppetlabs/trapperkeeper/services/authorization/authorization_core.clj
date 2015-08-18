@@ -24,7 +24,6 @@
   [rule]
   (str/trim (ks/pprint-to-string rule)))
 
-
 (schema/defn transform-config-rule-to-acl :- acl/ACL
   [{:keys [allow deny] :as config-rule}]
   (let [type (if (= "regex" (.toLowerCase (:type config-rule)))

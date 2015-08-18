@@ -2,7 +2,7 @@
   (:require [schema.core :as schema]
             [puppetlabs.trapperkeeper.authorization.acl :as acl]
             [puppetlabs.trapperkeeper.authorization.ring :refer [Request]])
-(:import java.util.regex.Pattern))
+  (:import java.util.regex.Pattern))
 
 ;; Schemas
 

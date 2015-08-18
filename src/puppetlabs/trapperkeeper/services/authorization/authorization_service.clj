@@ -12,13 +12,4 @@
     [this context]
     (let [config (get-in-config [:authorization :rules])]
       (validate-auth-config! config)
-      (assoc context :authorization {:rules (transform-config config)})
-
-
-      )
-    )
-
-
-                          )
-
-
+      (assoc context :authorization {:rules (transform-config config)}))))
