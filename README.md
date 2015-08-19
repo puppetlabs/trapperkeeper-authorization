@@ -1,6 +1,6 @@
 # Trapperkeeper-authorization
 
-[![Build Status](https://travis-ci.org/masterzen/trapperkeeper-authorization.svg?branch=master)](https://travis-ci.org/puppetlabs/trapperkeeper-authorization)
+[![Build Status](https://travis-ci.org/puppetlabs/trapperkeeper-authorization.svg?branch=master)](https://travis-ci.org/puppetlabs/trapperkeeper-authorization)
 
 This clojure project is an authorization service for PuppetLabs Trapperkeeper.
 It aims to port Puppet's `auth.conf` feature to clojure, along with a different
@@ -48,14 +48,14 @@ matches an incoming request with a discrete rule.
 
 ## ACE
 
-This library supports several 2 types of entries:
+This library supports two types of entries:
 
 * `allow`: if the entry matches the incoming request identity, then the request will be allowed access
 * `deny`: if the entry matches the incoming request identity, then the resource access will be denied
 
 A third type is planned, something akin to Puppet's `allow any` behavior which
 is commonly used to authorize unauthenticated requests, which is common when
-bootstrapping a puppet agent that does not yet posses a valid client SSL
+bootstrapping a puppet agent that does not yet possess a valid client SSL
 certificate.
 
 ### Restricting access by name
@@ -138,3 +138,10 @@ Alongside with the programmatic access, this service also supports
 authorization files in typical Trapperkeeper configuration file formats.  This
 format and specification is currently evolving, see SERVER-111 for more
 information about the format and expression of authorization rules.
+
+# Support
+
+We use the [Trapperkeeper project on
+JIRA](https://tickets.puppetlabs.com/browse/TK) for tickets on the
+Trapperkeeper Authorization Service, although Github issues are welcome too.
+Please note that the best method to get our attention on an issue is via JIRA.
