@@ -19,6 +19,5 @@
 
   (wrap-with-authorization-check
     [this handler]
-    (if-let [rules (get-in (service-context this) [:rules])]
-      (wrap-authorization-check handler rules)
-      (throw (IllegalStateException. (str "ERROR: No rules loaded."))))))
+    (let [rules (get-in (service-context this) [:rules])]
+      (wrap-authorization-check handler rules))))
