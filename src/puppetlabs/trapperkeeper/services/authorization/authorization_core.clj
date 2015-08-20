@@ -15,7 +15,7 @@
 
 (def required-or-key
   "At least one of these keys is required in an auth rule map."
-  [:deny :allow])
+  #{:deny :allow})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private
