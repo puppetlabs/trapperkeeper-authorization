@@ -106,7 +106,7 @@
   [config]
   (when-not (vector? config)
     (throw (IllegalArgumentException.
-             "The providede authorization service config is not a list.")))
+             "The provided authorization service config is not a list.")))
   (doseq [rule config]
     (validate-auth-config-rule! rule))
   config)
