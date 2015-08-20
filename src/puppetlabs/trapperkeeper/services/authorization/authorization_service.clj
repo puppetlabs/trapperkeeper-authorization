@@ -6,7 +6,7 @@
             [puppetlabs.trapperkeeper.services.authorization.authorization-core :refer :all]))
 
 (defprotocol AuthorizationService
-  (wrap-handler [this handler]))
+  (wrap-with-authorization-check [this handler]))
 
 (defservice authorization-service
   AuthorizationService
@@ -17,7 +17,7 @@
       (validate-auth-config! config)
       (assoc-in context [:authorization :rules] (transform-config config))))
 
-  (wrap-handler
+  (wrap-with-authorization-check
     [this handler]
     (if-let [rules (get-in (service-context this) [:authorization :rules])]
       (wrap-authorization-check handler rules)

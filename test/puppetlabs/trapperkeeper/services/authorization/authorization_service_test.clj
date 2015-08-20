@@ -20,11 +20,12 @@
 
 ; A simple service using authorization via ring middleware
 (defservice
-  echo-reverse-service EchoReverseService [[:AuthorizationService wrap-handler]]
+  echo-reverse-service EchoReverseService
+  [[:AuthorizationService wrap-with-authorization-check]]
   (echo-reverse
     [this msg]
     (let [handler (fn [req] (response (str msg (str/reverse (:body req)))))]
-      (wrap-handler handler))))
+      (wrap-with-authorization-check handler))))
 
 (def minimal-config
   "Minimal config required to bootstrap AuthorizationService with
