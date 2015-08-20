@@ -23,9 +23,9 @@
                  [org.clojure/tools.cli "0.3.0"]
                  [prismatic/schema "0.4.0"]
                  [inet.data "0.5.5"]
-                 [clj-time "0.5.1"]
+                 [clj-time "0.7.0"]
                  [puppetlabs/typesafe-config "0.1.4"]
-                 [puppetlabs/ssl-utils "0.8.0"]]
+                 [puppetlabs/ssl-utils "0.8.1"]]
 
   ;; By declaring a classifier here and a corresponding profile below we'll get an additional jar
   ;; during `lein jar` that has all the code in the test/ directory. Downstream projects can then
