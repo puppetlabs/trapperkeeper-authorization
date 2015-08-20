@@ -36,7 +36,7 @@
   :profiles {:dev {:dependencies [[spyscope "0.1.4"]
                                   [puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
                                   [puppetlabs/trapperkeeper-webserver-jetty9 ~tk-jetty-version :classifier "test"]
-                                  [puppetlabs/kitchensink ~"1.0.0" :classifier "test"]]
+                                  [puppetlabs/kitchensink "1.0.0" :classifier "test"]]
                    :injections [(require 'spyscope.core)]}
              :testutils {:source-paths ^:replace ["test"]}}
 
