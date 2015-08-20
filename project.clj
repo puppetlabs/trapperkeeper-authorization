@@ -33,11 +33,9 @@
   ;; code that we have.
   :classifiers [["test" :testutils]]
 
-  :profiles {:dev {:dependencies [[spyscope "0.1.4"]
-                                  [puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
+  :profiles {:dev {:dependencies [[puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
                                   [puppetlabs/trapperkeeper-webserver-jetty9 ~tk-jetty-version :classifier "test"]
-                                  [puppetlabs/kitchensink "1.0.0" :classifier "test"]]
-                   :injections [(require 'spyscope.core)]}
+                                  [puppetlabs/kitchensink "1.0.0" :classifier "test"]]}
              :testutils {:source-paths ^:replace ["test"]}}
 
   ;; this plugin is used by jenkins jobs to interrogate the project version
