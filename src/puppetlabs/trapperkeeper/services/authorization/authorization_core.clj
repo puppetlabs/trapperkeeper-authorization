@@ -34,7 +34,7 @@
 
 (schema/defn transform-config-rule :- rules/Rule
   [config-rule]
-  (let [type (name (.toLowerCase (:type config-rule)))]
+  (let [type (str/lower-case (name (:type config-rule)))]
     {:type (if (= type "regex") :regex :string)
      :path (re-pattern (:path config-rule))
      :method :any
@@ -63,7 +63,7 @@
              (str "The type set in the authorization rule specified "
                   "as " (pprint-rule rule) " should be a "
                   "string that is either 'path' or 'regex'."))))
-  (let [type (.toLowerCase (:type rule))]
+  (let [type (str/lower-case (name (:type rule)))]
     (when-not (or (= type "path") (= type "regex"))
       (throw (IllegalArgumentException.
                (str "The type set in the authorization rule specified "
