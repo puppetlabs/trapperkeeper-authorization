@@ -28,8 +28,8 @@
   [{:keys [allow deny]}]
   (let [allow (if (string? allow) [allow] allow)
         deny (if (string? deny) [deny] deny)]
-    (let [allow-acl (reduce #(acl/allow %1 %2) acl/empty-acl allow)
-          full-acl (reduce #(acl/deny %1 %2) allow-acl deny)]
+    (let [allow-acl (reduce acl/allow acl/empty-acl allow)
+          full-acl (reduce acl/deny allow-acl deny)]
       full-acl)))
 
 (schema/defn transform-config-rule :- rules/Rule
