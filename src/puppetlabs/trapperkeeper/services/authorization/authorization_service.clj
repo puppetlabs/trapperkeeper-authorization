@@ -15,10 +15,10 @@
     [this context]
     (let [config (get-in-config [:authorization :rules])]
       (validate-auth-config! config)
-      (assoc-in context [:authorization :rules] (transform-config config))))
+      (assoc-in context [:rules] (transform-config config))))
 
   (wrap-with-authorization-check
     [this handler]
-    (if-let [rules (get-in (service-context this) [:authorization :rules])]
+    (if-let [rules (get-in (service-context this) [:rules])]
       (wrap-authorization-check handler rules)
       (throw (IllegalStateException. (str "ERROR: No rules loaded."))))))
