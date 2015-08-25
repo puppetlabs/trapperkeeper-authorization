@@ -17,6 +17,11 @@
   "At least one of these keys is required in an auth rule map."
   #{:deny :allow})
 
+(def acl-func-map
+  "This is a function map to allow a programmatic execution of allow/deny directives"
+  {:allow #(rules/allow %1 %2)
+   :deny #(rules/deny %1 %2)})
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private
 
@@ -24,21 +29,42 @@
   [rule]
   (str/trim (ks/pprint-to-string rule)))
 
-(schema/defn transform-config-rule-to-acl :- acl/ACL
-  [{:keys [allow deny]}]
-  (let [allow (if (string? allow) [allow] allow)
-        deny (if (string? deny) [deny] deny)]
-    (let [allow-acl (reduce acl/allow acl/empty-acl allow)
-          full-acl (reduce acl/deny allow-acl deny)]
-      full-acl)))
+(defn- method
+  "Returns the method key of a given config map, or :any if none"
+  [config-map]
+  (keyword (get config-map :method :any)))
 
-(schema/defn transform-config-rule :- rules/Rule
-  [config-rule]
-  (let [type (str/lower-case (name (:type config-rule)))]
-    {:type (if (= type "regex") :regex :string)
-     :path (re-pattern (:path config-rule))
-     :method :any
-     :acl (transform-config-rule-to-acl config-rule)}))
+(defn- build-rule
+  "Build a new Rule based on the provided config-map"
+  [config-map]
+  (let [rule-type (keyword (get config-map :type :path))]
+    (if (= rule-type :path)
+      (-> (rules/new-path-rule (config-map :path) (method config-map)))
+      (-> (rules/new-regex-rule (config-map :path) (method config-map))))))
+
+(defn- add-individual-acl
+  "Add an individual acl to a given rule:
+    (add-individual-acl :allow \"*.domain.org\" rule)
+  "
+  [acl-type value rule]
+  (let [v (vec (flatten [value]))]
+    (reduce #((get acl-func-map acl-type) %1 %2) rule v)))
+
+(defn add-acl
+  "Add various ACL to the incoming rule, based on content of the config-map"
+  [rule config-map]
+  (->> (select-keys config-map #{:allow :allow-ip :deny :deny-ip})
+       (reduce #(add-individual-acl (first %2) (second %2) %1) rule)))
+
+(schema/defn config->rule :- rules/Rule
+  "Given a rule expressed as a map in the configuration return a Rule suitable
+  for use in a list with the allowed? function."
+  [m]
+  (if (contains? m :path)
+    (-> m
+        build-rule
+        (add-acl m))
+    (throw (Exception. "Invalid config - missing required `path` key"))))
 
 (defn validate-auth-config-rule!
   "Tests to see if the given map contains the proper data to define an auth
@@ -115,4 +141,4 @@
   "Transforms the authorization service config into a list of Rules that work
   with the authorization code."
   [config]
-  (map transform-config-rule config))
+  (map config->rule config))
