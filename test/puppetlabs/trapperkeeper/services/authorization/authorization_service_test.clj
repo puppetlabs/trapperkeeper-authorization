@@ -46,6 +46,12 @@
   "Minimal config with a basic rule layered on top."
   (assoc-in minimal-config [:authorization :rules] basic-rules))
 
+(def default-rules
+  "A representative example list of rules intended to model the defaults"
+  [{:path "/puppet/v3/environments"
+    :type "path"
+    :allow "*"}])
+
 (def catalog-request-nocert
   "A basic request for a catalog without a valid SSL cert"
   {:uri "/puppet/v3/catalog/localhost"
@@ -92,4 +98,18 @@
             (testing "Request is denied due to unauthenticated request"
               (is (= 401 status))
               (is (= body (str "Forbidden request: (127.0.0.1) "
-                               "access to /puppet/v3/catalog/s1 (method :get)"))))))))))
+                               "access to /puppet/v3/catalog/s1 (method :get)"))))))))
+    (testing "With a semi-complex configuration representing our defaults"
+      (with-app-with-config
+        app
+        [echo-reverse-service authorization-service]
+        (assoc-in minimal-config [:authorization :rules] default-rules)
+        (let [svc (get-service app :EchoReverseService)
+              echo-handler (echo-reverse svc "Prefix: ")]
+          (let [req (assoc base-request :uri "/puppet/v3/environments"
+                                        :body "Hello World!")
+                {:keys [body status]} (echo-handler req)]
+            (testing "Request is allowed because name empty-string matches glob"
+              ; FIXME This should be denied, not authentic, no ssl cert
+              (is (= 200 status))
+              (is (= body (str "Prefix: !dlroW olleH"))))))))))
