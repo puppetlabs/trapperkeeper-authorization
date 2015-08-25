@@ -3,24 +3,40 @@
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
             [puppetlabs.ssl-utils.core :as ssl-utils])
-  (:import  (java.net InetAddress)
-            (clojure.lang IFn)))
+  (:import  (clojure.lang IFn)))
 
+(def is-authentic-key
+  "The nested key where authenticity information is stored."
+  [:authorization :authentic?])
 
-(schema/defn request->name :- schema/Str
-             "Returns the embedded certificate CN if it exists, otherwise the reverse lookup of the ip address"
-             [request :- ring/Request]
-             (if-let [certificate (:ssl-client-cert request)]
-               (ssl-utils/get-cn-from-x509-certificate certificate)
-               (-> (InetAddress/getByName (:remote-addr request))
-                   (.getCanonicalHostName))))
+(def name-key
+  "The nested key where the identifying name of the request is stored."
+  [:authorization :name])
+
+(schema/defn request->name :- (schema/maybe schema/Str)
+  "Return the identifying name of the request or nil"
+  ; TODO extract the name from the X headers
+  [request :- ring/Request]
+  (if-let [certificate (:ssl-client-cert request)]
+    (ssl-utils/get-cn-from-x509-certificate certificate)))
+
+(schema/defn add-authinfo :- ring/Request
+  "Add authentication information to the ring request."
+  [request :- ring/Request]
+  (let [id (request->name request)]
+    (->
+      request
+      (assoc-in name-key (str id))
+      (assoc-in is-authentic-key (if id true false)))))
 
 (schema/defn wrap-authorization-check :- IFn
-             "A ring middleware that checks the request is allowed by the provided rules"
-             [handler :- IFn
-              rules :- rules/Rules]
-             (fn [req]
-               (let [{authorized :authorized msg :message} (rules/allowed? rules req (request->name req))]
-                 (if authorized
-                   (handler req)
-                   {:status 401 :body msg}))))
+  "A ring middleware that checks the request is allowed by the provided rules"
+  [handler :- IFn
+   rules :- rules/Rules]
+  (fn [request]
+    (let [req (add-authinfo request)
+          name (get-in req name-key "")
+          {:keys [authorized message]} (rules/allowed? rules req name)]
+      (if (true? authorized)
+        (handler req)
+        {:status 401 :body message}))))

@@ -83,14 +83,13 @@
               echo-handler (echo-reverse svc "Prefix: ")]
           (let [req (assoc catalog-request-nocert :body "Hello World!")
                 {:keys [body status]} (echo-handler req)]
-            ; FIXME - This request should be denied, there is no SSL client cert
             (testing "Request is allowed due to reverse DNS lookup of 127.0.0.1"
-              (is (= 200 status))
-              (is (= "Prefix: !dlroW olleH" body))))
+              (is (= 401 status))
+              (is (= body "Forbidden request: (127.0.0.1) access to /puppet/v3/catalog/localhost (method :get)"))))
           (let [req (assoc catalog-request-nocert :body "Hello World!"
                                                   :uri "/puppet/v3/catalog/s1")
                 {:keys [body status]} (echo-handler req)]
             (testing "Request is denied due to unauthenticated request"
               (is (= 401 status))
-              (is (= body (str "Forbidden request: localhost(127.0.0.1) "
+              (is (= body (str "Forbidden request: (127.0.0.1) "
                                "access to /puppet/v3/catalog/s1 (method :get)"))))))))))
