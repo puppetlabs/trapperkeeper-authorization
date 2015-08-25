@@ -6,6 +6,16 @@
 
 (use-fixtures :once schema-test/validate-schemas)
 
+;; Constants
+
+(def is-authentic-key
+  "The nested key where authenticity information is stored."
+  [:authorization :authentic?])
+
+(def name-key
+  "The nested key where the identifying name of the request is stored."
+  [:authorization :name])
+
 (defmacro dbg [x] `(let [x# ~x] (println "dbg:" '~x "=" x#) x#))
 
 (defn- request
@@ -103,7 +113,8 @@
   (reduce #(-> %1 (rules/add-rule (-> (rules/new-path-rule (first %2)) (rules/allow (second %2))))) rules/empty-rules rules))
 
 (deftest test-allowed
-  (let [request (request "/stairway/to/heaven" :get "192.168.1.23")]
+  (let [request (-> (request "/stairway/to/heaven" :get "192.168.1.23")
+                    (assoc-in is-authentic-key true))]
     (testing "allowed request by name"
       (let [rules (build-rules ["/path/to/resource" "*.domain.org"] ["/stairway/to/heaven" "*.domain.org"])]
         (is (rules/authorized? (rules/allowed? rules request "test.domain.org")))))
@@ -114,11 +125,11 @@
     (testing "rule not allowing"
       (let [rules (build-rules ["/path/to/resource" "*.domain.org"] ["/stairway/to/heaven" "*.domain.org"])]
         (is (not (rules/authorized? (rules/allowed? rules request "www.test.org"))))
-        (is (= (:message (rules/allowed? rules request "www.test.org")) "Forbidden request: www.test.org(192.168.1.23) access to /stairway/to/heaven (method :get)"))))
+        (is (= (:message (rules/allowed? rules request "www.test.org")) "Forbidden request: www.test.org(192.168.1.23) access to /stairway/to/heaven (method :get) (authentic: true)"))))
     (testing "tagged rule not allowing "
       (let [rules (map #(rules/tag-rule %1 "file.txt" 23) (build-rules ["/path/to/resource" "*.domain.org"] ["/stairway/to/heaven" "*.domain.org"]))]
         (is (not (rules/authorized? (rules/allowed? rules request "www.test.org"))))
-        (is (= (:message (rules/allowed? rules request "www.test.org")) "Forbidden request: www.test.org(192.168.1.23) access to /stairway/to/heaven (method :get) at file.txt:23"))))))
+        (is (= (:message (rules/allowed? rules request "www.test.org")) "Forbidden request: www.test.org(192.168.1.23) access to /stairway/to/heaven (method :get) at file.txt:23 (authentic: true)"))))))
 
 (deftest test-rules-equality
   (let [a (build-rules ["/path/to/resource" "*.domain.org"] ["/stairway/to/heaven" "*.domain.org"])

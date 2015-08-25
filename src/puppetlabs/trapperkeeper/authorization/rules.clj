@@ -33,6 +33,16 @@
   contains an explanation message"
   { :authorized schema/Bool :message schema/Str })
 
+;; Constants
+
+(def is-authentic-key
+  "The nested key where authenticity information is stored."
+  [:authorization :authentic?])
+
+(def name-key
+  "The nested key where the identifying name of the request is stored."
+  [:authorization :name])
+
 ;; Rule creation
 
 (schema/defn new-rule :- Rule
@@ -131,13 +141,14 @@
   [request name rule]
   (let [ip (:remote-addr request)
         path (:uri request)
-        method (:request-method request)]
+        method (:request-method request)
+        authentic? (true? (get-in request is-authentic-key))]
     (str "Forbidden request: " (if name
           (format "%s(%s)" name ip)
           ip) " access to " path " (method " method ")"
          (if-let [ file (:file rule) ]
-           (str " at " file ":" (:line rule))
-           ""))))
+           (str " at " file ":" (:line rule)))
+         (format " (authentic: %s)" authentic?))))
 
 ;; Rules creation
 
@@ -156,7 +167,8 @@
    request :- Request
    name :- schema/Str]
   (if-let [ { matched-rule :rule matches :matches } (some #(match? % request) rules)]
-    (if (acl/allowed? (:acl matched-rule) name (:remote-addr request) matches)
+    (if (and (true? (get-in request is-authentic-key))
+             (acl/allowed? (:acl matched-rule) name (:remote-addr request) matches))
       {:authorized true :message ""}
       {:authorized false :message (request->description request name matched-rule)})
     {:authorized false :message "global deny all - no rules matched"}))

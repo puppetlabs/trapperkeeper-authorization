@@ -91,14 +91,17 @@
                 {:keys [body status]} (echo-handler req)]
             (testing "Request is allowed due to reverse DNS lookup of 127.0.0.1"
               (is (= 401 status))
-              (is (= body "Forbidden request: (127.0.0.1) access to /puppet/v3/catalog/localhost (method :get)"))))
+              (is (= body (str "Forbidden request: (127.0.0.1) "
+                               "access to /puppet/v3/catalog/localhost "
+                               "(method :get) (authentic: false)")))))
           (let [req (assoc catalog-request-nocert :body "Hello World!"
                                                   :uri "/puppet/v3/catalog/s1")
                 {:keys [body status]} (echo-handler req)]
             (testing "Request is denied due to unauthenticated request"
               (is (= 401 status))
               (is (= body (str "Forbidden request: (127.0.0.1) "
-                               "access to /puppet/v3/catalog/s1 (method :get)"))))))))
+                               "access to /puppet/v3/catalog/s1 (method :get) "
+                               "(authentic: false)"))))))))
     (testing "With a semi-complex configuration representing our defaults"
       (with-app-with-config
         app
@@ -109,7 +112,8 @@
           (let [req (assoc base-request :uri "/puppet/v3/environments"
                                         :body "Hello World!")
                 {:keys [body status]} (echo-handler req)]
-            (testing "Request is allowed because name empty-string matches glob"
-              ; FIXME This should be denied, not authentic, no ssl cert
-              (is (= 200 status))
-              (is (= body (str "Prefix: !dlroW olleH"))))))))))
+            (testing "Request is denied because it is not authentic"
+              (is (= 401 status))
+              (is (= body (str "Forbidden request: (127.0.0.1) "
+                               "access to /puppet/v3/environments "
+                               "(method :get) (authentic: false)"))))))))))
