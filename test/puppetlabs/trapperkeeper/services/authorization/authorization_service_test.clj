@@ -3,12 +3,14 @@
     [clojure.test :refer :all]
     [clojure.string :as str]
     [puppetlabs.trapperkeeper.app :refer [get-service]]
+    [puppetlabs.trapperkeeper.authorization.testutils :refer :all]
     [puppetlabs.trapperkeeper.services :refer [defservice]]
     [puppetlabs.trapperkeeper.services.authorization.authorization-service :refer [authorization-service]]
     [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
     [puppetlabs.trapperkeeper.testutils.logging :refer [with-test-logging]]
     [ring.util.response :refer [response]]
-    [schema.test :as schema-test]))
+    [schema.test :as schema-test]
+    [puppetlabs.trapperkeeper.authorization.rules :as rules]))
 
 (use-fixtures :once schema-test/validate-schemas)
 
@@ -24,7 +26,7 @@
   [[:AuthorizationService wrap-with-authorization-check]]
   (echo-reverse
     [this msg]
-    (let [handler (fn [req] (response (str msg (str/reverse (:body req)))))]
+    (let [handler (fn [req] (response (str msg (str/reverse (str (:body req))))))]
       (wrap-with-authorization-check handler))))
 
 (def minimal-config
@@ -60,60 +62,48 @@
 
 (def base-request
   "A basic request to feed into the tests"
-  {:uri "/foo/bar"
-   :request-method :get
-   :remote-addr "127.0.0.1"})
+  (request "/" :get (create-certificate "test.domain.org") "127.0.0.1" ))
+
+(defn build-ring-handler
+  "Build a ring handler around the echo reverse service"
+  [rules]
+  (fn [request]
+    (with-test-logging
+      (with-app-with-config
+        app
+        [echo-reverse-service authorization-service]
+        (assoc-in minimal-config [:authorization :rules] rules)
+        (let [svc (get-service app :EchoReverseService)
+              echo-handler (echo-reverse svc "Prefix: ")]
+          (echo-handler request))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Tests
 
 (deftest ^:integration wrap-handler-test
-  (with-test-logging
-    (testing "With a minimal config of an empty list of rules"
-      (with-app-with-config
-        app
-        [echo-reverse-service authorization-service]
-        minimal-config
-        (let [svc (get-service app :EchoReverseService)
-              echo-handler (echo-reverse svc "Prefix: ")
-              req (assoc base-request :body "Hello World!")
-              {:keys [body status]} (echo-handler req)]
-          (is (= 401 status))
-          (is (= "global deny all - no rules matched" body)))))
-    (testing "With a basic config protecting the catalog"
-      (with-app-with-config
-        app
-        [echo-reverse-service authorization-service]
-        basic-config
-        (let [svc (get-service app :EchoReverseService)
-              echo-handler (echo-reverse svc "Prefix: ")]
-          (let [req (assoc catalog-request-nocert :body "Hello World!")
-                {:keys [body status]} (echo-handler req)]
-            (testing "Request is allowed due to reverse DNS lookup of 127.0.0.1"
-              (is (= 401 status))
-              (is (= body (str "Forbidden request: (127.0.0.1) "
-                               "access to /puppet/v3/catalog/localhost "
-                               "(method :get) (authentic: false)")))))
-          (let [req (assoc catalog-request-nocert :body "Hello World!"
-                                                  :uri "/puppet/v3/catalog/s1")
-                {:keys [body status]} (echo-handler req)]
-            (testing "Request is denied due to unauthenticated request"
-              (is (= 401 status))
-              (is (= body (str "Forbidden request: (127.0.0.1) "
-                               "access to /puppet/v3/catalog/s1 (method :get) "
-                               "(authentic: false)"))))))))
-    (testing "With a semi-complex configuration representing our defaults"
-      (with-app-with-config
-        app
-        [echo-reverse-service authorization-service]
-        (assoc-in minimal-config [:authorization :rules] default-rules)
-        (let [svc (get-service app :EchoReverseService)
-              echo-handler (echo-reverse svc "Prefix: ")]
-          (let [req (assoc base-request :uri "/puppet/v3/environments"
-                                        :body "Hello World!")
-                {:keys [body status]} (echo-handler req)]
-            (testing "Request is denied because it is not authentic"
-              (is (= 401 status))
-              (is (= body (str "Forbidden request: (127.0.0.1) "
-                               "access to /puppet/v3/environments "
-                               "(method :get) (authentic: false)"))))))))))
+  (testing "With a default configuration list of rules"
+    (let [app (build-ring-handler default-rules)]
+      (let [req (assoc base-request :uri "/not/covered/by/default/rules")
+            {:keys [status body]} (app req)]
+        (is (= status 401))
+        (is (= body "global deny all - no rules matched")))
+      (let [req (-> base-request
+                    (assoc :uri "/puppet/v3/environments")
+                    (assoc :body "Hello World!"))
+            {:keys [status body]} (app req)]
+        (is (= status 200))
+        (is (= body "Prefix: !dlroW olleH")))))
+  (testing "With a minimal config of an empty list of rules"
+    (let [app (build-ring-handler [])]
+      (let [req (request "/path/to/foo" :get test-domain-cert "127.0.0.1")
+            {:keys [status body]} (app req)]
+        (is (= status 401))
+        (is (= body "global deny all - no rules matched")))))
+  (testing "With a basic config protecting the catalog"
+    (let [app (build-ring-handler basic-rules)]
+      (let [req (assoc catalog-request-nocert :body "Hello World!")
+            {:keys [status body]} (app req)]
+        (is (= status 401))
+        (is (= body (str "Forbidden request: (127.0.0.1) "
+                         "access to /puppet/v3/catalog/localhost "
+                         "(method :get) (authentic: false)")))))))
