@@ -1,10 +1,12 @@
 (ns puppetlabs.trapperkeeper.services.authorization.authorization-core-test
   (:require [clojure.test :refer :all]
             [puppetlabs.trapperkeeper.services.authorization.authorization-core :refer :all]
-            [schema.test]))
+            [schema.test]
+            [puppetlabs.trapperkeeper.authorization.rules :as rules]))
 
 (use-fixtures :once schema.test/validate-schemas)
 
+(def minimal-rule {:path ""})
 (def base-path-auth {:path "/foo/bar/baz", :type "path"})
 (def base-regex-auth {:path "(incoming|outgoing)", :type "regex"})
 (def allow-single {:allow "www.domain.org"})
@@ -91,48 +93,48 @@
                                        :type  "regex"
                                        :allow "somewhere"})))))
 
-(deftest transform-config-test
-  (testing "Basic rules are translated properly"
-    (let [{:keys [type path method]}
-          (transform-config-rule (merge base-path-auth allow-list))]
+(deftest config->rule-test
+  (testing "Given a basic allow rule against a string path"
+    (let [m (merge base-path-auth allow-list)
+          {:keys [type path method]} (config->rule m)]
       (is (= :string type))
-      (is (= (str path) (str #"/foo/bar/baz")))
-      (is (= :any method)))
-
-    (let [{:keys [type path method]}
-          (transform-config-rule (merge base-regex-auth allow-single))]
-      (is (= :regex type))
-      (is (= (str path) "(incoming|outgoing)"))
-      (is (= :any method)))))
-
-(deftest transform-config-rule-to-acl-test
-  (testing "Empty config rule map returns an empty ACL sorted set"
-    (is (= #{} (transform-config-rule-to-acl {}))))
-  (testing "Multiple allow and deny statements in a single path rule"
-    (let [config-rule (merge base-path-auth allow-single deny-single)
-          acl (transform-config-rule-to-acl config-rule)]
-      (is (= expected-acl-as-vec (vec acl)))))
-  (testing "Deny rules come before allow rules in the resulting ACL"
-    (let [config-rule (merge base-path-auth deny-list allow-list)
-          acl (transform-config-rule-to-acl config-rule)]
-      (is (= :deny (:auth-type (first acl))))
-      (is (= :deny (:auth-type (second acl))))
-      (is (= [:deny :deny :allow :allow] (vec (map :auth-type acl))))))
-  (testing "Allow rules with no deny are returned in order"
-    (let [config-rule (merge base-path-auth allow-list)
-          acl (transform-config-rule-to-acl config-rule)]
-      (is (= ["com" "test"] (:pattern (first acl))))
-      (is (= :inexact (:qualifier (first acl))))
-      (is (= ["org" "domain"] (:pattern (second acl))))
-      (is (= :inexact (:qualifier (second acl))))))
-  (testing "Deny rules with no allow are returned in order"
-    (let [config-rule (merge base-path-auth deny-list)
-          acl (transform-config-rule-to-acl config-rule)]
-      (is (= ["com" "bull" "bald"] (:pattern (first acl))))
-      (is (= :exact (:qualifier (first acl))))
-      (is (= ["com" "eagle" "bald"] (:pattern (second acl))))
-      (is (= :exact (:qualifier (first acl)))))))
-
-
-
+      (testing "path is converted to an quoted regular expression"
+        (is (= (str path) "^\\Q/foo/bar/baz\\E")))
+      (is (= :any method))))
+  (testing "Given a basic allow rule with a specific :put method"
+    (let [m (merge base-path-auth allow-list {:method :put})
+          {:keys [type path method]} (config->rule m)]
+      (is (= :string type))
+      (testing "path is converted to an quoted regular expression"
+        (is (= (str path) "^\\Q/foo/bar/baz\\E")))
+      (is (= :put method))))
+  (testing "The ACL of the rule"
+    (testing "When the configuration has no allow or deny entries"
+      (let [{:keys [acl]} (config->rule minimal-rule)]
+        (is (empty? acl) "is empty")))
+    (testing "When the configuration has multiple allow and deny statements"
+      (let [m (merge base-path-auth allow-single deny-single)
+            {:keys [acl]} (config->rule m)]
+        (is (= expected-acl-as-vec (vec acl)) "matches exactly")))
+    (testing "Deny rules come before allow rules in the resulting ACL"
+      (let [m (merge base-path-auth deny-list allow-list)
+            {:keys [acl]} (config->rule m)]
+        (is (= :deny (:auth-type (first acl))) "first entry is deny")
+        (is (= :deny (:auth-type (second acl))) "second entry is deny")
+        (is (= [:deny :deny :allow :allow] (vec (map :auth-type acl)))
+            "allow entries follow deny entries")))
+    (testing "Allow rules with no deny are returned in order"
+      (let [m (merge base-path-auth allow-list)
+            {:keys [acl]} (config->rule m)]
+        (is (= ["com" "test"] (:pattern (first acl))))
+        (is (= :inexact (:qualifier (first acl))))
+        (is (= ["org" "domain"] (:pattern (second acl))))
+        (is (= :inexact (:qualifier (second acl))))))
+    (testing "Deny rules with no allow are returned in order"
+      (let [m (merge base-path-auth deny-list)
+            {:keys [acl]} (config->rule m)]
+        (is (= ["com" "bull" "bald"] (:pattern (first acl))))
+        (is (= :exact (:qualifier (first acl))))
+        (is (= ["com" "eagle" "bald"] (:pattern (second acl))))
+        (is (= :exact (:qualifier (first acl))))))))
 

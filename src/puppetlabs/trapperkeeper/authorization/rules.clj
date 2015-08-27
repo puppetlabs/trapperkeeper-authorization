@@ -1,7 +1,7 @@
 (ns puppetlabs.trapperkeeper.authorization.rules
   (:require [schema.core :as schema]
             [puppetlabs.trapperkeeper.authorization.acl :as acl]
-            [puppetlabs.trapperkeeper.authorization.ring :refer [Request]])
+            [puppetlabs.trapperkeeper.authorization.ring :as ring])
   (:import java.util.regex.Pattern))
 
 ;; Schemas
@@ -122,7 +122,7 @@
 (schema/defn match? :- RuleMatch
   "returns the rule if it matches the request URI, and also any capture groups of the Rule pattern if there are."
   [rule :- Rule
-   request :- Request]
+   request :- ring/Request]
   (if (method-match? (:request-method request) (:method rule)) ;; make sure method match
     (if-let [matches (re-find* (:path rule) (:uri request))] ;; check rule against request uri
       {:rule rule :matches (into [] (rest matches))})))
@@ -131,13 +131,14 @@
   [request name rule]
   (let [ip (:remote-addr request)
         path (:uri request)
-        method (:request-method request)]
+        method (:request-method request)
+        authentic? (true? (get-in request ring/is-authentic-key))]
     (str "Forbidden request: " (if name
           (format "%s(%s)" name ip)
           ip) " access to " path " (method " method ")"
          (if-let [ file (:file rule) ]
-           (str " at " file ":" (:line rule))
-           ""))))
+           (str " at " file ":" (:line rule)))
+         (format " (authentic: %s)" authentic?))))
 
 ;; Rules creation
 
@@ -153,10 +154,11 @@
 (schema/defn allowed? :- AuthorizationResult
   "Returns an AuthorizationResult of the given Rule set."
   [rules :- Rules
-   request :- Request
+   request :- ring/Request
    name :- schema/Str]
   (if-let [ { matched-rule :rule matches :matches } (some #(match? % request) rules)]
-    (if (acl/allowed? (:acl matched-rule) name (:remote-addr request) matches)
+    (if (and (true? (get-in request ring/is-authentic-key))
+             (acl/allowed? (:acl matched-rule) name (:remote-addr request) matches))
       {:authorized true :message ""}
       {:authorized false :message (request->description request name matched-rule)})
     {:authorized false :message "global deny all - no rules matched"}))

@@ -2,6 +2,14 @@
   (:require [schema.core :as schema])
   (:import (java.security.cert X509Certificate)))
 
+(def is-authentic-key
+  "The nested key where authenticity information is stored."
+  [:authorization :authentic?])
+
+(def name-key
+  "The nested key where the identifying name of the request is stored."
+  [:authorization :name])
+
 ;; schema
 
 (def RequestMethod (schema/enum :get :post :put :delete :head :options))
@@ -14,3 +22,4 @@
    (schema/optional-key :ssl-client-cert) X509Certificate
    schema/Keyword schema/Any})
 
+;; Functions
