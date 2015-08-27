@@ -1,7 +1,7 @@
 (ns puppetlabs.trapperkeeper.authorization.rules
   (:require [schema.core :as schema]
             [puppetlabs.trapperkeeper.authorization.acl :as acl]
-            [puppetlabs.trapperkeeper.authorization.ring :refer [Request]])
+            [puppetlabs.trapperkeeper.authorization.ring :as ring])
   (:import java.util.regex.Pattern))
 
 ;; Schemas
@@ -32,16 +32,6 @@
   "A result returned by rules/allowed? that can be either authorized or non-authorized. If non-authorized it also
   contains an explanation message"
   { :authorized schema/Bool :message schema/Str })
-
-;; Constants
-
-(def is-authentic-key
-  "The nested key where authenticity information is stored."
-  [:authorization :authentic?])
-
-(def name-key
-  "The nested key where the identifying name of the request is stored."
-  [:authorization :name])
 
 ;; Rule creation
 
@@ -132,7 +122,7 @@
 (schema/defn match? :- RuleMatch
   "returns the rule if it matches the request URI, and also any capture groups of the Rule pattern if there are."
   [rule :- Rule
-   request :- Request]
+   request :- ring/Request]
   (if (method-match? (:request-method request) (:method rule)) ;; make sure method match
     (if-let [matches (re-find* (:path rule) (:uri request))] ;; check rule against request uri
       {:rule rule :matches (into [] (rest matches))})))
@@ -142,7 +132,7 @@
   (let [ip (:remote-addr request)
         path (:uri request)
         method (:request-method request)
-        authentic? (true? (get-in request is-authentic-key))]
+        authentic? (true? (get-in request ring/is-authentic-key))]
     (str "Forbidden request: " (if name
           (format "%s(%s)" name ip)
           ip) " access to " path " (method " method ")"
@@ -164,10 +154,10 @@
 (schema/defn allowed? :- AuthorizationResult
   "Returns an AuthorizationResult of the given Rule set."
   [rules :- Rules
-   request :- Request
+   request :- ring/Request
    name :- schema/Str]
   (if-let [ { matched-rule :rule matches :matches } (some #(match? % request) rules)]
-    (if (and (true? (get-in request is-authentic-key))
+    (if (and (true? (get-in request ring/is-authentic-key))
              (acl/allowed? (:acl matched-rule) name (:remote-addr request) matches))
       {:authorized true :message ""}
       {:authorized false :message (request->description request name matched-rule)})

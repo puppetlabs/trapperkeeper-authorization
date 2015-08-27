@@ -2,19 +2,10 @@
   (:require [clojure.test :refer :all]
             [schema.test :as schema-test]
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
-            [puppetlabs.trapperkeeper.authorization.acl :as acl]))
+            [puppetlabs.trapperkeeper.authorization.acl :as acl]
+            [puppetlabs.trapperkeeper.authorization.ring :as ring]))
 
 (use-fixtures :once schema-test/validate-schemas)
-
-;; Constants
-
-(def is-authentic-key
-  "The nested key where authenticity information is stored."
-  [:authorization :authentic?])
-
-(def name-key
-  "The nested key where the identifying name of the request is stored."
-  [:authorization :name])
 
 (defmacro dbg [x] `(let [x# ~x] (println "dbg:" '~x "=" x#) x#))
 
@@ -114,7 +105,7 @@
 
 (deftest test-allowed
   (let [request (-> (request "/stairway/to/heaven" :get "192.168.1.23")
-                    (assoc-in is-authentic-key true))]
+                    (assoc-in ring/is-authentic-key true))]
     (testing "allowed request by name"
       (let [rules (build-rules ["/path/to/resource" "*.domain.org"] ["/stairway/to/heaven" "*.domain.org"])]
         (is (rules/authorized? (rules/allowed? rules request "test.domain.org")))))

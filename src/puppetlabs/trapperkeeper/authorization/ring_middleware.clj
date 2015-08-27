@@ -5,18 +5,11 @@
             [puppetlabs.ssl-utils.core :as ssl-utils])
   (:import  (clojure.lang IFn)))
 
-(def is-authentic-key
-  "The nested key where authenticity information is stored."
-  [:authorization :authentic?])
-
-(def name-key
-  "The nested key where the identifying name of the request is stored."
-  [:authorization :name])
-
 (schema/defn request->name :- (schema/maybe schema/Str)
   "Return the identifying name of the request or nil"
-  ; TODO extract the name from the X headers
   [request :- ring/Request]
+  ; TODO TK-260 Return a name even if there is no SSL client cert
+  ; TODO SERVER-763 Support the name from the X headers
   (if-let [certificate (:ssl-client-cert request)]
     (ssl-utils/get-cn-from-x509-certificate certificate)))
 
@@ -26,9 +19,9 @@
   (let [id (request->name request)]
     (->
       request
-      (assoc-in name-key (str id))
+      (assoc-in ring/name-key (str id))
       ; TODO SERVER-763 Get authenticity from header if allow-header-cert-info
-      (assoc-in is-authentic-key (if id true false)))))
+      (assoc-in ring/is-authentic-key (if id true false)))))
 
 (schema/defn wrap-authorization-check :- IFn
   "A ring middleware that checks the request is allowed by the provided rules"
@@ -36,7 +29,7 @@
    rules :- rules/Rules]
   (fn [request]
     (let [req (add-authinfo request)
-          name (get-in req name-key "")
+          name (get-in req ring/name-key "")
           {:keys [authorized message]} (rules/allowed? rules req name)]
       (if (true? authorized)
         (handler req)
