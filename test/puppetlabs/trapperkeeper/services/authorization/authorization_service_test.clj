@@ -44,10 +44,6 @@
     :method :get
     :allow "$1"}])
 
-(def basic-config
-  "Minimal config with a basic rule layered on top."
-  (assoc-in minimal-config [:authorization :rules] basic-rules))
-
 (def default-rules
   "A representative example list of rules intended to model the defaults"
   [{:path "/puppet/v3/environments"

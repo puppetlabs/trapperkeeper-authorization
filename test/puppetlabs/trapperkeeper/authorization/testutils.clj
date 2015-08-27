@@ -7,7 +7,8 @@
   [path method certificate ip]
   {:uri path :request-method method :remote-addr ip :ssl-client-cert certificate})
 
-;; Exctracted from ssl-utils test
+;; Extracted from ssl-utils test
+
 (defn- generate-not-before-date []
   (-> (DateTime/now)
       (.minus (Period/days 1))
