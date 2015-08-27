@@ -85,7 +85,7 @@
     (let [app (build-ring-handler default-rules)]
       (let [req (assoc base-request :uri "/not/covered/by/default/rules")
             {:keys [status body]} (app req)]
-        (is (= status 401))
+        (is (= status 403))
         (is (= body "global deny all - no rules matched")))
       (let [req (-> base-request
                     (assoc :uri "/puppet/v3/environments")
@@ -97,13 +97,13 @@
     (let [app (build-ring-handler [])]
       (let [req (request "/path/to/foo" :get test-domain-cert "127.0.0.1")
             {:keys [status body]} (app req)]
-        (is (= status 401))
+        (is (= status 403))
         (is (= body "global deny all - no rules matched")))))
   (testing "With a basic config protecting the catalog"
     (let [app (build-ring-handler basic-rules)]
       (let [req (assoc catalog-request-nocert :body "Hello World!")
             {:keys [status body]} (app req)]
-        (is (= status 401))
+        (is (= status 403))
         (is (= body (str "Forbidden request: (127.0.0.1) "
                          "access to /puppet/v3/catalog/localhost "
                          "(method :get) (authentic: false)")))))))

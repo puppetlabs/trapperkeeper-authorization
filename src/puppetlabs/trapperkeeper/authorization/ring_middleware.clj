@@ -39,4 +39,4 @@
           {:keys [authorized message]} (rules/allowed? rules req name)]
       (if (true? authorized)
         (handler req)
-        {:status 401 :body message}))))
+        {:status 403 :body message}))))
