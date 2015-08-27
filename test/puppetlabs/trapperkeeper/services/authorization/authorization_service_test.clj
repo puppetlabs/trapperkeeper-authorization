@@ -9,8 +9,7 @@
     [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
     [puppetlabs.trapperkeeper.testutils.logging :refer [with-test-logging]]
     [ring.util.response :refer [response]]
-    [schema.test :as schema-test]
-    [puppetlabs.trapperkeeper.authorization.rules :as rules]))
+    [schema.test :as schema-test]))
 
 (use-fixtures :once schema-test/validate-schemas)
 
