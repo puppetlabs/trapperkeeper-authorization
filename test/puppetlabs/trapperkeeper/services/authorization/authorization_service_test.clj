@@ -48,7 +48,62 @@
   "A representative example list of rules intended to model the defaults"
   [{:match-request
     {:path "/puppet/v3/environments"
+     :method :get
      :type "path"}
+    :allow "*"}
+   {:match-request
+    {:path "^/puppet/v3/catalog/([^/]+)$"
+     :method :get
+     :type "regex"}
+    :allow "$1"}
+   {:match-request
+    {:path "^/puppet/v3/node/([^/]+)$"
+     :method :get
+     :type "regex"}
+    :allow "$1"}
+   {:match-request
+    {:path "^/puppet/v3/report/([^/]+)$"
+     :method :put
+     :type "regex"}
+    :allow "$1"}
+   {:match-request
+    {:path "/puppet/v3/file"
+     :method :any
+     :type "path"}
+    :allow "*"}
+   {:match-request
+    {:path "/puppet/v3/status"
+     :method :get
+     :type "path"}
+    :allow "*"}
+   {:match-request
+    {:path "/puppet-ca/v1/certificate_revocation_list/ca"
+     :method :get
+     :type "path"}
+    :allow "*"}
+   {:match-request
+    {:path "/puppet-ca/v1/certificate/ca"
+     :method :get
+     :type "path"}
+    :allow_unauthenticated true
+    :allow "*"}
+   {:match-request
+    {:path "/puppet-ca/v1/certificate/"
+     :method :get
+     :type "path"}
+    :allow_unauthenticated true
+    :allow "*"}
+   {:match-request
+    {:path "/puppet-ca/v1/certificate_request"
+     :method :get
+     :type "path"}
+    :allow_unauthenticated true
+    :allow "*"}
+   {:match-request
+    {:path "/puppet-ca/v1/certificate_request"
+     :method :put
+     :type "path"}
+    :allow_unauthenticated true
     :allow "*"}])
 
 (def catalog-request-nocert
