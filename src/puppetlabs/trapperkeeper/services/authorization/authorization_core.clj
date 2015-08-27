@@ -14,6 +14,10 @@
   {:allow #(rules/allow %1 %2)
    :deny #(rules/deny %1 %2)})
 
+(def new-rule-func-map
+  "This is a function map to allow programmatic execution of path/regex rules"
+  {:path rules/new-path-rule :regex rules/new-regex-rule})
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private
 
@@ -30,10 +34,12 @@
   "Build a new Rule based on the provided config-map"
   [config-map]
   (let [rule-type (keyword (get-in config-map [:match-request :type] :path))
-        path (get-in config-map [:match-request :path])]
-    (if (= rule-type :path)
-      (-> (rules/new-path-rule path (method config-map)))
-      (-> (rules/new-regex-rule path (method config-map))))))
+        path (get-in config-map [:match-request :path])
+        rule-fn (rule-type new-rule-func-map)
+        rule (rule-fn path (method config-map))]
+    (if (true? (:allow_unauthenticated config-map))
+      (assoc rule :allow_unauthenticated true)
+      rule)))
 
 (defn- add-individual-acl
   "Add an individual acl to a given rule:

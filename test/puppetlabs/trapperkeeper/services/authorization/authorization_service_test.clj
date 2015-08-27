@@ -116,6 +116,10 @@
   "A basic request to feed into the tests"
   (request "/" :get "127.0.0.1" (create-certificate "test.domain.org") ))
 
+(def unauthenticated-request
+  "A basic unauthenticated request to feed into the tests"
+  (request "/" :get "127.0.0.1"))
+
 (defn build-ring-handler
   "Build a ring handler around the echo reverse service"
   [rules]
@@ -145,6 +149,19 @@
             {:keys [status body]} (app req)]
         (is (= status 200))
         (is (= body "Prefix: !dlroW olleH")))))
+  (testing "(TK-260) Authorizing unauthenticated requests"
+    (let [app (build-ring-handler default-rules)]
+      (let [{:keys [status body]} (app unauthenticated-request)]
+        (is (= status 403))
+        (is (= body "global deny all - no rules matched")))
+      (let [req (assoc unauthenticated-request :uri "/puppet-ca/v1/certificate/ca"
+                                               :body "FOOBAR")
+            {:keys [status body]} (app req)]
+        (is (= status 200))
+        (is (= body "Prefix: RABOOF")))
+      (let [req (assoc unauthenticated-request :uri "/not/covered/by/rules")
+            {:keys [status body]} (app req)]
+        (is (= status 403)))))
   (testing "With a minimal config of an empty list of rules"
     (let [app (build-ring-handler [])]
       (let [req (request "/path/to/foo" :get "127.0.0.1" test-domain-cert)

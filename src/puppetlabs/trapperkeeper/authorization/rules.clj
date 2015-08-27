@@ -15,6 +15,7 @@
    :type Type
    :path Pattern
    :method Method
+   (schema/optional-key :allow_unauthenticated) schema/Bool
    :acl acl/ACL
    (schema/optional-key :query-params) {schema/Str #{schema/Str}}
    (schema/optional-key :file) schema/Str
@@ -45,6 +46,15 @@
     pattern :- Pattern
     method :- Method]
     {:type type :path pattern :acl acl/empty-acl :method method}))
+
+(schema/defn equals-rule :- schema/Bool
+  "Test if two given rule are fully equal"
+  [a :- Rule b :- Rule]
+  (and
+    (= (:type a) (:type b))
+    (= (:acl a) (:acl b))
+    (= (:method a) (:method b))
+    (= (str (:path a)) (str (:path b)))))
 
 (schema/defn tag-rule :- Rule
   "Tag a rule with a file/line - useful for instance when the rule has been read
@@ -170,10 +180,12 @@
    request :- ring/Request
    name :- schema/Str]
   (if-let [ { matched-rule :rule matches :matches } (some #(match? % request) rules)]
-    (if (and (true? (get-in request ring/is-authentic-key))
-             (acl/allowed? (:acl matched-rule) name (:remote-addr request) matches))
-      {:authorized true :message ""}
-      {:authorized false :message (request->description request name matched-rule)})
+    (let [allow_unauthenticated? (true? (:allow_unauthenticated matched-rule))
+          authenticated? (true? (get-in request ring/is-authentic-key))]
+      (if (and (or allow_unauthenticated? authenticated?)   ; TK-260
+               (acl/allowed? (:acl matched-rule) name (:remote-addr request) matches))
+        {:authorized true :message ""}
+        {:authorized false :message (request->description request name matched-rule)}))
     {:authorized false :message "global deny all - no rules matched"}))
 
 (schema/defn authorized? :- schema/Bool
