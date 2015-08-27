@@ -27,6 +27,7 @@
     (->
       request
       (assoc-in name-key (str id))
+      ; TODO SERVER-763 Get authenticity from header if allow-header-cert-info
       (assoc-in is-authentic-key (if id true false)))))
 
 (schema/defn wrap-authorization-check :- IFn
