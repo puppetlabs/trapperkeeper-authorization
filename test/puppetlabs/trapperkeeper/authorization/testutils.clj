@@ -2,9 +2,12 @@
   (:require [puppetlabs.ssl-utils.simple :as ssl]))
 
 (defn request
-  "Builds a ring request"
-  [path method certificate ip]
-  {:uri path :request-method method :remote-addr ip :ssl-client-cert certificate})
+  "Build a ring request for testing"
+  ([path method] (request path method "127.0.0.1"))
+  ([path method ip] {:uri path :request-method method :remote-addr ip})
+  ([path method ip certificate]
+   (-> (request path method ip)
+       (assoc :ssl-client-cert certificate))))
 
 (defn create-certificate
   [cn]

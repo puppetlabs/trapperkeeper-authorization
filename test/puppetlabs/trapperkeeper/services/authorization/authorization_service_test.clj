@@ -114,7 +114,7 @@
 
 (def base-request
   "A basic request to feed into the tests"
-  (request "/" :get (create-certificate "test.domain.org") "127.0.0.1" ))
+  (request "/" :get "127.0.0.1" (create-certificate "test.domain.org") ))
 
 (defn build-ring-handler
   "Build a ring handler around the echo reverse service"
@@ -147,7 +147,7 @@
         (is (= body "Prefix: !dlroW olleH")))))
   (testing "With a minimal config of an empty list of rules"
     (let [app (build-ring-handler [])]
-      (let [req (request "/path/to/foo" :get test-domain-cert "127.0.0.1")
+      (let [req (request "/path/to/foo" :get "127.0.0.1" test-domain-cert)
             {:keys [status body]} (app req)]
         (is (= status 403))
         (is (= body "global deny all - no rules matched")))))
