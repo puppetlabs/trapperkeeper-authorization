@@ -1,9 +1,8 @@
 (def ks-version "1.0.0")
 (def tk-version "1.1.1")
 (def tk-jetty-version "1.3.1")
-(def tk-authz-version "0.1.0")
 
-(defproject puppetlabs/trapperkeeper-authorization tk-authz-version
+(defproject puppetlabs/trapperkeeper-authorization "0.1.0"
   :description "Trapperkeeper authorization system"
   :url "http://github.com/puppetlabs/trapperkeeper-authorization"
   :license {:name "Apache License, Version 2.0"
