@@ -103,3 +103,25 @@
         (is (= body (str "Forbidden request: (127.0.0.1) "
                          "access to /puppet/v3/catalog/localhost "
                          "(method :get) (authentic: false)")))))))
+
+(deftest ^:integration query-params-test
+  (let [app (build-ring-handler
+             [{:path "/puppet/v3/environments"
+               :type "path"
+               :allow "*"
+               :query-params {"environment" ["test" "prod"]
+                              "foo" ["bar"]}}])
+        req (assoc base-request
+                   :uri "/puppet/v3/environments"
+                   :body "Query Param Test")
+        {:keys [status body]} (app req)]
+    (testing "request denied - params don't match"
+      (let [{:keys [status body]}
+            (app (assoc req :query-string "environment=dev&foo=bar"))]
+        (is (= status 403))
+        (is (= body "global deny all - no rules matched"))))
+    (testing "request allowed - params match"
+      (let [{:keys [status body]}
+            (app (assoc req :query-string "environment=prod&foo=bar"))]
+        (is (= status 200))
+        (is (= body "Prefix: tseT maraP yreuQ"))))))

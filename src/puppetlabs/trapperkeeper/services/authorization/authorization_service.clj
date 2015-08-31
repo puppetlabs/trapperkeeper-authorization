@@ -1,9 +1,10 @@
 (ns puppetlabs.trapperkeeper.services.authorization.authorization-service
-  (:require [puppetlabs.trapperkeeper.core :refer [defservice]]
-            [puppetlabs.trapperkeeper.services :refer [service-context]]
-            [puppetlabs.trapperkeeper.authorization.ring-middleware :refer
+  (:require [puppetlabs.trapperkeeper.authorization.ring-middleware :refer
              [wrap-authorization-check]]
-            [puppetlabs.trapperkeeper.services.authorization.authorization-core :refer :all]))
+            [puppetlabs.trapperkeeper.core :refer [defservice]]
+            [puppetlabs.trapperkeeper.services.authorization.authorization-core :refer :all]
+            [puppetlabs.trapperkeeper.services :refer [service-context]]
+            [ring.middleware.params :as ring]))
 
 (defprotocol AuthorizationService
   (wrap-with-authorization-check [this handler]))
@@ -20,4 +21,6 @@
   (wrap-with-authorization-check
     [this handler]
     (let [rules (get-in (service-context this) [:rules])]
-      (wrap-authorization-check handler rules))))
+      (-> handler
+          (wrap-authorization-check rules)
+          ring/wrap-params))))

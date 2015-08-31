@@ -16,7 +16,11 @@
   ([path method]
    (request path method "127.0.0.1"))
   ([path method ip]
-  { :uri path :request-method method :remote-addr ip}))
+   {:uri path :request-method method :remote-addr ip}))
+
+(defn- request-with-params
+  [path params]
+  (assoc (request path) :query-params params))
 
 (deftest test-rule-equality
   (let [a (-> (rules/new-path-rule "/path/to/resource" :any) (rules/allow "*.domain.org"))
@@ -68,6 +72,31 @@
       (testing (str "matching " x)
         (is (= (:rule (rules/match? rule (request "/path/to/resource" x))) rule))))))
 
+(deftest test-matching-query-parameters
+  (let [rule (rules/new-path-rule "/path/to/resource" :any)
+        foo-rule (rules/query-param rule "environment" "foo")
+        foo-bar-rule (rules/query-param rule "environment" ["foo" "bar"])]
+
+    (testing "request matches rule"
+      (are [rule params] (= rule (->> params
+                                      (request-with-params "/path/to/resource")
+                                      (rules/match? rule)
+                                      :rule))
+        foo-rule {"environment" "foo"}
+        foo-rule {"environment" ["foo" "bar"]}
+        foo-bar-rule {"environment" "foo"}
+        foo-bar-rule {"environment" "bar"}))
+
+    (testing "request does not match rule"
+      (are [rule params] (->> params
+                              (request-with-params "/path/to/resource")
+                              (rules/match? rule)
+                              nil?)
+        foo-rule {"environment" "Foo"}
+        foo-rule {"environment" "bar"}
+        foo-bar-rule {"environment" "Foo"}
+        foo-bar-rule {"environment" "foobar"}))))
+
 (deftest test-rule-acl-creation
   (let [rule (rules/new-path-rule "/highway/to/hell" :any)]
     (testing "allowing a host"
@@ -101,7 +130,10 @@
 (defn- build-rules
   "Build a list of rules from individual vectors of [path allow]"
   [& rules]
-  (reduce #(-> %1 (rules/add-rule (-> (rules/new-path-rule (first %2)) (rules/allow (second %2))))) rules/empty-rules rules))
+  (reduce #(rules/add-rule %1 (-> (rules/new-path-rule (first %2))
+                                  (rules/allow (second %2))))
+          rules/empty-rules
+          rules))
 
 (deftest test-allowed
   (let [request (-> (request "/stairway/to/heaven" :get "192.168.1.23")
@@ -138,7 +170,3 @@
       (is (not (rules/equals-rules a e))))
     (testing "acl inequality"
       (is (not (rules/equals-rules a f))))))
-
-
-
-

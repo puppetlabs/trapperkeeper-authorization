@@ -16,9 +16,10 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/tools.logging "0.2.6"]
                  [org.clojure/tools.cli "0.3.0"]
+                 [inet.data "0.5.5"]
                  [me.raynes/fs "1.4.5"]
                  [prismatic/schema "0.4.0"]
-                 [inet.data "0.5.5"]
+                 [ring/ring-core "1.4.0"]
 
                  ;; begin version conflict resolution dependencies
                  [clj-time "0.10.0"]
@@ -36,8 +37,7 @@
   :classifiers [["test" :testutils]]
 
   :profiles {:dev {:dependencies [[puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
-                                  [puppetlabs/kitchensink ~ks-version :classifier "test"]
-                                  [ring/ring-core "1.4.0" :scope "test"]]}
+                                  [puppetlabs/kitchensink ~ks-version :classifier "test"]]}
              :testutils {:source-paths ^:replace ["test"]}}
 
   ;; this plugin is used by jenkins jobs to interrogate the project version
