@@ -59,9 +59,7 @@
 (defn add-query-params
   "Add any query parameters specified in configuration to the rule."
   [rule {:keys [query-params]}]
-  (if query-params
-    (reduce-kv rules/query-param rule query-params)
-    rule))
+  (reduce-kv rules/query-param rule query-params))
 
 (schema/defn config->rule :- rules/Rule
   "Given a rule expressed as a map in the configuration return a Rule suitable

@@ -55,7 +55,10 @@
 (deftest test-matching-query-parameters
   (let [rule (rules/new-path-rule "/path/to/resource" :any)
         foo-rule (rules/query-param rule "environment" "foo")
-        foo-bar-rule (rules/query-param rule "environment" ["foo" "bar"])]
+        foo-bar-rule (rules/query-param rule "environment" ["foo" "bar"])
+        multiples-rule (-> rule
+                           (rules/query-param "beatles" ["lennon" "starr"])
+                           (rules/query-param "monkees" "davy"))]
 
     (testing "request matches rule"
       (are [rule params] (= rule (->> params
@@ -65,7 +68,9 @@
         foo-rule {"environment" "foo"}
         foo-rule {"environment" ["foo" "bar"]}
         foo-bar-rule {"environment" "foo"}
-        foo-bar-rule {"environment" "bar"}))
+        foo-bar-rule {"environment" "bar"}
+        multiples-rule {"beatles" "starr"
+                        "monkees" "davy"}))
 
     (testing "request does not match rule"
       (are [rule params] (->> params
@@ -75,7 +80,9 @@
         foo-rule {"environment" "Foo"}
         foo-rule {"environment" "bar"}
         foo-bar-rule {"environment" "Foo"}
-        foo-bar-rule {"environment" "foobar"}))))
+        foo-bar-rule {"environment" "foobar"}
+        multiples-rule {"beatles" ["lennon" "starr"]
+                        "monkees" "ringo"}))))
 
 (deftest test-rule-acl-creation
   (let [rule (rules/new-path-rule "/highway/to/hell" :any)]

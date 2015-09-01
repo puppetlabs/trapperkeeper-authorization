@@ -173,10 +173,9 @@
              (-> multi-query-param
                  (merge base-path-auth)
                  config->rule
-                 :query-params
-                 (update-in ["env"] set))))
-      (testing "single values are converted to lists"
-        (is (= {"environment" ["production"]}
+                 :query-params)))
+      (testing "single values are converted to sets"
+        (is (= {"environment" #{"production"}}
                (-> single-query-param
                    (merge base-path-auth)
                    config->rule

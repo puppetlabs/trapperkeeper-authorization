@@ -16,7 +16,7 @@
    :path Pattern
    :method (schema/enum :get :post :put :delete :head :any)
    :acl acl/ACL
-   (schema/optional-key :query-params) {schema/Str [schema/Str]}
+   (schema/optional-key :query-params) {schema/Str #{schema/Str}}
    (schema/optional-key :file) schema/Str
    (schema/optional-key :line) schema/Int
    })
@@ -60,13 +60,13 @@
   "Add a query parameter matching value(s) to a rule. New values will be
    appended to existing values.
 
-   The query parameters are in a map under the `:match-request` section of the
+   The query parameters are in a map under the `:query-params` section of the
    rule. Keys in the map are strings corresponding to the query parameters to
-   match, and the values are sequences of strings of acceptable values."
+   match, and the values are sets of strings of acceptable values."
   [rule :- Rule
    param :- schema/Str
    value :- (schema/either schema/Str [schema/Str])]
-  (update-in rule [:query-params param] into (flatten [value])))
+  (update-in rule [:query-params param] (comp set into) (flatten [value])))
 
 (defn- path->pattern
   "Returns a valid regex from a path"
@@ -128,7 +128,7 @@
   [request-params rule-params]
   (every? some?
           (for [k (keys rule-params)]
-            (some (set (get rule-params k))
+            (some (get rule-params k)
                   (flatten [(get request-params k)])))))
 
 (schema/defn match? :- RuleMatch
