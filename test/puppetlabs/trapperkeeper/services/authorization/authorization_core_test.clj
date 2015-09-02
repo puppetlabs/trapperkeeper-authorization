@@ -17,7 +17,7 @@
                          {:query-params {"environment" "production"}}})
 (def multi-query-param {:match-request
                         {:query-params {"env" ["prod" "staging"]}}})
-(def allow-unauthenticated {:allow_unauthenticated true})
+(def allow-unauthenticated {:allow-unauthenticated true})
 
 (def expected-acl-as-vec
   "The expected ACL given the configuration of a base-path combined with
@@ -51,10 +51,10 @@
           (is (= rule (validate-auth-config-rule! rule))))))))
 
 (deftest invalid-configs-fail
-  (testing "With allow_unauthenticated true and allow rules"
+  (testing "With allow-unauthenticated true and allow rules"
     (let [rule (merge base-path-auth allow-unauthenticated allow-single)]
       (is (thrown-with-msg? IllegalArgumentException
-            #"cannot have allow or deny if allow_unauthenticated"
+            #"cannot have allow or deny if allow-unauthenticated"
             (validate-auth-config-rule! rule)))))
   (testing "Missing keys are not valid"
     (is (thrown-with-msg? IllegalArgumentException

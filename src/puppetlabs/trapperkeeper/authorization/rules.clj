@@ -15,7 +15,7 @@
    :type Type
    :path Pattern
    :method Method
-   (schema/optional-key :allow_unauthenticated) schema/Bool
+   (schema/optional-key :allow-unauthenticated) schema/Bool
    :acl acl/ACL
    (schema/optional-key :query-params) {schema/Str #{schema/Str}}
    (schema/optional-key :file) schema/Str
@@ -180,8 +180,8 @@
    request :- ring/Request
    name :- schema/Str]
   (if-let [ { matched-rule :rule matches :matches } (some #(match? % request) rules)]
-    (if (true? (:allow_unauthenticated matched-rule))
-      {:authorized true :message "allow_unauthenticated is true - allowed"}
+    (if (true? (:allow-unauthenticated matched-rule))
+      {:authorized true :message "allow-unauthenticated is true - allowed"}
       (if (and (true? (get-in request ring/is-authentic-key)) ; authenticated?
             (acl/allowed? (:acl matched-rule) name (:remote-addr request) matches))
         {:authorized true :message ""}

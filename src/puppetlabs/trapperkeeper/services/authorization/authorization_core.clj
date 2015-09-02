@@ -9,6 +9,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Constants
 
+(def required-keys
+  "Keys required in an auth rule map."
+  [:path :type])
+
+(def required-or-key
+  "At least one of these keys is required in an auth rule map."
+  #{:deny :allow :allow-unauthenticated})
+
 (def acl-func-map
   "This is a function map to allow a programmatic execution of allow/deny directives"
   {:allow #(rules/allow %1 %2)
@@ -37,8 +45,8 @@
         path (get-in config-map [:match-request :path])
         rule-fn (rule-type new-rule-func-map)
         rule (rule-fn path (method config-map))]
-    (if (true? (:allow_unauthenticated config-map))
-      (assoc rule :allow_unauthenticated true)
+    (if (true? (:allow-unauthenticated config-map))
+      (assoc rule :allow-unauthenticated true)
       rule)))
 
 (defn- add-individual-acl
@@ -87,11 +95,11 @@
       (throw (IllegalArgumentException.
               (str "The authorization rule specified as " (pprint-rule rule)
                    " does not contain a '" (name k) "' key.")))))
-  (if (:allow_unauthenticated rule)
+  (if (:allow-unauthenticated rule)
     (if (some #{:deny :allow} (keys rule))
       (throw (IllegalArgumentException.
                (str "Authorization rule specified as  " (pprint-rule rule)
-                 " cannot have allow or deny if allow_unauthenticated."))))
+                 " cannot have allow or deny if allow-unauthenticated."))))
     (when-not (some #{:deny :allow} (keys rule))
       (throw (IllegalArgumentException.
                (str "Authorization rule specified as " (pprint-rule rule)
