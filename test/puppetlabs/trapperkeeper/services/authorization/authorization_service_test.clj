@@ -85,26 +85,22 @@
     {:path "/puppet-ca/v1/certificate/ca"
      :method :get
      :type "path"}
-    :allow_unauthenticated true
-    :allow "*"}
+    :allow_unauthenticated true}
    {:match-request
     {:path "/puppet-ca/v1/certificate/"
      :method :get
      :type "path"}
-    :allow_unauthenticated true
-    :allow "*"}
+    :allow_unauthenticated true}
    {:match-request
     {:path "/puppet-ca/v1/certificate_request"
      :method :get
      :type "path"}
-    :allow_unauthenticated true
-    :allow "*"}
+    :allow_unauthenticated true}
    {:match-request
     {:path "/puppet-ca/v1/certificate_request"
      :method :put
      :type "path"}
-    :allow_unauthenticated true
-    :allow "*"}])
+    :allow_unauthenticated true}])
 
 (def catalog-request-nocert
   "A basic request for a catalog without a valid SSL cert"

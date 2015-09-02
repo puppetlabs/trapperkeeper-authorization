@@ -87,10 +87,15 @@
       (throw (IllegalArgumentException.
               (str "The authorization rule specified as " (pprint-rule rule)
                    " does not contain a '" (name k) "' key.")))))
-  (when-not (some #{:deny :allow} (keys rule))
-    (throw (IllegalArgumentException.
-            (str "Authorization rule specified as  " (pprint-rule rule)
-                 " must contain either a 'deny' or 'allow' rule."))))
+  (if (:allow_unauthenticated rule)
+    (if (some #{:deny :allow} (keys rule))
+      (throw (IllegalArgumentException.
+               (str "Authorization rule specified as  " (pprint-rule rule)
+                 " cannot have allow or deny if allow_unauthenticated."))))
+    (when-not (some #{:deny :allow} (keys rule))
+      (throw (IllegalArgumentException.
+               (str "Authorization rule specified as " (pprint-rule rule)
+                 " must contain either a 'deny' or 'allow' rule.")))))
   (when-not (string? (:type (:match-request rule)))
     (throw (IllegalArgumentException.
             (str "The type set in the authorization rule specified "

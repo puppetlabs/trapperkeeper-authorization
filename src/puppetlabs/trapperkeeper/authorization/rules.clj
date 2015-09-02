@@ -180,10 +180,10 @@
    request :- ring/Request
    name :- schema/Str]
   (if-let [ { matched-rule :rule matches :matches } (some #(match? % request) rules)]
-    (let [allow_unauthenticated? (true? (:allow_unauthenticated matched-rule))
-          authenticated? (true? (get-in request ring/is-authentic-key))]
-      (if (and (or allow_unauthenticated? authenticated?)   ; TK-260
-               (acl/allowed? (:acl matched-rule) name (:remote-addr request) matches))
+    (if (true? (:allow_unauthenticated matched-rule))
+      {:authorized true :message "allow_unauthenticated is true - allowed"}
+      (if (and (true? (get-in request ring/is-authentic-key)) ; authenticated?
+            (acl/allowed? (:acl matched-rule) name (:remote-addr request) matches))
         {:authorized true :message ""}
         {:authorized false :message (request->description request name matched-rule)}))
     {:authorized false :message "global deny all - no rules matched"}))
