@@ -16,27 +16,11 @@
   ([path method]
    (request path method "127.0.0.1"))
   ([path method ip]
-  { :uri path :request-method method :remote-addr ip}))
+   {:uri path :request-method method :remote-addr ip}))
 
-(deftest test-rule-equality
-  (let [a (-> (rules/new-path-rule "/path/to/resource" :any) (rules/allow "*.domain.org"))
-        b (-> (rules/new-path-rule "/path/to/resource" :any) (rules/allow "*.domain.org"))
-        c (-> (rules/new-path-rule "/different/resource" :any) (rules/allow "*.domain.org"))
-        d (-> (rules/new-path-rule "/path/to/resource" :get) (rules/allow "*.domain.org"))
-        e (-> (rules/new-path-rule "/path/to/resource" :any) (rules/deny "*.domain.org"))
-        f (-> (rules/new-regex-rule "/path/to/resource" :any) (rules/deny "*.domain.org"))]
-    (testing "same instance equality"
-      (is (rules/equals-rule a a)))
-    (testing "same value equality"
-      (is (rules/equals-rule a b)))
-    (testing "regex inequality"
-      (is (not (rules/equals-rule a f))))
-    (testing "path inequality"
-      (is (not (rules/equals-rule a c))))
-    (testing "method inequality"
-      (is (not (rules/equals-rule a d))))
-    (testing "acl inequality"
-      (is (not (rules/equals-rule a e))))))
+(defn- request-with-params
+  [path params]
+  (assoc (request path) :query-params params))
 
 (deftest test-matching-path-rules
   (let [rule (rules/new-path-rule "/path/to/resource" :any)]
@@ -67,6 +51,38 @@
     (doseq [x [:get :post :put :delete :head]]
       (testing (str "matching " x)
         (is (= (:rule (rules/match? rule (request "/path/to/resource" x))) rule))))))
+
+(deftest test-matching-query-parameters
+  (let [rule (rules/new-path-rule "/path/to/resource" :any)
+        foo-rule (rules/query-param rule "environment" "foo")
+        foo-bar-rule (rules/query-param rule "environment" ["foo" "bar"])
+        multiples-rule (-> rule
+                           (rules/query-param "beatles" ["lennon" "starr"])
+                           (rules/query-param "monkees" "davy"))]
+
+    (testing "request matches rule"
+      (are [rule params] (= rule (->> params
+                                      (request-with-params "/path/to/resource")
+                                      (rules/match? rule)
+                                      :rule))
+        foo-rule {"environment" "foo"}
+        foo-rule {"environment" ["foo" "bar"]}
+        foo-bar-rule {"environment" "foo"}
+        foo-bar-rule {"environment" "bar"}
+        multiples-rule {"beatles" "starr"
+                        "monkees" "davy"}))
+
+    (testing "request does not match rule"
+      (are [rule params] (->> params
+                              (request-with-params "/path/to/resource")
+                              (rules/match? rule)
+                              nil?)
+        foo-rule {"environment" "Foo"}
+        foo-rule {"environment" "bar"}
+        foo-bar-rule {"environment" "Foo"}
+        foo-bar-rule {"environment" "foobar"}
+        multiples-rule {"beatles" ["lennon" "starr"]
+                        "monkees" "ringo"}))))
 
 (deftest test-rule-acl-creation
   (let [rule (rules/new-path-rule "/highway/to/hell" :any)]
@@ -101,7 +117,10 @@
 (defn- build-rules
   "Build a list of rules from individual vectors of [path allow]"
   [& rules]
-  (reduce #(-> %1 (rules/add-rule (-> (rules/new-path-rule (first %2)) (rules/allow (second %2))))) rules/empty-rules rules))
+  (reduce #(rules/add-rule %1 (-> (rules/new-path-rule (first %2))
+                                  (rules/allow (second %2))))
+          rules/empty-rules
+          rules))
 
 (deftest test-allowed
   (let [request (-> (request "/stairway/to/heaven" :get "192.168.1.23")
@@ -121,24 +140,3 @@
       (let [rules (map #(rules/tag-rule %1 "file.txt" 23) (build-rules ["/path/to/resource" "*.domain.org"] ["/stairway/to/heaven" "*.domain.org"]))]
         (is (not (rules/authorized? (rules/allowed? rules request "www.test.org"))))
         (is (= (:message (rules/allowed? rules request "www.test.org")) "Forbidden request: www.test.org(192.168.1.23) access to /stairway/to/heaven (method :get) at file.txt:23 (authentic: true)"))))))
-
-(deftest test-rules-equality
-  (let [a (build-rules ["/path/to/resource" "*.domain.org"] ["/stairway/to/heaven" "*.domain.org"])
-        b (build-rules ["/path/to/resource" "*.domain.org"] ["/stairway/to/heaven" "*.domain.org"])
-        c (build-rules ["/path/to/resource" "*.domain.org"] ["/stairway/to/heaven" "*.domain.org"] ["test" "*.test.org"])
-        e (build-rules ["/stairway/to/heaven" "*.domain.org"] ["/path/to/resource" "*.domain.org"])
-        f (build-rules ["/path/to/resource" "not-same.domain.org"] ["/stairway/to/heaven" "*.domain.org"])]
-    (testing "same rules instance equality"
-      (is (rules/equals-rules a a)))
-    (testing "same value equality"
-      (is (rules/equals-rules a b)))
-    (testing "more rule inequality"
-      (is (not (rules/equals-rules a c))))
-    (testing "order inequality"
-      (is (not (rules/equals-rules a e))))
-    (testing "acl inequality"
-      (is (not (rules/equals-rules a f))))))
-
-
-
-

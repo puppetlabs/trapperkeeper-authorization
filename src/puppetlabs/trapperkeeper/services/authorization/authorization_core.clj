@@ -56,6 +56,11 @@
   (->> (select-keys config-map #{:allow :allow-ip :deny :deny-ip})
        (reduce #(add-individual-acl (first %2) (second %2) %1) rule)))
 
+(defn add-query-params
+  "Add any query parameters specified in configuration to the rule."
+  [rule {:keys [query-params]}]
+  (reduce-kv rules/query-param rule query-params))
+
 (schema/defn config->rule :- rules/Rule
   "Given a rule expressed as a map in the configuration return a Rule suitable
   for use in a list with the allowed? function."
@@ -63,7 +68,8 @@
   (if (contains? m :path)
     (-> m
         build-rule
-        (add-acl m))
+        (add-acl m)
+        (add-query-params m))
     (throw (Exception. "Invalid config - missing required `path` key"))))
 
 (defn validate-auth-config-rule!
@@ -72,54 +78,76 @@
   with a useful error message."
   [rule]
   (when-not (map? rule)
-    (throw (IllegalArgumentException. "An authorization rule should be specified as a map")))
+    (throw (IllegalArgumentException.
+            "An authorization rule should be specified as a map")))
   (let [rule-keys (keys rule)]
     (doseq [k required-keys]
       (when-not (some #(= k %) rule-keys)
-        (throw (IllegalArgumentException. (str "The authorization rule specified as "
-                                               (pprint-rule rule)
-                                               " does not contain a '" (name k) "' key.")))))
-    (when-not (some #(.contains required-or-key %) rule-keys)
+        (throw (IllegalArgumentException.
+                (str "The authorization rule specified as " (pprint-rule rule)
+                     " does not contain a '" (name k) "' key.")))))
+    (when-not (some required-or-key rule-keys)
       (throw (IllegalArgumentException.
-               (str "Authorization rule specified as  "
-                    (pprint-rule rule)
-                    " must contain either a 'deny' or 'allow' rule.")))))
+              (str "Authorization rule specified as  "
+                   (pprint-rule rule)
+                   " must contain either a 'deny' or 'allow' rule.")))))
   (when-not (string? (:type rule))
     (throw (IllegalArgumentException.
-             (str "The type set in the authorization rule specified "
-                  "as " (pprint-rule rule) " should be a "
-                  "string that is either 'path' or 'regex'."))))
+            (str "The type set in the authorization rule specified "
+                 "as " (pprint-rule rule) " should be a "
+                 "string that is either 'path' or 'regex'."))))
   (let [type (str/lower-case (name (:type rule)))]
     (when-not (or (= type "path") (= type "regex"))
       (throw (IllegalArgumentException.
-               (str "The type set in the authorization rule specified "
-                    "as " (pprint-rule rule) " is invalid. "
-                    "It should be set to either 'path' or 'regex'.")))))
-  (let [{path :path} rule]
-    (when-not (string? path)
-      (throw (IllegalArgumentException.
-               (str "The path set in the authorization rule specified as "
-                    (pprint-rule rule) " is invalid. It should be "
-                    "a string.")))))
+              (str "The type set in the authorization rule specified "
+                   "as " (pprint-rule rule) " is invalid. "
+                   "It should be set to either 'path' or 'regex'.")))))
+  (when-not (string? (:path rule))
+    (throw (IllegalArgumentException.
+            (str "The path set in the authorization rule specified as "
+                 (pprint-rule (:path rule)) " is invalid. It should be "
+                 "a string."))))
   (when (= (name (:type rule)) "regex")
     (try
       (re-pattern (:path rule))
       (catch PatternSyntaxException e
         (throw (IllegalArgumentException.
-                 (str "The path regex provided in the rule defined as "
-                      (pprint-rule rule) " is invalid: "
-                      (.getMessage e)))))))
+                (str "The path regex provided in the rule defined as "
+                     (pprint-rule rule) " is invalid: "
+                     (.getMessage e)))))))
   (doseq [[type names] (select-keys rule [:allow :deny])]
     (if (vector? names)
       (when-not (every? string? names)
         (throw (IllegalArgumentException.
-                 (str "The " (name type) " list in the rule specified as "
-                      (pprint-rule rule)
-                      " contains one or more names that are not strings."))))
+                (str "The " (name type) " list in the rule specified as "
+                     (pprint-rule rule)
+                     " contains one or more names that are not strings."))))
       (when-not (string? names)
         (throw (IllegalArgumentException.
-                 (str "The name '" names "' in the '" (name type) "' field of the "
-                      "rule specified as " (pprint-rule rule) " is not a string."))))))
+                (str "The name '" names "' in the '" (name type) "' field of "
+                     "the rule specified as " (pprint-rule rule) " is invalid. "
+                     "It should be a string."))))))
+  (when-let [query-params (:query-params rule)]
+    (when-not (map? query-params)
+      (throw (IllegalArgumentException. "Rule query-params must be a map.")))
+    (doseq [param (keys query-params)
+            :let [value (get query-params param)]]
+      (when-not (string? param)
+        (throw (IllegalArgumentException.
+                (str "The query-param '" param "' in the rule specified as "
+                     (pprint-rule rule) " is invalid. It should be a string."))))
+      (when-not (or (string? value)
+                    (vector? value))
+        (throw (IllegalArgumentException.
+                (str "The query-param value for '" param "' in the rule "
+                     "specified as " (pprint-rule rule) " is invalid. "
+                     "It should be a string or list of strings."))))
+      (when (vector? value)
+        (when-not (every? string? value)
+          (throw (IllegalArgumentException.
+                  (str "The '" param "' query-param in the rule specified as "
+                       (pprint-rule rule) " contains one or more values that "
+                       "are not strings.")))))))
   rule)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

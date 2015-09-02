@@ -13,6 +13,8 @@
 (def allow-list {:allow ["*.domain.org" "*.test.com"]})
 (def deny-single {:deny "bald.guy.com"})
 (def deny-list {:deny ["bald.eagle.com" "bald.bull.com"]})
+(def single-query-param {:query-params {"environment" "production"}})
+(def multi-query-param {:query-params {"env" ["prod" "staging"]}})
 
 (def expected-acl-as-vec
   "The expected ACL given the configuration of a base-path combined with
@@ -39,8 +41,9 @@
   (testing "Valid forms of a auth config pass"
     (doseq [base [base-path-auth base-regex-auth]
             allow [allow-list allow-single nil]
-            deny [deny-list deny-single nil]]
-      (let [rule (merge base allow deny)]
+            deny [deny-list deny-single nil]
+            params [single-query-param multi-query-param]]
+      (let [rule (merge base allow deny params)]
         (when (or allow deny)
           (is (= rule (validate-auth-config-rule! rule))))))))
 
@@ -76,7 +79,7 @@
                                        :allow "hicks"})))
 
     (is (thrown-with-msg? IllegalArgumentException
-          #".* is not a string."
+          #".* It should be a string."
           (validate-auth-config-rule! {:path "/"
                                        :type "path"
                                        :allow 23})))
@@ -91,7 +94,35 @@
           #".* Dangling meta character '\*' near index 0[.\s]*"
           (validate-auth-config-rule! {:path  "*."
                                        :type  "regex"
-                                       :allow "somewhere"})))))
+                                       :allow "somewhere"})))
+
+    (is (thrown-with-msg? IllegalArgumentException
+          #"Rule query-params must be a map."
+          (validate-auth-config-rule! {:path "/"
+                                       :type "path"
+                                       :allow "*"
+                                       :query-params []})))
+
+    (is (thrown-with-msg? IllegalArgumentException
+          #".* It should be a string."
+          (validate-auth-config-rule! {:path "/"
+                                       :type "path"
+                                       :allow "*"
+                                       :query-params {:notastring []}})))
+
+    (is (thrown-with-msg? IllegalArgumentException
+          #".* It should be a string or list of strings."
+          (validate-auth-config-rule! {:path "/"
+                                       :type "path"
+                                       :allow "*"
+                                       :query-params {"env" :notastringorlist}})))
+
+    (is (thrown-with-msg? IllegalArgumentException
+          #".* contains one or more values that are not strings."
+          (validate-auth-config-rule! {:path "/"
+                                       :type "path"
+                                       :allow "*"
+                                       :query-params {"env" [:notastring]}})))))
 
 (deftest config->rule-test
   (testing "Given a basic allow rule against a string path"
@@ -136,5 +167,16 @@
         (is (= ["com" "bull" "bald"] (:pattern (first acl))))
         (is (= :exact (:qualifier (first acl))))
         (is (= ["com" "eagle" "bald"] (:pattern (second acl))))
-        (is (= :exact (:qualifier (first acl))))))))
-
+        (is (= :exact (:qualifier (first acl))))))
+    (testing "Given a rule config with query parameters"
+      (is (= {"env" #{"prod" "staging"}}
+             (-> multi-query-param
+                 (merge base-path-auth)
+                 config->rule
+                 :query-params)))
+      (testing "single values are converted to sets"
+        (is (= {"environment" #{"production"}}
+               (-> single-query-param
+                   (merge base-path-auth)
+                   config->rule
+                   :query-params)))))))

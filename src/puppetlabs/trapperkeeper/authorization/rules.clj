@@ -16,6 +16,7 @@
    :path Pattern
    :method (schema/enum :get :post :put :delete :head :any)
    :acl acl/ACL
+   (schema/optional-key :query-params) {schema/Str #{schema/Str}}
    (schema/optional-key :file) schema/Str
    (schema/optional-key :line) schema/Int
    })
@@ -45,15 +46,6 @@
     method :- Method]
     {:type type :path pattern :acl acl/empty-acl :method method}))
 
-(schema/defn equals-rule :- schema/Bool
-  "Test if two given rule are fully equal"
-  [a :- Rule b :- Rule]
-  (and
-    (= (:type a) (:type b))
-    (= (:acl a) (:acl b))
-    (= (:method a) (:method b))
-    (= (str (:path a)) (str (:path b)))))
-
 (schema/defn tag-rule :- Rule
   "Tag a rule with a file/line - useful for instance when the rule has been read
   from an authorization file."
@@ -63,6 +55,18 @@
   (-> rule
       (assoc :file file)
       (assoc :line line)))
+
+(schema/defn query-param :- Rule
+  "Add a query parameter matching value(s) to a rule. New values will be
+   appended to existing values.
+
+   The query parameters are in a map under the `:query-params` section of the
+   rule. Keys in the map are strings corresponding to the query parameters to
+   match, and the values are sets of strings of acceptable values."
+  [rule :- Rule
+   param :- schema/Str
+   value :- (schema/either schema/Str [schema/Str])]
+  (update-in rule [:query-params param] (comp set into) (flatten [value])))
 
 (defn- path->pattern
   "Returns a valid regex from a path"
@@ -119,11 +123,20 @@
   [a b]
   (or (= a b) (some #{:any} [a b])))
 
+(defn- query-params-match?
+  "Return true if query params match or if rule-params is nil."
+  [request-params rule-params]
+  (every? some?
+          (for [k (keys rule-params)]
+            (some (get rule-params k)
+                  (flatten [(get request-params k)])))))
+
 (schema/defn match? :- RuleMatch
-  "returns the rule if it matches the request URI, and also any capture groups of the Rule pattern if there are."
+  "Returns the rule if it matches the request URI, and also any capture groups of the Rule pattern if there are."
   [rule :- Rule
    request :- ring/Request]
-  (if (method-match? (:request-method request) (:method rule)) ;; make sure method match
+  (if (and (method-match? (:request-method request) (:method rule))
+           (query-params-match? (:query-params request) (:query-params rule)))
     (if-let [matches (re-find* (:path rule) (:uri request))] ;; check rule against request uri
       {:rule rule :matches (into [] (rest matches))})))
 
@@ -166,9 +179,3 @@
 (schema/defn authorized? :- schema/Bool
   [result :- AuthorizationResult]
   (:authorized result))
-
-(schema/defn equals-rules :- schema/Bool
-  "Test if two rule sets are equals"
-  [a :- Rules b :- Rules]
-  (and (= (count a) (count b))
-       (every? #(equals-rule (first %) (second %)) (map vector a b))))

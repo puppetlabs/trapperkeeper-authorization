@@ -80,28 +80,37 @@ ordering _allows_ before _deny_, and with an implicit _deny all_.
 A `Rule` is:
 * a path or a regex
 * an optional method (get, post, put, delete, head)
+* an optional map of request query parameters
 * an ACL
 
 Using the internal DSL to build a rule is very simple:
 
-```clojure
+~~~clojure
 (-> (new-path-rule "/path/to/resource")
     (allow "*.domain.org"))
     (deny "*.evil.com"))
-```
+~~~
 
 Restricting a rule with a method:
 
-```clojure
+~~~clojure
 (-> (new-path-rule "/path/to/resource" :get)
     (allow "*.domain.org"))
-```
+~~~
 
 A Regex rule:
-```clojure
+
+~~~clojure
 (-> (new-regex-rule "(this|that)/resource")
     (allow "*.domain.org"))
-```
+~~~
+
+Restricting a rule to requests with query parameters:
+
+~~~clojure
+(-> (new-path-rule "/path/to/resource")
+    (query-param "environment" ["staging" "test"]))
+~~~
 
 ### Rules
 
@@ -111,13 +120,13 @@ A `Rules` is a vector of `Rule`.
 
 To build a set of rule:
 
-```clojure
+~~~clojure
 (-> rules/empty-rules
     (rules/add-rule (-> (new-path-rule "/path/to/resource")
                   (allow "*.domain.org")))
     (rules/add-rule (-> (new-regex-rule "(this|that)-resource")
                   (allow "$1.domain.org"))))
-```
+~~~
 
 #### Checking a request
 
@@ -125,9 +134,9 @@ Incoming Ring requests are matched against the list of rules (in insertion
 order), when a rule resource path (or regex) matches the request URI then the
 rule ACL is checked.
 
-```clojure
+~~~clojure
 (rules/allowed? rules request)
-```
+~~~
 
 This returns a `AuthorizationResult`, which tells us if the request was
 allowed, and if not, which rule prevented it to be allowed.
