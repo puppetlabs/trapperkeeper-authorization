@@ -37,7 +37,7 @@
       (let [response (ring-handler (request "/path/to/foo" :get "127.0.0.1" test-other-cert))]
         (is (= 403 (:status response)))
         (is (= "Forbidden request: www.other.org(127.0.0.1) access to /path/to/foo (method :get) (authentic: true)" (:body response)))))
-    (testing "access denied when cert CN is explicitely denied in the rule"
+    (testing "access denied when cert CN is explicitly denied in the rule"
       (let [response (ring-handler (request "/path/to/foo" :get "127.0.0.1" test-denied-cert))]
         (is (= 403 (:status response)))
         (is (= "Forbidden request: bad.guy.com(127.0.0.1) access to /path/to/foo (method :get) (authentic: true)" (:body response))))))

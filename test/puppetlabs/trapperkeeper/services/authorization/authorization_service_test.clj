@@ -154,11 +154,18 @@
       (let [{:keys [status body]} (app unauthenticated-request)]
         (is (= status 403))
         (is (= body "global deny all - no rules matched")))
-      (let [req (assoc unauthenticated-request :uri "/puppet-ca/v1/certificate/ca"
-                                               :body "FOOBAR")
+      (let [req (assoc unauthenticated-request
+                  :uri "/puppet-ca/v1/certificate/ca"
+                  :body "FOOBAR")
             {:keys [status body]} (app req)]
         (is (= status 200))
         (is (= body "Prefix: RABOOF")))
+      (let [req (assoc unauthenticated-request
+                  :uri "/puppet-ca/v1/certificate/ca"
+                  :ssl-client-cert nil)
+            {:keys [status body]} (app req)]
+        (is (= 200 status) ":ssl-client-cert with nil value works")
+        (is (= body "Prefix: ")))
       (let [req (assoc unauthenticated-request :uri "/not/covered/by/rules")
             {:keys [status body]} (app req)]
         (is (= status 403)))))
