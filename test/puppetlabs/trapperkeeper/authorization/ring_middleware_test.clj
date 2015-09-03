@@ -40,5 +40,13 @@
     (testing "access denied when cert CN is explicitely denied in the rule"
       (let [response (ring-handler (request "/path/to/foo" :get test-denied-cert "127.0.0.1"))]
         (is (= 403 (:status response)))
-        (is (= "Forbidden request: bad.guy.com(127.0.0.1) access to /path/to/foo (method :get) (authentic: true)" (:body response)))))))
+        (is (= "Forbidden request: bad.guy.com(127.0.0.1) access to /path/to/foo (method :get) (authentic: true)" (:body response))))))
+    (testing "Denied when deny all"
+      (let [app (build-ring-handler [(-> (rules/new-path-rule "/")
+                                         (rules/deny "*"))])]
+        (doseq [path ["a" "/" "/hip/hop/" "/a/hippie/to/the/hippi-dee/beat"]]
+          (let [req (request path :get test-domain-cert "127.0.0.1")
+                {status :status} (app req)]
+            (is (= status 403)))))))
+
 

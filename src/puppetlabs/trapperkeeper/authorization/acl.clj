@@ -81,13 +81,20 @@
 
 (def allow-all { :auth-type :allow :type :allow-all :qualifier :exact :length nil :pattern [] })
 
+(def deny-all {:auth-type :deny
+               :type :regex
+               :qualifier :exact
+               :length nil
+               :pattern #"^*$"})
+
 (schema/defn new-domain :- Entry
   "Creates a new ACE for a domain"
   [type :- auth-type
    pattern :- schema/Str]
   (cond
-    ; global allow
-    (= "*" pattern) allow-all
+    (and (= "*" pattern) (= type :allow)) allow-all
+    ; global deny
+    (and (= "*" pattern) (= type :deny)) deny-all
     ; exact domain
     (re-matches #"^(\w[-\w]*\.)+[-\w]+$" pattern) { :auth-type type :type :domain :qualifier :exact :length nil :pattern (munge-name pattern) }
     ; *.domain.com
