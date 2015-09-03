@@ -9,13 +9,11 @@
 
 (def Entry
   "An authorization entry matching a network or a domain"
-  {
-    :auth-type auth-type
-    :type (schema/enum :allow-all :ip :domain :opaque :regex :dynamic)
-    :qualifier (schema/enum :exact :inexact)
-    :length (schema/maybe schema/Int)
-    :pattern schema/Any
-    })
+  {:auth-type auth-type
+  :type (schema/enum :allow-all :ip :domain :opaque :regex :dynamic)
+  :qualifier (schema/enum :exact :inexact)
+  :length (schema/maybe schema/Int)
+  :pattern schema/Any})
 
 (def ACL
   "An ordered list of authorization Entry"
@@ -57,8 +55,7 @@
    * exact wins other inexact
    * ip wins other domain
    * larger pattern length wins
-   * order patterns
-  "
+   * order patterns"
   [a :- Entry
    b :- Entry]
   (or-zero
@@ -79,7 +76,11 @@
   [pattern]
   (-> pattern (str/lower-case) (str/split #"\.") reverse vec))
 
-(def allow-all { :auth-type :allow :type :allow-all :qualifier :exact :length nil :pattern [] })
+(def allow-all {:auth-type :allow
+                :type :allow-all
+                :qualifier :exact
+                :length nil
+                :pattern []})
 
 (def deny-all {:auth-type :deny
                :type :regex
@@ -92,24 +93,56 @@
   [type :- auth-type
    pattern :- schema/Str]
   (cond
-    (and (= "*" pattern) (= type :allow)) allow-all
+    (and (= "*" pattern) (= type :allow))
+    allow-all
+
     ; global deny
-    (and (= "*" pattern) (= type :deny)) deny-all
+    (and (= "*" pattern) (= type :deny))
+    deny-all
+
     ; exact domain
-    (re-matches #"^(\w[-\w]*\.)+[-\w]+$" pattern) { :auth-type type :type :domain :qualifier :exact :length nil :pattern (munge-name pattern) }
+    (re-matches #"^(\w[-\w]*\.)+[-\w]+$" pattern)
+    {:auth-type type
+     :type :domain
+     :qualifier :exact
+     :length nil
+     :pattern (munge-name pattern)}
+
     ; *.domain.com
     (re-matches #"^\*(\.(\w[-\w]*)){1,}$" pattern)
-      (let [host_sans_star (vec (drop-last (munge-name pattern)))]
-        {:auth-type type :type :domain :qualifier :inexact :length (count host_sans_star) :pattern host_sans_star})
+    (let [host_sans_star (vec (drop-last (munge-name pattern)))]
+      {:auth-type type
+       :type :domain
+       :qualifier :inexact
+       :length (count host_sans_star)
+       :pattern host_sans_star})
+
     ; backreference
-    (re-find #"\$\d+" pattern) {:auth-type type :type :dynamic :qualifier :exact :length nil :pattern (munge-name pattern)}
+    (re-find #"\$\d+" pattern)
+    {:auth-type type
+     :type :dynamic
+     :qualifier :exact
+     :length nil
+     :pattern (munge-name pattern)}
+
     ; opaque string
-    (re-matches #"^\w[-.@\w]*$" pattern) {:auth-type type :type :opaque :qualifier :exact :length nil :pattern [pattern]}
+    (re-matches #"^\w[-.@\w]*$" pattern)
+    {:auth-type type
+     :type :opaque
+     :qualifier :exact
+     :length nil
+     :pattern [pattern]}
+
     ; regex
-    (re-matches #"^/.*/$" pattern) {:auth-type type :type :regex :qualifier :inexact :length nil :pattern (str/replace pattern #"^/(.*)/$" "$1")}
+    (re-matches #"^/.*/$" pattern)
+    {:auth-type type
+     :type :regex
+     :qualifier :inexact
+     :length nil
+     :pattern (str/replace pattern #"^/(.*)/$" "$1")}
+
     :else
-      (throw (Exception. (str "invalid domain pattern: " pattern)))
-    ))
+    (throw (Exception. (str "invalid domain pattern: " pattern)))))
 
 (schema/defn new-ip :- Entry
   "Creates a new ACE for an ip address or network"
@@ -124,8 +157,7 @@
        :length bits
        :pattern (ip/network (str (str/join "." (map str (take 4 (concat segments [0 0 0])))) "/" bits))})
     (ip/network? pattern) {:auth-type type :type :ip :qualifier :inexact :length (ip/network-length pattern) :pattern (ip/network pattern)}
-    (ip/address? pattern) {:auth-type type :type :ip :qualifier :exact :length nil :pattern (ip/address pattern)}
-  ))
+    (ip/address? pattern) {:auth-type type :type :ip :qualifier :exact :length nil :pattern (ip/address pattern)}))
 
 ;; ACE matching
 
@@ -234,4 +266,3 @@
       (if match
         (allow? match)
         false))))
-
