@@ -9,14 +9,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Constants
 
-(def required-keys
-  "Keys required in an auth rule map."
-  [:path :type])
-
-(def required-or-key
-  "At least one of these keys is required in an auth rule map."
-  #{:deny :allow})
-
 (def acl-func-map
   "This is a function map to allow a programmatic execution of allow/deny directives"
   {:allow #(rules/allow %1 %2)
@@ -32,15 +24,16 @@
 (defn- method
   "Returns the method key of a given config map, or :any if none"
   [config-map]
-  (keyword (get config-map :method :any)))
+  (keyword (get-in config-map [:match-request :method] :any)))
 
 (defn- build-rule
   "Build a new Rule based on the provided config-map"
   [config-map]
-  (let [rule-type (keyword (get config-map :type :path))]
+  (let [rule-type (keyword (get-in config-map [:match-request :type] :path))
+        path (get-in config-map [:match-request :path])]
     (if (= rule-type :path)
-      (-> (rules/new-path-rule (config-map :path) (method config-map)))
-      (-> (rules/new-regex-rule (config-map :path) (method config-map))))))
+      (-> (rules/new-path-rule path (method config-map)))
+      (-> (rules/new-regex-rule path (method config-map))))))
 
 (defn- add-individual-acl
   "Add an individual acl to a given rule:
@@ -58,19 +51,19 @@
 
 (defn add-query-params
   "Add any query parameters specified in configuration to the rule."
-  [rule {:keys [query-params]}]
+  [rule {{:keys [query-params]} :match-request}]
   (reduce-kv rules/query-param rule query-params))
 
 (schema/defn config->rule :- rules/Rule
   "Given a rule expressed as a map in the configuration return a Rule suitable
-  for use in a list with the allowed? function."
+   for use in a list with the allowed? function.
+
+   This assumes the configuration has been validated via
+   `validate-auth-config-rule!`."
   [m]
-  (if (contains? m :path)
-    (-> m
-        build-rule
-        (add-acl m)
-        (add-query-params m))
-    (throw (Exception. "Invalid config - missing required `path` key"))))
+  (-> (build-rule m)
+      (add-acl m)
+      (add-query-params m)))
 
 (defn validate-auth-config-rule!
   "Tests to see if the given map contains the proper data to define an auth
@@ -79,37 +72,38 @@
   [rule]
   (when-not (map? rule)
     (throw (IllegalArgumentException.
-            "An authorization rule should be specified as a map")))
-  (let [rule-keys (keys rule)]
-    (doseq [k required-keys]
-      (when-not (some #(= k %) rule-keys)
-        (throw (IllegalArgumentException.
-                (str "The authorization rule specified as " (pprint-rule rule)
-                     " does not contain a '" (name k) "' key.")))))
-    (when-not (some required-or-key rule-keys)
+            "An authorization rule should be specified as a map.")))
+  (when-not (:match-request rule)
+    (throw (IllegalArgumentException.
+            "An authorization rule must contain a 'match-request' section.")))
+  (doseq [k [:path :type]]
+    (when-not (contains? (:match-request rule) k)
       (throw (IllegalArgumentException.
-              (str "Authorization rule specified as  "
-                   (pprint-rule rule)
-                   " must contain either a 'deny' or 'allow' rule.")))))
-  (when-not (string? (:type rule))
+              (str "The authorization rule specified as " (pprint-rule rule)
+                   " does not contain a '" (name k) "' key.")))))
+  (when-not (some #{:deny :allow} (keys rule))
+    (throw (IllegalArgumentException.
+            (str "Authorization rule specified as  " (pprint-rule rule)
+                 " must contain either a 'deny' or 'allow' rule."))))
+  (when-not (string? (:type (:match-request rule)))
     (throw (IllegalArgumentException.
             (str "The type set in the authorization rule specified "
                  "as " (pprint-rule rule) " should be a "
                  "string that is either 'path' or 'regex'."))))
-  (let [type (str/lower-case (name (:type rule)))]
+  (let [type (-> rule :match-request :type name str/lower-case)]
     (when-not (or (= type "path") (= type "regex"))
       (throw (IllegalArgumentException.
               (str "The type set in the authorization rule specified "
                    "as " (pprint-rule rule) " is invalid. "
                    "It should be set to either 'path' or 'regex'.")))))
-  (when-not (string? (:path rule))
+  (when-not (string? (:path (:match-request rule)))
     (throw (IllegalArgumentException.
             (str "The path set in the authorization rule specified as "
-                 (pprint-rule (:path rule)) " is invalid. It should be "
-                 "a string."))))
-  (when (= (name (:type rule)) "regex")
+                 (pprint-rule (:path (:match-request rule))) " is invalid. "
+                 "It should be a string."))))
+  (when (= "regex" (-> rule :match-request :type name str/lower-case))
     (try
-      (re-pattern (:path rule))
+      (re-pattern (:path (:match-request rule)))
       (catch PatternSyntaxException e
         (throw (IllegalArgumentException.
                 (str "The path regex provided in the rule defined as "
@@ -127,7 +121,7 @@
                 (str "The name '" names "' in the '" (name type) "' field of "
                      "the rule specified as " (pprint-rule rule) " is invalid. "
                      "It should be a string."))))))
-  (when-let [query-params (:query-params rule)]
+  (when-let [query-params (:query-params (:match-request rule))]
     (when-not (map? query-params)
       (throw (IllegalArgumentException. "Rule query-params must be a map.")))
     (doseq [param (keys query-params)

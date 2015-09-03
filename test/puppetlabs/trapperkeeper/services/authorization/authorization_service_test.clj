@@ -39,15 +39,17 @@
 
 (def basic-rules
   "Basic config exercising the use case of restricting a catalog to a node"
-  [{:path "/puppet/v3/catalog/([^/]+)"
-    :type "regex"
-    :method :get
+  [{:match-request
+    {:path "/puppet/v3/catalog/([^/]+)"
+     :type "regex"
+     :method :get}
     :allow "$1"}])
 
 (def default-rules
   "A representative example list of rules intended to model the defaults"
-  [{:path "/puppet/v3/environments"
-    :type "path"
+  [{:match-request
+    {:path "/puppet/v3/environments"
+     :type "path"}
     :allow "*"}])
 
 (def catalog-request-nocert
@@ -106,11 +108,12 @@
 
 (deftest ^:integration query-params-test
   (let [app (build-ring-handler
-             [{:path "/puppet/v3/environments"
-               :type "path"
-               :allow "*"
-               :query-params {"environment" ["test" "prod"]
-                              "foo" ["bar"]}}])
+             [{:match-request
+               {:path "/puppet/v3/environments"
+                :type "path"
+                :query-params {"environment" ["test" "prod"]
+                               "foo" ["bar"]}}
+               :allow "*"}])
         req (assoc base-request
                    :uri "/puppet/v3/environments"
                    :body "Query Param Test")
