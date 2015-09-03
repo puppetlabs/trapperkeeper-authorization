@@ -47,15 +47,6 @@
     method :- Method]
     {:type type :path pattern :acl acl/empty-acl :method method}))
 
-(schema/defn equals-rule :- schema/Bool
-  "Test if two given rule are fully equal"
-  [a :- Rule b :- Rule]
-  (and
-    (= (:type a) (:type b))
-    (= (:acl a) (:acl b))
-    (= (:method a) (:method b))
-    (= (str (:path a)) (str (:path b)))))
-
 (schema/defn tag-rule :- Rule
   "Tag a rule with a file/line - useful for instance when the rule has been read
   from an authorization file."
