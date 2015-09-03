@@ -6,15 +6,17 @@
 
 (use-fixtures :once schema.test/validate-schemas)
 
-(def minimal-rule {:path ""})
-(def base-path-auth {:path "/foo/bar/baz", :type "path"})
-(def base-regex-auth {:path "(incoming|outgoing)", :type "regex"})
+(def minimal-rule {:match-request {:path ""}})
+(def base-path-auth {:match-request {:path "/foo/bar/baz" :type "path"}})
+(def base-regex-auth {:match-request {:path "(incoming|outgoing)" :type "regex"}})
 (def allow-single {:allow "www.domain.org"})
 (def allow-list {:allow ["*.domain.org" "*.test.com"]})
 (def deny-single {:deny "bald.guy.com"})
 (def deny-list {:deny ["bald.eagle.com" "bald.bull.com"]})
-(def single-query-param {:query-params {"environment" "production"}})
-(def multi-query-param {:query-params {"env" ["prod" "staging"]}})
+(def single-query-param {:match-request
+                         {:query-params {"environment" "production"}}})
+(def multi-query-param {:match-request
+                        {:query-params {"env" ["prod" "staging"]}}})
 
 (def expected-acl-as-vec
   "The expected ACL given the configuration of a base-path combined with
@@ -43,86 +45,100 @@
             allow [allow-list allow-single nil]
             deny [deny-list deny-single nil]
             params [single-query-param multi-query-param]]
-      (let [rule (merge base allow deny params)]
+      (let [rule (merge-with merge base allow deny params)]
         (when (or allow deny)
           (is (= rule (validate-auth-config-rule! rule))))))))
 
 (deftest invalid-configs-fail
   (testing "Missing keys are not valid"
     (is (thrown-with-msg? IllegalArgumentException
-          #"An authorization rule should be specified as a map"
+          #"An authorization rule should be specified as a map."
           (validate-auth-config-rule! 0)))
 
     (is (thrown-with-msg? IllegalArgumentException
-          #".* does not contain a 'path' key."
+          #"An authorization rule must contain a 'match-request' section."
           (validate-auth-config-rule! {:type "path"})))
 
     (is (thrown-with-msg? IllegalArgumentException
+          #".* does not contain a 'path' key."
+          (validate-auth-config-rule! {:match-request {:type "path"}})))
+
+    (is (thrown-with-msg? IllegalArgumentException
           #".* does not contain a 'type' key."
-          (validate-auth-config-rule! {:path "/path"})))
+          (validate-auth-config-rule! {:match-request {:path "/path"}})))
 
     (is (thrown-with-msg? IllegalArgumentException
           #".* must contain either a 'deny' or 'allow' rule."
-          (validate-auth-config-rule! {:path "/foo/bar/baz"
-                                       :type "path"})))
+          (validate-auth-config-rule! {:match-request
+                                       {:path "/foo/bar/baz"
+                                        :type "path"}})))
 
     (is (thrown-with-msg? IllegalArgumentException
           #".* It should be set to either 'path' or 'regex'."
-          (validate-auth-config-rule! {:path "/who/cares"
-                                       :type "not-a-type"
+          (validate-auth-config-rule! {:match-request
+                                       {:path "/who/cares"
+                                        :type "not-a-type"}
                                        :allow "hillbillies"})))
 
     (is (thrown-with-msg? IllegalArgumentException
           #".* It should be a string."
-          (validate-auth-config-rule! {:path 42
-                                       :type "path"
+          (validate-auth-config-rule! {:match-request
+                                       {:path 42
+                                        :type "path"}
                                        :allow "hicks"})))
 
     (is (thrown-with-msg? IllegalArgumentException
           #".* It should be a string."
-          (validate-auth-config-rule! {:path "/"
-                                       :type "path"
+          (validate-auth-config-rule! {:match-request
+                                       {:path "/"
+                                        :type "path"}
                                        :allow 23})))
 
     (is (thrown-with-msg? IllegalArgumentException
           #".* contains one or more names that are not strings."
-          (validate-auth-config-rule! {:path "/"
-                                       :type "path"
+          (validate-auth-config-rule! {:match-request
+                                       {:path "/"
+                                        :type "path"}
                                        :deny ["one.anem" 23]})))
 
     (is (thrown-with-msg? IllegalArgumentException
           #".* Dangling meta character '\*' near index 0[.\s]*"
-          (validate-auth-config-rule! {:path  "*."
-                                       :type  "regex"
+          (validate-auth-config-rule! {:match-request
+                                       {:path  "*."
+                                        :type  "regex"}
                                        :allow "somewhere"})))
 
     (is (thrown-with-msg? IllegalArgumentException
           #"Rule query-params must be a map."
-          (validate-auth-config-rule! {:path "/"
-                                       :type "path"
-                                       :allow "*"
-                                       :query-params []})))
+          (validate-auth-config-rule! {:match-request
+                                       {:path "/"
+                                        :type "path"
+                                        :query-params []}
+                                       :allow "*"})))
 
     (is (thrown-with-msg? IllegalArgumentException
           #".* It should be a string."
-          (validate-auth-config-rule! {:path "/"
-                                       :type "path"
-                                       :allow "*"
-                                       :query-params {:notastring []}})))
+          (validate-auth-config-rule! {:match-request
+                                       {:path "/"
+                                        :type "path"
+                                        :query-params {:notastring []}}
+                                       :allow "*"})))
 
     (is (thrown-with-msg? IllegalArgumentException
           #".* It should be a string or list of strings."
-          (validate-auth-config-rule! {:path "/"
-                                       :type "path"
-                                       :allow "*"
-                                       :query-params {"env" :notastringorlist}})))
+          (validate-auth-config-rule! {:match-request
+                                       {:path "/"
+                                        :type "path"
+                                        :query-params {"env" :notastringorlist}}
+                                       :allow "*"})))
 
     (is (thrown-with-msg? IllegalArgumentException
           #".* contains one or more values that are not strings."
-          (validate-auth-config-rule! {:path "/"
-                                       :type "path"
-                                       :allow "*"
-                                       :query-params {"env" [:notastring]}})))))
+          (validate-auth-config-rule! {:match-request
+                                       {:path "/"
+                                        :type "path"
+                                        :query-params {"env" [:notastring]}}
+                                       :allow "*"})))))
 
 (deftest config->rule-test
   (testing "Given a basic allow rule against a string path"
@@ -133,7 +149,8 @@
         (is (= (str path) "^\\Q/foo/bar/baz\\E")))
       (is (= :any method))))
   (testing "Given a basic allow rule with a specific :put method"
-    (let [m (merge base-path-auth allow-list {:method :put})
+    (let [m (merge-with merge base-path-auth allow-list
+                        {:match-request {:method :put}})
           {:keys [type path method]} (config->rule m)]
       (is (= :string type))
       (testing "path is converted to an quoted regular expression"
@@ -170,13 +187,11 @@
         (is (= :exact (:qualifier (first acl))))))
     (testing "Given a rule config with query parameters"
       (is (= {"env" #{"prod" "staging"}}
-             (-> multi-query-param
-                 (merge base-path-auth)
+             (-> (merge-with merge multi-query-param base-path-auth)
                  config->rule
                  :query-params)))
       (testing "single values are converted to sets"
         (is (= {"environment" #{"production"}}
-               (-> single-query-param
-                   (merge base-path-auth)
+               (-> (merge-with merge single-query-param base-path-auth)
                    config->rule
                    :query-params)))))))

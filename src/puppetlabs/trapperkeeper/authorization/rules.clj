@@ -12,9 +12,9 @@
 (def Rule
   "An ACL rule, with no less than a matching path, possibly a method list and an acl"
   {
-   :type (schema/enum :string :regex)
+   :type Type
    :path Pattern
-   :method (schema/enum :get :post :put :delete :head :any)
+   :method Method
    :acl acl/ACL
    (schema/optional-key :query-params) {schema/Str #{schema/Str}}
    (schema/optional-key :file) schema/Str
@@ -78,7 +78,7 @@
   ([path :- schema/Str]
     (new-path-rule path :any))
   ([path :- schema/Str
-   method :- Method]
+    method :- Method]
     (new-rule :string (path->pattern path) method)))
 
 (schema/defn new-regex-rule :- Rule
