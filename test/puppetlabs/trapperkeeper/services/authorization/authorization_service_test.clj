@@ -144,7 +144,11 @@
                     (assoc :body "Hello World!"))
             {:keys [status body]} (app req)]
         (is (= status 200))
-        (is (= body "Prefix: !dlroW olleH")))))
+        (is (= body "Prefix: !dlroW olleH")))
+      (let [req (assoc base-request :uri "/puppet-ca/v1/certificate/ca")
+            {:keys [status body]} (app req)]
+        (is (= status 200))
+        (is (= body "Prefix: ")))))
   (testing "(TK-260) Authorizing unauthenticated requests"
     (let [app (build-ring-handler default-rules)]
       (let [{:keys [status body]} (app unauthenticated-request)]
@@ -164,7 +168,10 @@
         (is (= body "Prefix: ")))
       (let [req (assoc unauthenticated-request :uri "/not/covered/by/rules")
             {:keys [status body]} (app req)]
-        (is (= status 403)))))
+        (is (= status 403)))
+      (let [req (assoc unauthenticated-request :uri "/puppet/v3/status")
+            {:keys [status body]} (app req)]
+        (is (= status 403) "Unauthentic requests are denied with allow-unauthenticated false"))))
   (testing "With a minimal config of an empty list of rules"
     (let [app (build-ring-handler [])]
       (let [req (request "/path/to/foo" :get "127.0.0.1" test-domain-cert)
@@ -190,8 +197,7 @@
                :allow "*"}])
         req (assoc base-request
                    :uri "/puppet/v3/environments"
-                   :body "Query Param Test")
-        {:keys [status body]} (app req)]
+                   :body "Query Param Test")]
     (testing "request denied - params don't match"
       (let [{:keys [status body]}
             (app (assoc req :query-string "environment=dev&foo=bar"))]
