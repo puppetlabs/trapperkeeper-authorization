@@ -9,10 +9,22 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Constants
 
+(def required-keys
+  "Keys required in an auth rule map."
+  [:path :type])
+
+(def required-or-key
+  "At least one of these keys is required in an auth rule map."
+  #{:deny :allow :allow-unauthenticated})
+
 (def acl-func-map
   "This is a function map to allow a programmatic execution of allow/deny directives"
   {:allow #(rules/allow %1 %2)
    :deny #(rules/deny %1 %2)})
+
+(def new-rule-func-map
+  "This is a function map to allow programmatic execution of path/regex rules"
+  {:path rules/new-path-rule :regex rules/new-regex-rule})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private
@@ -30,10 +42,12 @@
   "Build a new Rule based on the provided config-map"
   [config-map]
   (let [rule-type (keyword (get-in config-map [:match-request :type] :path))
-        path (get-in config-map [:match-request :path])]
-    (if (= rule-type :path)
-      (-> (rules/new-path-rule path (method config-map)))
-      (-> (rules/new-regex-rule path (method config-map))))))
+        path (get-in config-map [:match-request :path])
+        rule-fn (rule-type new-rule-func-map)
+        rule (rule-fn path (method config-map))]
+    (if (true? (:allow-unauthenticated config-map))
+      (assoc rule :allow-unauthenticated true)
+      rule)))
 
 (defn- add-individual-acl
   "Add an individual acl to a given rule:
@@ -81,10 +95,15 @@
       (throw (IllegalArgumentException.
               (str "The authorization rule specified as " (pprint-rule rule)
                    " does not contain a '" (name k) "' key.")))))
-  (when-not (some #{:deny :allow} (keys rule))
-    (throw (IllegalArgumentException.
-            (str "Authorization rule specified as  " (pprint-rule rule)
-                 " must contain either a 'deny' or 'allow' rule."))))
+  (if (:allow-unauthenticated rule)
+    (if (some #{:deny :allow} (keys rule))
+      (throw (IllegalArgumentException.
+               (str "Authorization rule specified as  " (pprint-rule rule)
+                 " cannot have allow or deny if allow-unauthenticated."))))
+    (when-not (some #{:deny :allow} (keys rule))
+      (throw (IllegalArgumentException.
+               (str "Authorization rule specified as " (pprint-rule rule)
+                 " must contain either a 'deny' or 'allow' rule.")))))
   (when-not (string? (:type (:match-request rule)))
     (throw (IllegalArgumentException.
             (str "The type set in the authorization rule specified "

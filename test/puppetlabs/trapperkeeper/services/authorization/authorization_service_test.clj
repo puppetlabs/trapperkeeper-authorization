@@ -9,8 +9,7 @@
     [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
     [puppetlabs.trapperkeeper.testutils.logging :refer [with-test-logging]]
     [ring.util.response :refer [response]]
-    [schema.test :as schema-test]
-    [puppetlabs.trapperkeeper.authorization.rules :as rules]))
+    [schema.test :as schema-test]))
 
 (use-fixtures :once schema-test/validate-schemas)
 
@@ -49,8 +48,59 @@
   "A representative example list of rules intended to model the defaults"
   [{:match-request
     {:path "/puppet/v3/environments"
+     :method :get
      :type "path"}
-    :allow "*"}])
+    :allow "*"}
+   {:match-request
+    {:path "^/puppet/v3/catalog/([^/]+)$"
+     :method :get
+     :type "regex"}
+    :allow "$1"}
+   {:match-request
+    {:path "^/puppet/v3/node/([^/]+)$"
+     :method :get
+     :type "regex"}
+    :allow "$1"}
+   {:match-request
+    {:path "^/puppet/v3/report/([^/]+)$"
+     :method :put
+     :type "regex"}
+    :allow "$1"}
+   {:match-request
+    {:path "/puppet/v3/file"
+     :method :any
+     :type "path"}
+    :allow "*"}
+   {:match-request
+    {:path "/puppet/v3/status"
+     :method :get
+     :type "path"}
+    :allow "*"}
+   {:match-request
+    {:path "/puppet-ca/v1/certificate_revocation_list/ca"
+     :method :get
+     :type "path"}
+    :allow "*"}
+   {:match-request
+    {:path "/puppet-ca/v1/certificate/ca"
+     :method :get
+     :type "path"}
+    :allow-unauthenticated true}
+   {:match-request
+    {:path "/puppet-ca/v1/certificate/"
+     :method :get
+     :type "path"}
+    :allow-unauthenticated true}
+   {:match-request
+    {:path "/puppet-ca/v1/certificate_request"
+     :method :get
+     :type "path"}
+    :allow-unauthenticated true}
+   {:match-request
+    {:path "/puppet-ca/v1/certificate_request"
+     :method :put
+     :type "path"}
+    :allow-unauthenticated true}])
 
 (def catalog-request-nocert
   "A basic request for a catalog without a valid SSL cert"
@@ -60,7 +110,11 @@
 
 (def base-request
   "A basic request to feed into the tests"
-  (request "/" :get (create-certificate "test.domain.org") "127.0.0.1" ))
+  (request "/" :get "127.0.0.1" (create-certificate "test.domain.org") ))
+
+(def unauthenticated-request
+  "A basic unauthenticated request to feed into the tests"
+  (request "/" :get "127.0.0.1"))
 
 (defn build-ring-handler
   "Build a ring handler around the echo reverse service"
@@ -90,10 +144,37 @@
                     (assoc :body "Hello World!"))
             {:keys [status body]} (app req)]
         (is (= status 200))
-        (is (= body "Prefix: !dlroW olleH")))))
+        (is (= body "Prefix: !dlroW olleH")))
+      (let [req (assoc base-request :uri "/puppet-ca/v1/certificate/ca")
+            {:keys [status body]} (app req)]
+        (is (= status 200))
+        (is (= body "Prefix: ")))))
+  (testing "(TK-260) Authorizing unauthenticated requests"
+    (let [app (build-ring-handler default-rules)]
+      (let [{:keys [status body]} (app unauthenticated-request)]
+        (is (= status 403))
+        (is (= body "global deny all - no rules matched")))
+      (let [req (assoc unauthenticated-request
+                  :uri "/puppet-ca/v1/certificate/ca"
+                  :body "FOOBAR")
+            {:keys [status body]} (app req)]
+        (is (= status 200))
+        (is (= body "Prefix: RABOOF")))
+      (let [req (assoc unauthenticated-request
+                  :uri "/puppet-ca/v1/certificate/ca"
+                  :ssl-client-cert nil)
+            {:keys [status body]} (app req)]
+        (is (= 200 status) ":ssl-client-cert with nil value works")
+        (is (= body "Prefix: ")))
+      (let [req (assoc unauthenticated-request :uri "/not/covered/by/rules")
+            {:keys [status body]} (app req)]
+        (is (= status 403)))
+      (let [req (assoc unauthenticated-request :uri "/puppet/v3/status")
+            {:keys [status body]} (app req)]
+        (is (= status 403) "Unauthentic requests are denied with allow-unauthenticated false"))))
   (testing "With a minimal config of an empty list of rules"
     (let [app (build-ring-handler [])]
-      (let [req (request "/path/to/foo" :get test-domain-cert "127.0.0.1")
+      (let [req (request "/path/to/foo" :get "127.0.0.1" test-domain-cert)
             {:keys [status body]} (app req)]
         (is (= status 403))
         (is (= body "global deny all - no rules matched")))))
@@ -116,8 +197,7 @@
                :allow "*"}])
         req (assoc base-request
                    :uri "/puppet/v3/environments"
-                   :body "Query Param Test")
-        {:keys [status body]} (app req)]
+                   :body "Query Param Test")]
     (testing "request denied - params don't match"
       (let [{:keys [status body]}
             (app (assoc req :query-string "environment=dev&foo=bar"))]

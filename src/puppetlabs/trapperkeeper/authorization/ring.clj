@@ -19,7 +19,7 @@
   {:uri schema/Str
    :request-method RequestMethod
    :remote-addr schema/Str
-   (schema/optional-key :ssl-client-cert) X509Certificate
+   (schema/optional-key :ssl-client-cert) (schema/maybe X509Certificate)
    schema/Keyword schema/Any})
 
 ;; Functions

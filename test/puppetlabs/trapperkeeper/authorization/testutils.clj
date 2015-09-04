@@ -1,10 +1,15 @@
 (ns puppetlabs.trapperkeeper.authorization.testutils
-  (:require [puppetlabs.ssl-utils.simple :as ssl]))
+  (:require [puppetlabs.ssl-utils.simple :as ssl]
+            [ring.mock.request :as mock]))
 
 (defn request
-  "Builds a ring request"
-  [path method certificate ip]
-  {:uri path :request-method method :remote-addr ip :ssl-client-cert certificate})
+  "Build a ring request for testing"
+  ([path method]
+   (request path method "127.0.0.1"))
+  ([path method ip]
+   (assoc (mock/request method path) :remote-addr ip))
+  ([path method ip certificate]
+   (assoc (request path method ip) :ssl-client-cert certificate)))
 
 (defn create-certificate
   [cn]
