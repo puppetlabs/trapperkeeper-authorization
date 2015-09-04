@@ -20,6 +20,7 @@
                  [me.raynes/fs "1.4.5"]
                  [prismatic/schema "0.4.0"]
                  [ring/ring-core "1.4.0"]
+                 [ring/ring-mock "0.2.0"]
 
                  ;; begin version conflict resolution dependencies
                  [clj-time "0.10.0"]
