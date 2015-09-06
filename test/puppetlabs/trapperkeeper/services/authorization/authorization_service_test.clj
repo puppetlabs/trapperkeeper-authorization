@@ -8,8 +8,11 @@
     [puppetlabs.trapperkeeper.services.authorization.authorization-service :refer [authorization-service]]
     [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
     [puppetlabs.trapperkeeper.testutils.logging :refer [with-test-logging]]
+    [ring.mock.request :as mock]
     [ring.util.response :refer [response]]
-    [schema.test :as schema-test]))
+    [schema.test :as schema-test])
+  (:import (java.io ByteArrayInputStream)
+           (java.nio.charset Charset)))
 
 (use-fixtures :once schema-test/validate-schemas)
 
@@ -25,7 +28,14 @@
   [[:AuthorizationService wrap-with-authorization-check]]
   (echo-reverse
     [this msg]
-    (let [handler (fn [req] (response (str msg (str/reverse (str (:body req))))))]
+    (let [handler (fn [req]
+                    (-> req
+                        (:body)
+                        str
+                        str/reverse
+                        ((partial str msg))
+                        response
+                        (assoc :request req)))]
       (wrap-with-authorization-check handler))))
 
 (def minimal-config
@@ -200,11 +210,28 @@
                    :body "Query Param Test")]
     (testing "request denied - params don't match"
       (let [{:keys [status body]}
-            (app (assoc req :query-string "environment=dev&foo=bar"))]
+            (app (mock/query-string req "environment=dev&foo=bar"))]
         (is (= status 403))
         (is (= body "global deny all - no rules matched"))))
     (testing "request allowed - params match"
       (let [{:keys [status body]}
-            (app (assoc req :query-string "environment=prod&foo=bar"))]
+            (app (mock/query-string req "environment=prod&foo=bar"))]
         (is (= status 200))
-        (is (= body "Prefix: tseT maraP yreuQ"))))))
+        (is (= body "Prefix: tseT maraP yreuQ"))))
+    (testing "body unchanged after query param destructuring"
+      (let [body-string "body=before authorization"
+            body-stream-bytes (->> "UTF-8"
+                                   Charset/forName
+                                   (.getBytes body-string))
+            body-as-input-stream (ByteArrayInputStream. body-stream-bytes)
+            {:keys [request]}
+              (app (-> req
+                       (mock/query-string "environment=prod&foo=bar")
+                       (mock/content-type "application/x-www-form-urlencoded")
+                       (mock/content-length (count body-stream-bytes))
+                       (assoc :body body-as-input-stream)))
+            body-after-authorization (:body request)]
+        (is (identical? body-as-input-stream body-after-authorization)
+            "Body object changed after authorization")
+        (is (= body-string (slurp body-after-authorization :encoding "UTF-8"))
+            "Body stream content changed after authorization")))))
