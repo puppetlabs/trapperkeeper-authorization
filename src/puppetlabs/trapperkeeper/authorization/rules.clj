@@ -12,16 +12,14 @@
 
 (def Rule
   "An ACL rule, with no less than a matching path, possibly a method list and an acl"
-  {
-   :type Type
+  {:type Type
    :path Pattern
    :method Method
    (schema/optional-key :allow-unauthenticated) schema/Bool
    :acl acl/ACL
    (schema/optional-key :query-params) {schema/Str #{schema/Str}}
    (schema/optional-key :file) schema/Str
-   (schema/optional-key :line) schema/Int
-   })
+   (schema/optional-key :line) schema/Int})
 
 (def Rules
   "A list of rules"
