@@ -1,5 +1,7 @@
 (ns puppetlabs.trapperkeeper.authorization.ring-middleware
   (:require [schema.core :as schema]
+            [ring.middleware.params :as ring-params]
+            [ring.util.request :as ring-request]
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
             [puppetlabs.ssl-utils.core :as ssl-utils])
@@ -8,7 +10,6 @@
 (schema/defn request->name :- (schema/maybe schema/Str)
   "Return the identifying name of the request or nil"
   [request :- ring/Request]
-  ; TODO TK-260 Return a name even if there is no SSL client cert
   ; TODO SERVER-763 Support the name from the X headers
   (if-let [certificate (:ssl-client-cert request)]
     (ssl-utils/get-cn-from-x509-certificate certificate)))
@@ -34,3 +35,20 @@
       (if (true? authorized)
         (handler req)
         {:status 403 :body message}))))
+
+(defn- assoc-query-params
+  [request]
+  (let [encoding (or (ring-request/character-encoding request) "UTF-8")]
+    (if (:query-params request)
+      request
+      (ring-params/assoc-query-params request encoding))))
+
+(schema/defn wrap-query-params :- IFn
+  "A ring middleware for destructuring query params from the request. This is
+   similar to ring's wrap-params except that it only looks at query string and
+   not at form params in the request body for a urlencodedform post.  tk-authz
+   uses this so that it doesn't consume a request body before downstream
+   middleware has a chance to access it."
+  [handler]
+  (fn [request]
+    (handler (assoc-query-params request))))
