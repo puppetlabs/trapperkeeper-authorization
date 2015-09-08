@@ -7,7 +7,8 @@
 ;; Schemas
 
 (def Type (schema/enum :string :regex))
-(def Method (schema/enum :get :post :put :delete :head :any))
+(def Methods (schema/enum :get :post :put :delete :head :any))
+(def Method (schema/either Methods [Methods]))
 
 (def Rule
   "An ACL rule, with no less than a matching path, possibly a method list and an acl"
@@ -119,10 +120,16 @@
   (let [res (re-find re s)]
     (if (string? res) [res] res)))
 
-(defn- method-match?
-  "Return true if both mathod a and b match or if one is :any"
-  [a b]
-  (or (= a b) (some #{:any} [a b])))
+(schema/defn method-match?
+  "Return true if the provided method is equal to the value of `specified`. If
+  `specified` is a list of methods, return true if `method` is contained in
+  `specified`. If `specified` is set to :any then all methods will result in
+  true."
+  [method :- schema/Keyword
+   specified :- Method]
+  (let [rules-list (if (keyword? specified) [specified] specified)]
+    (or (some (partial = method) rules-list)
+        (= specified :any))))
 
 (defn- query-params-match?
   "Return true if query params match or if rule-params is nil."

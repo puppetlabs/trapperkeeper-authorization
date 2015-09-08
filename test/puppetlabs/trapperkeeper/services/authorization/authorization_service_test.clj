@@ -102,15 +102,10 @@
      :type "path"}
     :allow-unauthenticated true}
    {:match-request
-    {:path "/puppet-ca/v1/certificate_request"
-     :method :get
-     :type "path"}
-    :allow-unauthenticated true}
-   {:match-request
-    {:path "/puppet-ca/v1/certificate_request"
-     :method :put
-     :type "path"}
-    :allow-unauthenticated true}])
+    {:path   "/puppet-ca/v1/certificate_request"
+     :method [:get :put]
+     :type   "path"}
+     :allow-unauthenticated true}])
 
 (def catalog-request-nocert
   "A basic request for a catalog without a valid SSL cert"
