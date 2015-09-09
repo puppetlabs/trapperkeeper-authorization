@@ -190,7 +190,22 @@
         (is (= status 403))
         (is (= body (str "Forbidden request: (127.0.0.1) "
                          "access to /puppet/v3/catalog/localhost "
-                         "(method :get) (authentic: false)")))))))
+                         "(method :get) (authentic: false)"))))))
+  (testing "certificate_request"
+    (let [app (build-ring-handler default-rules)]
+      (let [req (request "/puppet-ca/v1/certificate_request/ca"
+                  :head "127.0.0.1" test-domain-cert)
+            {:keys [status body]} (app req)]
+        (is (= status 403))
+        (is (= body "global deny all - no rules matched")))
+      (let [req (request "/puppet-ca/v1/certificate_request/ca"
+                  :get "127.0.0.1" test-domain-cert)
+            {:keys [status]} (app req)]
+        (is (= status 200)))
+      (let [req (request "/puppet-ca/v1/certificate_request/ca"
+                  :put "127.0.0.1" test-domain-cert)
+            {:keys [status]} (app req)]
+        (is (= status 200))))))
 
 (deftest ^:integration query-params-test
   (let [app (build-ring-handler

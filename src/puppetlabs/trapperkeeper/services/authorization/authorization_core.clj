@@ -36,7 +36,10 @@
 (defn- method
   "Returns the method key of a given config map, or :any if none"
   [config-map]
-  (keyword (get-in config-map [:match-request :method] :any)))
+  (let [method-from-config (get-in config-map [:match-request :method] :any)]
+    (if (vector? method-from-config)
+      (mapv keyword method-from-config)
+      (keyword method-from-config))))
 
 (defn- build-rule
   "Build a new Rule based on the provided config-map"
