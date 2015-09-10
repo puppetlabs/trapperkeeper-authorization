@@ -74,7 +74,6 @@ ordering _allows_ before _deny_, and with an implicit _deny all_.
 
 ## Rules
 
-
 ### Rule
 
 A `Rule` is:
@@ -84,51 +83,6 @@ A `Rule` is:
 * an optional method (get, post, put, delete, head)
 * an optional map of request query parameters
 * an ACL
-
-Using the internal DSL to build a rule is very simple:
-
-~~~clojure
-(-> (new-rule :path "/path/to/resource")
-    (allow "*.domain.org"))
-    (deny "*.evil.com"))
-~~~
-
-Restricting a rule with a method:
-
-~~~clojure
-(-> (new-rule :path "/path/to/resource" :get)
-    (allow "*.domain.org"))
-~~~
-
-A Regex rule:
-
-~~~clojure
-(-> (new-rule :regex "(this|that)/resource")
-    (allow "*.domain.org"))
-~~~
-
-Restricting a rule to requests with query parameters:
-
-~~~clojure
-(-> (new-rule :path "/path/to/resource")
-    (query-param "environment" ["staging" "test"]))
-~~~
-
-### Rules
-
-A `Rules` is a vector of `Rule`.
-
-#### Building rules
-
-To build a set of rule:
-
-~~~clojure
-(-> rules/empty-rules
-    (rules/add-rule (-> (new-rule :path "/path/to/resource")
-                        (allow "*.domain.org")))
-    (rules/add-rule (-> (new-rule :regex "(this|that)-resource")
-                        (allow "$1.domain.org"))))
-~~~
 
 #### Checking a request
 

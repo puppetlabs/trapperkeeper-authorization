@@ -1,5 +1,6 @@
 (ns puppetlabs.trapperkeeper.authorization.testutils
   (:require [puppetlabs.ssl-utils.simple :as ssl]
+            [puppetlabs.trapperkeeper.authorization.rules :as rules]
             [ring.mock.request :as mock]))
 
 (defn request
@@ -19,3 +20,9 @@
 (def test-domain-cert (create-certificate "test.domain.org"))
 (def test-other-cert (create-certificate "www.other.org"))
 (def test-denied-cert (create-certificate "bad.guy.com"))
+
+(defn new-rule
+  ([type path]
+   (new-rule type path :any))
+  ([type path method]
+   (rules/new-rule type path method 500 "test rule")))

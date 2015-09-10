@@ -26,14 +26,6 @@
   [rule]
   (str/trim (ks/pprint-to-string rule)))
 
-(defn- config-method->rule-method
-  "Converts a method specified as a possibly mixed-case string in the config
-  to a lower-cased keyword."
-  [config-method]
-  {:pre [(string? config-method)]
-   :post [(keyword? %)]}
-  (keyword (str/lower-case config-method)))
-
 (defn- method
   "Returns the method key of a given config map, or :any if none"
   [config-map]
@@ -47,7 +39,10 @@
   [config-map]
   (let [type (keyword (get-in config-map [:match-request :type] :path))
         path (get-in config-map [:match-request :path])
-        rule (rules/new-rule type path (method config-map))]
+        method (method config-map)
+        sort-order (:sort-order config-map)
+        name (:name config-map)
+        rule (rules/new-rule type path method sort-order name)]
     (if (true? (:allow-unauthenticated config-map))
       (assoc rule :allow-unauthenticated true)
       rule)))
@@ -71,14 +66,6 @@
   [rule {{:keys [query-params]} :match-request}]
   (reduce-kv rules/query-param rule query-params))
 
-(defn add-sort-order
-  [rule {:keys [sort-order]}]
-  (rules/sort-order rule sort-order))
-
-(defn add-name
-  [rule {:keys [name]}]
-  (rules/rule-name rule name))
-
 (schema/defn config->rule :- rules/Rule
   "Given a rule expressed as a map in the configuration return a Rule suitable
    for use in a list with the allowed? function.
@@ -88,9 +75,7 @@
   [m]
   (-> (build-rule m)
       (add-acl m)
-      (add-query-params m)
-      (add-sort-order m)
-      (add-name m)))
+      (add-query-params m)))
 
 (defn valid-method?
   "Returns true if the given rule contains either a valid method, or no speicfied

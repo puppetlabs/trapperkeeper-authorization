@@ -75,21 +75,6 @@
    value :- (schema/either schema/Str [schema/Str])]
   (update-in rule [:query-params param] (comp set into) (flatten [value])))
 
-(schema/defn sort-order :- Rule
-  "Set the sort-order value of a rule. During authorization, rules are
-   checked based on the ordering of these numbers, not the order the rules
-   appear in the configuration file(s)."
-  [rule :- Rule
-   position :- schema/Int]
-  (assoc rule :sort-order position))
-
-(schema/defn rule-name :- Rule
-  "Set the name of a rule. During authorization, rules with the same sort-order
-   will be checked in the lexicographic order of their names."
-  [rule :- Rule
-   name :- schema/Str]
-  (assoc rule :name name))
-
 ;; Rule ACL creation
 
 (schema/defn allow :- Rule

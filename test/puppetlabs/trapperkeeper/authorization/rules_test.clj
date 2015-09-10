@@ -1,6 +1,7 @@
 (ns puppetlabs.trapperkeeper.authorization.rules-test
   (:require [clojure.test :refer :all]
             [schema.test :as schema-test]
+            [puppetlabs.trapperkeeper.authorization.testutils :as testutils]
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
             [puppetlabs.trapperkeeper.authorization.acl :as acl]
             [puppetlabs.trapperkeeper.authorization.ring :as ring]))
@@ -23,46 +24,46 @@
   (assoc (request path) :query-params params))
 
 (deftest test-matching-path-rules
-  (let [rule (rules/new-rule :path "/path/to/resource" :any)]
+  (let [rule (testutils/new-rule :path "/path/to/resource")]
     (testing "matching identical path"
       (is (= (:rule (rules/match? rule (request "/path/to/resource"))) rule)))
     (testing "matching non-identical path"
       (is (nil? (rules/match? rule (request "/path/to/different-resource")))))))
 
 (deftest test-matching-regex-rules
-  (let [rule (rules/new-rule :regex "(resource|path)" :any)]
+  (let [rule (testutils/new-rule :regex "(resource|path)" :any)]
     (testing "matching path"
       (is (= (:rule (rules/match? rule (request "/going/to/resource"))) rule)))
     (testing "non-matching path"
       (is (nil? (rules/match? rule (request "/other/file")))))))
 
 (deftest test-matching-regex-rules-with-captures
-  (let [rule (rules/new-rule :regex "^/path/(.*?)/(.*?)$" :any)]
+  (let [rule (testutils/new-rule :regex "^/path/(.*?)/(.*?)$" :any)]
     (testing "matching regex returns captures"
       (is (= (:matches (rules/match? rule (request "/path/to/resource"))) [ "to" "resource" ])))))
 
 (deftest test-matching-supports-request-method
-  (let [rule (rules/new-rule :path "/path/to/resource" :delete)]
+  (let [rule (testutils/new-rule :path "/path/to/resource" :delete)]
     (testing "matching identical method"
       (is (= (:rule (rules/match? rule (request "/path/to/resource" :delete))) rule)))
     (testing "non matching method"
       (is (nil? (rules/match? rule (request "/path/to/resource" :get)))))
     (let [path "/path/to/resource"
           methods [:get :put :delete]
-          rule (rules/new-rule :path path methods)]
+          rule (testutils/new-rule :path path methods)]
       (testing "matching rule with multiple methods"
         (doseq [method methods]
           (is (= (:rule (rules/match? rule (request path method))) rule))))
       (doseq [method [:post :head]]
         (testing "no match to rule with multiple methods"
           (is (nil? (rules/match? rule (request path method))))))))
-  (let [rule (rules/new-rule :path "/path/to/resource" :any)]
+  (let [rule (testutils/new-rule :path "/path/to/resource" :any)]
     (doseq [x [:get :post :put :delete :head]]
       (testing (str "matching " x)
         (is (= (:rule (rules/match? rule (request "/path/to/resource" x))) rule))))))
 
 (deftest test-matching-query-parameters
-  (let [rule (rules/new-rule :path "/path/to/resource" :any)
+  (let [rule (testutils/new-rule :path "/path/to/resource" :any)
         foo-rule (rules/query-param rule "environment" "foo")
         foo-bar-rule (rules/query-param rule "environment" ["foo" "bar"])
         multiples-rule (-> rule
@@ -94,7 +95,7 @@
                         "monkees" "ringo"}))))
 
 (deftest test-rule-acl-creation
-  (let [rule (rules/new-rule :path "/highway/to/hell" :any)]
+  (let [rule (testutils/new-rule :path "/highway/to/hell" :any)]
     (testing "allowing a host"
       (is (acl/allowed? (:acl (rules/allow rule "*.domain.com")) "www.domain.com" "127.0.0.1")))
     (testing "several allow in a row"
@@ -126,7 +127,7 @@
 (defn- build-rules
   "Build a list of rules from individual vectors of [path allow]"
   [& rules]
-  (reduce #(rules/add-rule %1 (-> (rules/new-rule :path (first %2))
+  (reduce #(rules/add-rule %1 (-> (testutils/new-rule :path (first %2))
                                   (rules/allow (second %2))))
           rules/empty-rules
           rules))
@@ -152,24 +153,18 @@
 
 (deftest test-rule-sorting
   (testing "rules checked in order of sort-order not order of appearance"
-    (let [rules [(-> (rules/new-rule :path "/foo")
-                     (rules/deny "*")
-                     (rules/sort-order 2))
-                 (-> (rules/new-rule :path "/foo")
-                     (rules/allow "*")
-                     (rules/sort-order 1))]
+    (let [rules [(-> (rules/new-rule :path "/foo" :any 2 "name")
+                     (rules/deny "*"))
+                 (-> (rules/new-rule :path "/foo" :any 1 "name")
+                     (rules/allow "*"))]
           request (-> (request "/foo")
                       (assoc-in ring/is-authentic-key true))]
       (is (rules/authorized? (rules/allowed? rules request "test.org")))))
   (testing "rules checked in order of name when sort-order is the same"
-    (let [rules [(-> (rules/new-rule :path "/foo")
-                     (rules/deny "*")
-                     (rules/sort-order 1)
-                     (rules/rule-name "bbb"))
-                 (-> (rules/new-rule :path "/foo")
-                     (rules/allow "*")
-                     (rules/sort-order 1)
-                     (rules/rule-name "aaa"))]
+    (let [rules [(-> (rules/new-rule :path "/foo" :any 1 "bbb")
+                     (rules/deny "*"))
+                 (-> (rules/new-rule :path "/foo" :any 1 "aaa")
+                     (rules/allow "*"))]
           request (-> (request "/foo")
                       (assoc-in ring/is-authentic-key true))]
       (is (rules/authorized? (rules/allowed? rules request "test.org"))))))
