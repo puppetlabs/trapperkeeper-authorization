@@ -19,10 +19,6 @@
   {:allow #(rules/allow %1 %2)
    :deny #(rules/deny %1 %2)})
 
-(def new-rule-func-map
-  "This is a function map to allow programmatic execution of path/regex rules"
-  {:path rules/new-path-rule :regex rules/new-regex-rule})
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private
 
@@ -49,10 +45,9 @@
 (defn- build-rule
   "Build a new Rule based on the provided config-map"
   [config-map]
-  (let [rule-type (keyword (get-in config-map [:match-request :type] :path))
+  (let [type (keyword (get-in config-map [:match-request :type] :path))
         path (get-in config-map [:match-request :path])
-        rule-fn (rule-type new-rule-func-map)
-        rule (rule-fn path (method config-map))]
+        rule (rules/new-rule type path (method config-map))]
     (if (true? (:allow-unauthenticated config-map))
       (assoc rule :allow-unauthenticated true)
       rule)))

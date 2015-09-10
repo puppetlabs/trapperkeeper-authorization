@@ -6,7 +6,7 @@
 
 ;; Schemas
 
-(def Type (schema/enum :string :regex))
+(def Type (schema/enum :path :regex))
 (def Method (schema/enum :get :post :put :delete :head :any))
 (def Methods (schema/either Method [Method]))
 
@@ -39,18 +39,19 @@
 
 (schema/defn new-rule :- Rule
   "Creates a new rule with an empty ACL"
-  ([type :- Type
-    pattern :- Pattern]
-    {:type type :path pattern :acl acl/empty-acl :method :any})
-  ([type :- Type
-    pattern :- Pattern
-    method :- Methods]
+  [type :- Type
+   path :- schema/Str
+   method :- Methods
+   sort-order :- schema/Int
+   name :- schema/Str]
    {:type type
-    :path pattern
+    :path (condp = type
+            :path (re-pattern (str "^" (Pattern/quote path)))
+            :regex (re-pattern path))
     :acl acl/empty-acl
     :method method
-    :sort-order 500
-    :name "<not set>"}))
+    :sort-order sort-order
+    :name name}))
 
 (schema/defn tag-rule :- Rule
   "Tag a rule with a file/line - useful for instance when the rule has been read
@@ -88,26 +89,6 @@
   [rule :- Rule
    name :- schema/Str]
   (assoc rule :name name))
-
-(defn- path->pattern
-  "Returns a valid regex from a path"
-  [path]
-  (re-pattern (str "^" (Pattern/quote path))))
-
-(schema/defn new-path-rule :- Rule
-  "Creates a new rule from a path-info with an empty ACL"
-  ([path :- schema/Str]
-    (new-path-rule path :any))
-  ([path :- schema/Str
-    method :- Methods]
-    (new-rule :string (path->pattern path) method)))
-
-(schema/defn new-regex-rule :- Rule
-  "Creates a new rule from a regex (as a string) with an empty ACL"
-  ([regex :- schema/Str]
-    (new-regex-rule regex :any))
-  ([regex :- schema/Str method :- Methods]
-    (new-rule :regex (re-pattern regex) method)))
 
 ;; Rule ACL creation
 

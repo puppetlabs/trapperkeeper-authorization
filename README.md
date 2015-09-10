@@ -88,7 +88,7 @@ A `Rule` is:
 Using the internal DSL to build a rule is very simple:
 
 ~~~clojure
-(-> (new-path-rule "/path/to/resource")
+(-> (new-rule :path "/path/to/resource")
     (allow "*.domain.org"))
     (deny "*.evil.com"))
 ~~~
@@ -96,21 +96,21 @@ Using the internal DSL to build a rule is very simple:
 Restricting a rule with a method:
 
 ~~~clojure
-(-> (new-path-rule "/path/to/resource" :get)
+(-> (new-rule :path "/path/to/resource" :get)
     (allow "*.domain.org"))
 ~~~
 
 A Regex rule:
 
 ~~~clojure
-(-> (new-regex-rule "(this|that)/resource")
+(-> (new-rule :regex "(this|that)/resource")
     (allow "*.domain.org"))
 ~~~
 
 Restricting a rule to requests with query parameters:
 
 ~~~clojure
-(-> (new-path-rule "/path/to/resource")
+(-> (new-rule :path "/path/to/resource")
     (query-param "environment" ["staging" "test"]))
 ~~~
 
@@ -124,10 +124,10 @@ To build a set of rule:
 
 ~~~clojure
 (-> rules/empty-rules
-    (rules/add-rule (-> (new-path-rule "/path/to/resource")
-                  (allow "*.domain.org")))
-    (rules/add-rule (-> (new-regex-rule "(this|that)-resource")
-                  (allow "$1.domain.org"))))
+    (rules/add-rule (-> (new-rule :path "/path/to/resource")
+                        (allow "*.domain.org")))
+    (rules/add-rule (-> (new-rule :regex "(this|that)-resource")
+                        (allow "$1.domain.org"))))
 ~~~
 
 #### Checking a request

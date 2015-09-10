@@ -199,7 +199,7 @@
   (testing "Given a basic allow rule against a string path"
     (let [m (merge base-path-auth allow-list)
           {:keys [type path method]} (config->rule m)]
-      (is (= :string type))
+      (is (= :path type))
       (testing "path is converted to an quoted regular expression"
         (is (= (str path) "^\\Q/foo/bar/baz\\E")))
       (is (= :any method))))
@@ -207,7 +207,7 @@
     (let [m (merge-with merge base-path-auth allow-list
                         {:match-request {:method "put"}})
           {:keys [type path method]} (config->rule m)]
-      (is (= :string type))
+      (is (= :path type))
       (testing "path is converted to an quoted regular expression"
         (is (= (str path) "^\\Q/foo/bar/baz\\E")))
       (is (= :put method))))
