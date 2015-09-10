@@ -17,6 +17,10 @@
   "At least one of these keys is required in an auth rule map."
   #{:deny :allow :allow-unauthenticated})
 
+(def valid-methods
+  "HTTP methods which are allowed to be configured in a rule."
+  #{"get" "post" "put" "delete" "head"})
+
 (def acl-func-map
   "This is a function map to allow a programmatic execution of allow/deny directives"
   {:allow #(rules/allow %1 %2)
@@ -82,6 +86,22 @@
       (add-acl m)
       (add-query-params m)))
 
+(defn valid-method?
+  "Returns true if the given rule contains either a valid method, or no speicfied
+  method."
+  [rule]
+  (let [rule-method (get-in rule [:match-request :method])
+        method (if (string? rule-method) [rule-method] rule-method)]
+    (cond
+      (nil? rule-method)
+      true
+
+      (vector? method)
+      (every? valid-methods (map str/lower-case method))
+
+      :else
+      false)))
+
 (defn validate-auth-config-rule!
   "Tests to see if the given map contains the proper data to define an auth
   rule. Returns the provided rule if successful, otherwise throws an exception
@@ -121,8 +141,15 @@
   (when-not (string? (:path (:match-request rule)))
     (throw (IllegalArgumentException.
             (str "The path set in the authorization rule specified as "
-                 (pprint-rule (:path (:match-request rule))) " is invalid. "
+                 (pprint-rule rule) " is invalid. "
                  "It should be a string."))))
+  (when-not (valid-method? rule)
+    (throw (IllegalArgumentException.
+             (str "The method specified in the authorization rule specified as "
+                  (pprint-rule rule) " is invalid. "
+                  "It should be either a string or list of strings that is equal "
+                  "to one of the following methods: '"
+                  (str/join "', '" (sort valid-methods)) "'"))))
   (when (= "regex" (-> rule :match-request :type name str/lower-case))
     (try
       (re-pattern (:path (:match-request rule)))
