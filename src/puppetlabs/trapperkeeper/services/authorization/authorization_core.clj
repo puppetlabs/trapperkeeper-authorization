@@ -1,5 +1,6 @@
 (ns puppetlabs.trapperkeeper.services.authorization.authorization-core
   (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [puppetlabs.kitchensink.core :as ks]
             [schema.core :as schema]
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
@@ -8,14 +9,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Constants
-
-(def required-keys
-  "Keys required in an auth rule map."
-  [:path :type])
-
-(def required-or-key
-  "At least one of these keys is required in an auth rule map."
-  #{:deny :allow :allow-unauthenticated})
 
 (def valid-methods
   "HTTP methods which are allowed to be configured in a rule."
@@ -83,6 +76,14 @@
   [rule {{:keys [query-params]} :match-request}]
   (reduce-kv rules/query-param rule query-params))
 
+(defn add-sort-order
+  [rule {:keys [sort-order]}]
+  (rules/sort-order rule sort-order))
+
+(defn add-name
+  [rule {:keys [name]}]
+  (rules/rule-name rule name))
+
 (schema/defn config->rule :- rules/Rule
   "Given a rule expressed as a map in the configuration return a Rule suitable
    for use in a list with the allowed? function.
@@ -92,7 +93,9 @@
   [m]
   (-> (build-rule m)
       (add-acl m)
-      (add-query-params m)))
+      (add-query-params m)
+      (add-sort-order m)
+      (add-name m)))
 
 (defn valid-method?
   "Returns true if the given rule contains either a valid method, or no speicfied
@@ -126,6 +129,18 @@
       (throw (IllegalArgumentException.
               (str "The authorization rule specified as " (pprint-rule rule)
                    " does not contain a '" (name k) "' key.")))))
+  (doseq [k [:sort-order :name]]
+    (when-not (get rule k)
+      (throw (IllegalArgumentException.
+              (str "The authorization rule specified as " (pprint-rule rule)
+                   " does not contain a '" (name k) "' key.")))))
+  (when (or (not (integer? (:sort-order rule)))
+            (< (:sort-order rule) 1)
+            (> (:sort-order rule) 999))
+    (throw (IllegalArgumentException.
+            (str "The sort-order set in the authorization rule specified as "
+                 (pprint-rule rule) " is invalid. It should be a number "
+                 "between 1-999."))))
   (if (:allow-unauthenticated rule)
     (if (some #{:deny :allow} (keys rule))
       (throw (IllegalArgumentException.
@@ -214,10 +229,21 @@
              "The provided authorization service config is not a list.")))
   (doseq [rule config]
     (validate-auth-config-rule! rule))
+  (doseq [[name rules] (group-by :name config)]
+    (when-not (= 1 (count rules))
+      (throw (IllegalArgumentException.
+              (str "Duplicate rules named '" name "'. "
+                   "Rules must be uniquely named.")))))
   config)
 
 (schema/defn transform-config :- rules/Rules
-  "Transforms the authorization service config into a list of Rules that work
-  with the authorization code."
+  "Transforms the (validated) authorization service config into a list of Rules
+   that work with the authorization code. Assumes config has been validated via
+   `validate-auth-config!`. A warning is logged if the rules in the config are
+   not in ascending sort order."
   [config]
-  (map config->rule config))
+  (let [parsed (map config->rule config)
+        trim-fn #(select-keys % [:sort-order :name])]
+    (when-not (= (map trim-fn config) (map trim-fn (rules/sort-rules parsed)))
+      (log/warn "Rules in configuration file not in ascending sort order."))
+    parsed))

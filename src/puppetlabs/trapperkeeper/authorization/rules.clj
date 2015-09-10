@@ -11,12 +11,13 @@
 (def Methods (schema/either Method [Method]))
 
 (def Rule
-  "An ACL rule, with no less than a matching path, possibly a method list and an acl"
   {:type Type
    :path Pattern
    :method Methods
-   (schema/optional-key :allow-unauthenticated) schema/Bool
    :acl acl/ACL
+   :sort-order schema/Int
+   :name schema/Str
+   (schema/optional-key :allow-unauthenticated) schema/Bool
    (schema/optional-key :query-params) {schema/Str #{schema/Str}}
    (schema/optional-key :file) schema/Str
    (schema/optional-key :line) schema/Int})
@@ -44,7 +45,12 @@
   ([type :- Type
     pattern :- Pattern
     method :- Methods]
-    {:type type :path pattern :acl acl/empty-acl :method method}))
+   {:type type
+    :path pattern
+    :acl acl/empty-acl
+    :method method
+    :sort-order 500
+    :name "<not set>"}))
 
 (schema/defn tag-rule :- Rule
   "Tag a rule with a file/line - useful for instance when the rule has been read
@@ -67,6 +73,21 @@
    param :- schema/Str
    value :- (schema/either schema/Str [schema/Str])]
   (update-in rule [:query-params param] (comp set into) (flatten [value])))
+
+(schema/defn sort-order :- Rule
+  "Set the sort-order value of a rule. During authorization, rules are
+   checked based on the ordering of these numbers, not the order the rules
+   appear in the configuration file(s)."
+  [rule :- Rule
+   position :- schema/Int]
+  (assoc rule :sort-order position))
+
+(schema/defn rule-name :- Rule
+  "Set the name of a rule. During authorization, rules with the same sort-order
+   will be checked in the lexicographic order of their names."
+  [rule :- Rule
+   name :- schema/Str]
+  (assoc rule :name name))
 
 (defn- path->pattern
   "Returns a valid regex from a path"
@@ -159,6 +180,12 @@
            (str " at " file ":" (:line rule)))
          (format " (authentic: %s)" authentic?))))
 
+(schema/defn sort-rules :- Rules
+  "Sorts the rules based on their :sort-order, and then their :name if they
+   have the same sort order value."
+  [rules :- Rules]
+  (vec (sort-by (juxt :sort-order :name) rules)))
+
 ;; Rules creation
 
 (def empty-rules [])
@@ -175,7 +202,8 @@
   [rules :- Rules
    request :- ring/Request
    name :- schema/Str]
-  (if-let [ { matched-rule :rule matches :matches } (some #(match? % request) rules)]
+  (if-let [{matched-rule :rule matches :matches}
+           (some #(match? % request) (sort-rules rules))]
     (if (true? (:allow-unauthenticated matched-rule))
       {:authorized true :message "allow-unauthenticated is true - allowed"}
       (if (and (true? (get-in request ring/is-authentic-key)) ; authenticated?

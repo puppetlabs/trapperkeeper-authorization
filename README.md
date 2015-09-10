@@ -79,6 +79,8 @@ ordering _allows_ before _deny_, and with an implicit _deny all_.
 
 A `Rule` is:
 * a path or a regex
+* a sort-order number, which may be reused across rules
+* a name, which must be unique
 * an optional method (get, post, put, delete, head)
 * an optional map of request query parameters
 * an ACL
@@ -130,9 +132,13 @@ To build a set of rule:
 
 #### Checking a request
 
-Incoming Ring requests are matched against the list of rules (in insertion
-order), when a rule resource path (or regex) matches the request URI then the
-rule ACL is checked.
+Incoming Ring requests are matched against the list of sorted rules. When a
+rule resource path (or regex) matches the request URI then the rule ACL is
+checked.
+
+The rules are sorted in ascending order based on their sort-order (e.g. a rule
+with sort-order 1 will be checked before a rule with sort-order 2). When rules
+have the same sort-order, they will be sorted by their name.
 
 ~~~clojure
 (rules/allowed? rules request)

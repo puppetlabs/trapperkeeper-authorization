@@ -52,7 +52,9 @@
     {:path "/puppet/v3/catalog/([^/]+)"
      :type "regex"
      :method "get"}
-    :allow "$1"}])
+    :allow "$1"
+    :sort-order 500
+    :name "puppetlabs catalog"}])
 
 (def default-rules
   "A representative example list of rules intended to model the defaults"
@@ -60,51 +62,71 @@
     {:path "/puppet/v3/environments"
      :method "get"
      :type "path"}
-    :allow "*"}
+    :allow "*"
+    :sort-order 500
+    :name "puppetlabs environments"}
    {:match-request
     {:path "^/puppet/v3/catalog/([^/]+)$"
      :method "get"
      :type "regex"}
-    :allow "$1"}
+    :allow "$1"
+    :sort-order 500
+    :name "puppetlabs catalog"}
    {:match-request
     {:path "^/puppet/v3/node/([^/]+)$"
      :method "get"
      :type "regex"}
-    :allow "$1"}
+    :allow "$1"
+    :sort-order 500
+    :name "puppetlabs node"}
    {:match-request
     {:path "^/puppet/v3/report/([^/]+)$"
      :method "put"
      :type "regex"}
-    :allow "$1"}
+    :allow "$1"
+    :sort-order 500
+    :name "puppetlabs report"}
    {:match-request
     {:path "/puppet/v3/file"
      :type "path"}
-    :allow "*"}
+    :allow "*"
+    :sort-order 500
+    :name "puppetlabs file"}
    {:match-request
     {:path "/puppet/v3/status"
      :method "get"
      :type "path"}
-    :allow "*"}
+    :allow "*"
+    :sort-order 500
+    :name "puppetlabs status"}
    {:match-request
     {:path "/puppet-ca/v1/certificate_revocation_list/ca"
      :method "get"
      :type "path"}
-    :allow "*"}
+    :allow "*"
+    :sort-order 500
+    :name "puppetlabs crl"}
    {:match-request
     {:path "/puppet-ca/v1/certificate/ca"
      :method "get"
      :type "path"}
-    :allow-unauthenticated true}
+    :allow-unauthenticated true
+    :sort-order 500
+    :name "puppetlabs ca cert"}
    {:match-request
     {:path "/puppet-ca/v1/certificate/"
      :method "get"
      :type "path"}
-    :allow-unauthenticated true}
+    :allow-unauthenticated true
+    :sort-order 500
+    :name "puppetlabs cert"}
    {:match-request
     {:path   "/puppet-ca/v1/certificate_request"
      :method ["get" "put"]
      :type   "path"}
-     :allow-unauthenticated true}])
+    :allow-unauthenticated true
+    :sort-order 500
+    :name "puppetlabs csr"}])
 
 (def catalog-request-nocert
   "A basic request for a catalog without a valid SSL cert"
@@ -213,7 +235,9 @@
                 :type "path"
                 :query-params {"environment" ["test" "prod"]
                                "foo" ["bar"]}}
-               :allow "*"}])
+               :allow "*"
+               :sort-order 100
+               :name "environments"}])
         req (assoc base-request
                    :uri "/puppet/v3/environments"
                    :body "Query Param Test")]
@@ -244,3 +268,73 @@
             "Body object changed after authorization")
         (is (= body-string (slurp body-after-authorization :encoding "UTF-8"))
             "Body stream content changed after authorization")))))
+
+(deftest ^:integration rule-sorting-test
+  (let [req (assoc base-request :uri "/foo" :body "Bar")]
+    (testing "rules sorted based on :sort-order"
+      (let [app (build-ring-handler
+                 [{:match-request
+                   {:path "/"
+                    :type "path"}
+                   :deny "*"
+                   :sort-order 800
+                   :name "you shall not pass"}
+                  {:match-request
+                   {:path "/"
+                    :type "path"}
+                   :allow "*"
+                   :sort-order 100
+                   :name "access granted"}])
+            {:keys [status body]} (app req)]
+        (is (= 200 status))
+        (is (= "Prefix: raB" body)))
+      (let [app (build-ring-handler
+                 [{:match-request
+                   {:path "/"
+                    :type "path"}
+                   :allow "*"
+                   :sort-order 800
+                   :name "access granted"}
+                  {:match-request
+                   {:path "/"
+                    :type "path"}
+                   :deny "*"
+                   :sort-order 100
+                   :name "you shall not pass"}])
+            {:keys [status body]} (app req)]
+        (is (= 403 status))
+        (is (re-matches #"Forbidden.*" body))))
+
+    (testing "rules sorted based on :name"
+      (let [app (build-ring-handler
+                 [{:match-request
+                   {:path "/"
+                    :type "path"}
+                   :deny "*"
+                   :sort-order 5
+                   :name "B"}
+                  {:match-request
+                   {:path "/"
+                    :type "path"}
+                   :allow "*"
+                   :sort-order 5
+                   :name "A"}])
+            {:keys [status body]} (app req)]
+        (is (= 200 status))
+        (is (= "Prefix: raB" body)))
+      (let [app (build-ring-handler
+                 [{:match-request
+                   {:path "/"
+                    :type "path"}
+                   :allow "*"
+                   :sort-order 5
+                   :name "B"}
+                  {:match-request
+                   {:path "/"
+                    :type "path"}
+                   :deny "*"
+                   :sort-order 5
+                   :name "A"}])
+            {:keys [status body]} (app req)]
+        (is (= 403 status))
+        (is (re-matches #"Forbidden.*" body))))))

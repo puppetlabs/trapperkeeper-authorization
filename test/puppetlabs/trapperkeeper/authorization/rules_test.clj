@@ -149,3 +149,27 @@
       (let [rules (map #(rules/tag-rule %1 "file.txt" 23) (build-rules ["/path/to/resource" "*.domain.org"] ["/stairway/to/heaven" "*.domain.org"]))]
         (is (not (rules/authorized? (rules/allowed? rules request "www.test.org"))))
         (is (= (:message (rules/allowed? rules request "www.test.org")) "Forbidden request: www.test.org(192.168.1.23) access to /stairway/to/heaven (method :get) at file.txt:23 (authentic: true)"))))))
+
+(deftest test-rule-sorting
+  (testing "rules checked in order of sort-order not order of appearance"
+    (let [rules [(-> (rules/new-path-rule "/foo")
+                     (rules/deny "*")
+                     (rules/sort-order 2))
+                 (-> (rules/new-path-rule "/foo")
+                     (rules/allow "*")
+                     (rules/sort-order 1))]
+          request (-> (request "/foo")
+                      (assoc-in ring/is-authentic-key true))]
+      (is (rules/authorized? (rules/allowed? rules request "test.org")))))
+  (testing "rules checked in order of name when sort-order is the same"
+    (let [rules [(-> (rules/new-path-rule "/foo")
+                     (rules/deny "*")
+                     (rules/sort-order 1)
+                     (rules/rule-name "bbb"))
+                 (-> (rules/new-path-rule "/foo")
+                     (rules/allow "*")
+                     (rules/sort-order 1)
+                     (rules/rule-name "aaa"))]
+          request (-> (request "/foo")
+                      (assoc-in ring/is-authentic-key true))]
+      (is (rules/authorized? (rules/allowed? rules request "test.org"))))))
