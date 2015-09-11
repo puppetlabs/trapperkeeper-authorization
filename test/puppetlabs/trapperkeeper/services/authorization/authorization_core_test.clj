@@ -176,7 +176,7 @@
       (is (= :any method))))
   (testing "Given a basic allow rule with a specific :put method"
     (let [m (merge-with merge base-path-auth allow-list
-                        {:match-request {:method :put}})
+                        {:match-request {:method "put"}})
           {:keys [type path method]} (config->rule m)]
       (is (= :string type))
       (testing "path is converted to an quoted regular expression"

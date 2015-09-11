@@ -37,13 +37,21 @@
   [rule]
   (str/trim (ks/pprint-to-string rule)))
 
+(defn- config-method->rule-method
+  "Converts a method specified as a possibly mixed-case string in the config
+  to a lower-cased keyword."
+  [config-method]
+  {:pre [(string? config-method)]
+   :post [(keyword? %)]}
+  (keyword (str/lower-case config-method)))
+
 (defn- method
   "Returns the method key of a given config map, or :any if none"
   [config-map]
-  (let [method-from-config (get-in config-map [:match-request :method] :any)]
+  (let [method-from-config (get-in config-map [:match-request :method] "any")]
     (if (vector? method-from-config)
-      (mapv keyword method-from-config)
-      (keyword method-from-config))))
+      (mapv config-method->rule-method method-from-config)
+      (config-method->rule-method method-from-config))))
 
 (defn- build-rule
   "Build a new Rule based on the provided config-map"
