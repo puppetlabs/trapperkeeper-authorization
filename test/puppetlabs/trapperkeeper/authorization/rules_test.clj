@@ -153,18 +153,20 @@
 
 (deftest test-rule-sorting
   (testing "rules checked in order of sort-order not order of appearance"
-    (let [rules [(-> (rules/new-rule :path "/foo" :any 2 "name")
-                     (rules/deny "*"))
-                 (-> (rules/new-rule :path "/foo" :any 1 "name")
-                     (rules/allow "*"))]
+    (let [rules (rules/sort-rules
+                 [(-> (rules/new-rule :path "/foo" :any 2 "name")
+                      (rules/deny "*"))
+                  (-> (rules/new-rule :path "/foo" :any 1 "name")
+                      (rules/allow "*"))])
           request (-> (request "/foo")
                       (assoc-in ring/is-authentic-key true))]
       (is (rules/authorized? (rules/allowed? rules request "test.org")))))
   (testing "rules checked in order of name when sort-order is the same"
-    (let [rules [(-> (rules/new-rule :path "/foo" :any 1 "bbb")
-                     (rules/deny "*"))
-                 (-> (rules/new-rule :path "/foo" :any 1 "aaa")
-                     (rules/allow "*"))]
+    (let [rules (rules/sort-rules
+                 [(-> (rules/new-rule :path "/foo" :any 1 "bbb")
+                      (rules/deny "*"))
+                  (-> (rules/new-rule :path "/foo" :any 1 "aaa")
+                      (rules/allow "*"))])
           request (-> (request "/foo")
                       (assoc-in ring/is-authentic-key true))]
       (is (rules/authorized? (rules/allowed? rules request "test.org"))))))

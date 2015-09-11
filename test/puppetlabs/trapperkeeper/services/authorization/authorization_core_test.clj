@@ -113,7 +113,7 @@
     (doseq [invalid ["notanumber" 0 1000]]
       (is (thrown-with-msg?
            IllegalArgumentException
-           #".* It should be a number between 1-999."
+           #".* It should be a number from 1 to 999."
            (validate-auth-config-rule! (assoc testrule :sort-order invalid)))))
 
     (is (thrown-with-msg?

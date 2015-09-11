@@ -51,7 +51,7 @@
     :acl acl/empty-acl
     :method method
     :sort-order sort-order
-    :name name}))
+    :name name})
 
 (schema/defn tag-rule :- Rule
   "Tag a rule with a file/line - useful for instance when the rule has been read
@@ -150,7 +150,7 @@
   "Sorts the rules based on their :sort-order, and then their :name if they
    have the same sort order value."
   [rules :- Rules]
-  (vec (sort-by (juxt :sort-order :name) rules)))
+  (sort-by (juxt :sort-order :name) rules))
 
 ;; Rules creation
 
@@ -164,18 +164,18 @@
 ;; Rules check
 
 (schema/defn allowed? :- AuthorizationResult
-  "Returns an AuthorizationResult of the given Rule set."
+  "Checks if a request is allowed access given the list of rules. Rules
+   will be checked in the given order; use `sort-rules` to first sort them."
   [rules :- Rules
    request :- ring/Request
    name :- schema/Str]
-  (if-let [{matched-rule :rule matches :matches}
-           (some #(match? % request) (sort-rules rules))]
-    (if (true? (:allow-unauthenticated matched-rule))
+  (if-let [{:keys [rule matches]} (some #(match? % request) rules)]
+    (if (true? (:allow-unauthenticated rule))
       {:authorized true :message "allow-unauthenticated is true - allowed"}
       (if (and (true? (get-in request ring/is-authentic-key)) ; authenticated?
-            (acl/allowed? (:acl matched-rule) name (:remote-addr request) matches))
+            (acl/allowed? (:acl rule) name (:remote-addr request) matches))
         {:authorized true :message ""}
-        {:authorized false :message (request->description request name matched-rule)}))
+        {:authorized false :message (request->description request name rule)}))
     {:authorized false :message "global deny all - no rules matched"}))
 
 (schema/defn authorized? :- schema/Bool

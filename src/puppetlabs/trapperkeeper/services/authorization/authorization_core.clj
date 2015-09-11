@@ -29,7 +29,8 @@
 (defn- method
   "Returns the method key of a given config map, or :any if none"
   [config-map]
-  (let [method-from-config (get-in config-map [:match-request :method] "any")]
+  (let [method-from-config (get-in config-map [:match-request :method] "any")
+        config-method->rule-method (comp keyword str/lower-case)]
     (if (vector? method-from-config)
       (mapv config-method->rule-method method-from-config)
       (config-method->rule-method method-from-config))))
@@ -120,7 +121,7 @@
     (throw (IllegalArgumentException.
             (str "The sort-order set in the authorization rule specified as "
                  (pprint-rule rule) " is invalid. It should be a number "
-                 "between 1-999."))))
+                 "from 1 to 999."))))
   (if (:allow-unauthenticated rule)
     (if (some #{:deny :allow} (keys rule))
       (throw (IllegalArgumentException.
@@ -206,7 +207,7 @@
   [config]
   (when-not (vector? config)
     (throw (IllegalArgumentException.
-             "The provided authorization service config is not a list.")))
+            "The provided authorization service config is not a list.")))
   (doseq [rule config]
     (validate-auth-config-rule! rule))
   (doseq [[name rules] (group-by :name config)]
@@ -222,8 +223,12 @@
    `validate-auth-config!`. A warning is logged if the rules in the config are
    not in ascending sort order."
   [config]
-  (let [parsed (map config->rule config)
+  (let [sorted (rules/sort-rules (map config->rule config))
         trim-fn #(select-keys % [:sort-order :name])]
-    (when-not (= (map trim-fn config) (map trim-fn (rules/sort-rules parsed)))
-      (log/warn "Rules in configuration file not in ascending sort order."))
-    parsed))
+    (when-let [mismatch (some #(when-not (= (first %) (second %)) %)
+                              (partition 2 (interleave (map trim-fn config)
+                                                       (map trim-fn sorted))))]
+      (log/warnf (str "Found rule '%s' out of order; expected '%s'. Rules in "
+                      "configuration file not in ascending sort order.")
+                 (:name (first mismatch)) (:name (second mismatch))))
+    sorted))
