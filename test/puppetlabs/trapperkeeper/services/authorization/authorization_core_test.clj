@@ -18,6 +18,9 @@
 (def multi-query-param {:match-request
                         {:query-params {"env" ["prod" "staging"]}}})
 (def allow-unauthenticated {:allow-unauthenticated true})
+(def method-get {:match-request {:method "get"}})
+(def method-put {:match-request {:method "put"}})
+(def multiple-methods {:match-request {:method ["get" "put"]}})
 
 (def expected-acl-as-vec
   "The expected ACL given the configuration of a base-path combined with
@@ -45,8 +48,9 @@
     (doseq [base [base-path-auth base-regex-auth]
             allow [allow-list allow-single nil]
             deny [deny-list deny-single nil]
+            methods [{} method-get method-put multiple-methods]
             params [single-query-param multi-query-param]]
-      (let [rule (merge-with merge base allow deny params)]
+      (let [rule (merge-with merge base allow deny params methods)]
         (when (or allow deny)
           (is (= rule (validate-auth-config-rule! rule))))))))
 
@@ -144,6 +148,22 @@
                                        {:path "/"
                                         :type "path"
                                         :query-params {"env" [:notastring]}}
+                                       :allow "*"})))
+
+    (is (thrown-with-msg? IllegalArgumentException
+          #".* 'delete', 'get', 'head', 'post', 'put'"
+          (validate-auth-config-rule! {:match-request
+                                       {:path "/"
+                                        :type "path"
+                                        :method "gross"}
+                                       :allow "*"})))
+
+    (is (thrown-with-msg? IllegalArgumentException
+          #".* 'delete', 'get', 'head', 'post', 'put'"
+          (validate-auth-config-rule! {:match-request
+                                       {:path   "/"
+                                        :type   "path"
+                                        :method ["nasty" "gross"]}
                                        :allow "*"})))))
 
 (deftest config->rule-test
@@ -156,7 +176,7 @@
       (is (= :any method))))
   (testing "Given a basic allow rule with a specific :put method"
     (let [m (merge-with merge base-path-auth allow-list
-                        {:match-request {:method :put}})
+                        {:match-request {:method "put"}})
           {:keys [type path method]} (config->rule m)]
       (is (= :string type))
       (testing "path is converted to an quoted regular expression"

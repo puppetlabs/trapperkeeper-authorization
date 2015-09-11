@@ -51,66 +51,60 @@
   [{:match-request
     {:path "/puppet/v3/catalog/([^/]+)"
      :type "regex"
-     :method :get}
+     :method "get"}
     :allow "$1"}])
 
 (def default-rules
   "A representative example list of rules intended to model the defaults"
   [{:match-request
     {:path "/puppet/v3/environments"
-     :method :get
+     :method "get"
      :type "path"}
     :allow "*"}
    {:match-request
     {:path "^/puppet/v3/catalog/([^/]+)$"
-     :method :get
+     :method "get"
      :type "regex"}
     :allow "$1"}
    {:match-request
     {:path "^/puppet/v3/node/([^/]+)$"
-     :method :get
+     :method "get"
      :type "regex"}
     :allow "$1"}
    {:match-request
     {:path "^/puppet/v3/report/([^/]+)$"
-     :method :put
+     :method "put"
      :type "regex"}
     :allow "$1"}
    {:match-request
     {:path "/puppet/v3/file"
-     :method :any
      :type "path"}
     :allow "*"}
    {:match-request
     {:path "/puppet/v3/status"
-     :method :get
+     :method "get"
      :type "path"}
     :allow "*"}
    {:match-request
     {:path "/puppet-ca/v1/certificate_revocation_list/ca"
-     :method :get
+     :method "get"
      :type "path"}
     :allow "*"}
    {:match-request
     {:path "/puppet-ca/v1/certificate/ca"
-     :method :get
+     :method "get"
      :type "path"}
     :allow-unauthenticated true}
    {:match-request
     {:path "/puppet-ca/v1/certificate/"
-     :method :get
+     :method "get"
      :type "path"}
     :allow-unauthenticated true}
    {:match-request
-    {:path "/puppet-ca/v1/certificate_request"
-     :method :get
-     :type "path"}
-    :allow-unauthenticated true}
-   {:match-request
-    {:path "/puppet-ca/v1/certificate_request"
-     :method :put
-     :type "path"}
-    :allow-unauthenticated true}])
+    {:path   "/puppet-ca/v1/certificate_request"
+     :method ["get" "put"]
+     :type   "path"}
+     :allow-unauthenticated true}])
 
 (def catalog-request-nocert
   "A basic request for a catalog without a valid SSL cert"
@@ -195,7 +189,22 @@
         (is (= status 403))
         (is (= body (str "Forbidden request: (127.0.0.1) "
                          "access to /puppet/v3/catalog/localhost "
-                         "(method :get) (authentic: false)")))))))
+                         "(method :get) (authentic: false)"))))))
+  (testing "certificate_request"
+    (let [app (build-ring-handler default-rules)]
+      (let [req (request "/puppet-ca/v1/certificate_request/ca"
+                  :head "127.0.0.1" test-domain-cert)
+            {:keys [status body]} (app req)]
+        (is (= status 403))
+        (is (= body "global deny all - no rules matched")))
+      (let [req (request "/puppet-ca/v1/certificate_request/ca"
+                  :get "127.0.0.1" test-domain-cert)
+            {:keys [status]} (app req)]
+        (is (= status 200)))
+      (let [req (request "/puppet-ca/v1/certificate_request/ca"
+                  :put "127.0.0.1" test-domain-cert)
+            {:keys [status]} (app req)]
+        (is (= status 200))))))
 
 (deftest ^:integration query-params-test
   (let [app (build-ring-handler

@@ -46,7 +46,16 @@
     (testing "matching identical method"
       (is (= (:rule (rules/match? rule (request "/path/to/resource" :delete))) rule)))
     (testing "non matching method"
-      (is (nil? (rules/match? rule (request "/path/to/resource" :get))))))
+      (is (nil? (rules/match? rule (request "/path/to/resource" :get)))))
+    (let [path "/path/to/resource"
+          methods [:get :put :delete]
+          rule (rules/new-path-rule path methods)]
+      (testing "matching rule with multiple methods"
+        (doseq [method methods]
+          (is (= (:rule (rules/match? rule (request path method))) rule))))
+      (doseq [method [:post :head]]
+        (testing "no match to rule with multiple methods"
+          (is (nil? (rules/match? rule (request path method))))))))
   (let [rule (rules/new-path-rule "/path/to/resource" :any)]
     (doseq [x [:get :post :put :delete :head]]
       (testing (str "matching " x)

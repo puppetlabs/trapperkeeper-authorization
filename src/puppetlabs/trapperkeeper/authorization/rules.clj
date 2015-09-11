@@ -8,19 +8,18 @@
 
 (def Type (schema/enum :string :regex))
 (def Method (schema/enum :get :post :put :delete :head :any))
+(def Methods (schema/either Method [Method]))
 
 (def Rule
   "An ACL rule, with no less than a matching path, possibly a method list and an acl"
-  {
-   :type Type
+  {:type Type
    :path Pattern
-   :method Method
+   :method Methods
    (schema/optional-key :allow-unauthenticated) schema/Bool
    :acl acl/ACL
    (schema/optional-key :query-params) {schema/Str #{schema/Str}}
    (schema/optional-key :file) schema/Str
-   (schema/optional-key :line) schema/Int
-   })
+   (schema/optional-key :line) schema/Int})
 
 (def Rules
   "A list of rules"
@@ -44,7 +43,7 @@
     {:type type :path pattern :acl acl/empty-acl :method :any})
   ([type :- Type
     pattern :- Pattern
-    method :- Method]
+    method :- Methods]
     {:type type :path pattern :acl acl/empty-acl :method method}))
 
 (schema/defn tag-rule :- Rule
@@ -79,14 +78,14 @@
   ([path :- schema/Str]
     (new-path-rule path :any))
   ([path :- schema/Str
-    method :- Method]
+    method :- Methods]
     (new-rule :string (path->pattern path) method)))
 
 (schema/defn new-regex-rule :- Rule
   "Creates a new rule from a regex (as a string) with an empty ACL"
   ([regex :- schema/Str]
     (new-regex-rule regex :any))
-  ([regex :- schema/Str method :- Method]
+  ([regex :- schema/Str method :- Methods]
     (new-rule :regex (re-pattern regex) method)))
 
 ;; Rule ACL creation
@@ -119,10 +118,16 @@
   (let [res (re-find re s)]
     (if (string? res) [res] res)))
 
-(defn- method-match?
-  "Return true if both mathod a and b match or if one is :any"
-  [a b]
-  (or (= a b) (some #{:any} [a b])))
+(schema/defn method-match?
+  "Return true if the provided method is equal to the value of `specified`. If
+  `specified` is a list of methods, return true if `method` is contained in
+  `specified`. If `specified` is set to :any then all methods will result in
+  true."
+  [method :- schema/Keyword
+   specified :- Methods]
+  (let [rules-list (if (keyword? specified) [specified] specified)]
+    (or (some (partial = method) rules-list)
+        (= specified :any))))
 
 (defn- query-params-match?
   "Return true if query params match or if rule-params is nil."
