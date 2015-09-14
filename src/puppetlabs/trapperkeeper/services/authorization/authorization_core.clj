@@ -1,5 +1,6 @@
 (ns puppetlabs.trapperkeeper.services.authorization.authorization-core
   (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [puppetlabs.kitchensink.core :as ks]
             [schema.core :as schema]
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
@@ -8,14 +9,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Constants
-
-(def required-keys
-  "Keys required in an auth rule map."
-  [:path :type])
-
-(def required-or-key
-  "At least one of these keys is required in an auth rule map."
-  #{:deny :allow :allow-unauthenticated})
 
 (def valid-methods
   "HTTP methods which are allowed to be configured in a rule."
@@ -26,10 +19,6 @@
   {:allow #(rules/allow %1 %2)
    :deny #(rules/deny %1 %2)})
 
-(def new-rule-func-map
-  "This is a function map to allow programmatic execution of path/regex rules"
-  {:path rules/new-path-rule :regex rules/new-regex-rule})
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private
 
@@ -37,18 +26,11 @@
   [rule]
   (str/trim (ks/pprint-to-string rule)))
 
-(defn- config-method->rule-method
-  "Converts a method specified as a possibly mixed-case string in the config
-  to a lower-cased keyword."
-  [config-method]
-  {:pre [(string? config-method)]
-   :post [(keyword? %)]}
-  (keyword (str/lower-case config-method)))
-
 (defn- method
   "Returns the method key of a given config map, or :any if none"
   [config-map]
-  (let [method-from-config (get-in config-map [:match-request :method] "any")]
+  (let [method-from-config (get-in config-map [:match-request :method] "any")
+        config-method->rule-method (comp keyword str/lower-case)]
     (if (vector? method-from-config)
       (mapv config-method->rule-method method-from-config)
       (config-method->rule-method method-from-config))))
@@ -56,10 +38,12 @@
 (defn- build-rule
   "Build a new Rule based on the provided config-map"
   [config-map]
-  (let [rule-type (keyword (get-in config-map [:match-request :type] :path))
+  (let [type (keyword (get-in config-map [:match-request :type] :path))
         path (get-in config-map [:match-request :path])
-        rule-fn (rule-type new-rule-func-map)
-        rule (rule-fn path (method config-map))]
+        method (method config-map)
+        sort-order (:sort-order config-map)
+        name (:name config-map)
+        rule (rules/new-rule type path method sort-order name)]
     (if (true? (:allow-unauthenticated config-map))
       (assoc rule :allow-unauthenticated true)
       rule)))
@@ -126,6 +110,18 @@
       (throw (IllegalArgumentException.
               (str "The authorization rule specified as " (pprint-rule rule)
                    " does not contain a '" (name k) "' key.")))))
+  (doseq [k [:sort-order :name]]
+    (when-not (get rule k)
+      (throw (IllegalArgumentException.
+              (str "The authorization rule specified as " (pprint-rule rule)
+                   " does not contain a '" (name k) "' key.")))))
+  (when (or (not (integer? (:sort-order rule)))
+            (< (:sort-order rule) 1)
+            (> (:sort-order rule) 999))
+    (throw (IllegalArgumentException.
+            (str "The sort-order set in the authorization rule specified as "
+                 (pprint-rule rule) " is invalid. It should be a number "
+                 "from 1 to 999."))))
   (if (:allow-unauthenticated rule)
     (if (some #{:deny :allow} (keys rule))
       (throw (IllegalArgumentException.
@@ -211,13 +207,28 @@
   [config]
   (when-not (vector? config)
     (throw (IllegalArgumentException.
-             "The provided authorization service config is not a list.")))
+            "The provided authorization service config is not a list.")))
   (doseq [rule config]
     (validate-auth-config-rule! rule))
+  (doseq [[name rules] (group-by :name config)]
+    (when-not (= 1 (count rules))
+      (throw (IllegalArgumentException.
+              (str "Duplicate rules named '" name "'. "
+                   "Rules must be uniquely named.")))))
   config)
 
 (schema/defn transform-config :- rules/Rules
-  "Transforms the authorization service config into a list of Rules that work
-  with the authorization code."
+  "Transforms the (validated) authorization service config into a list of Rules
+   that work with the authorization code. Assumes config has been validated via
+   `validate-auth-config!`. A warning is logged if the rules in the config are
+   not in ascending sort order."
   [config]
-  (map config->rule config))
+  (let [sorted (rules/sort-rules (map config->rule config))
+        trim-fn #(select-keys % [:sort-order :name])]
+    (when-let [mismatch (some #(when-not (= (first %) (second %)) %)
+                              (partition 2 (interleave (map trim-fn config)
+                                                       (map trim-fn sorted))))]
+      (log/warnf (str "Found rule '%s' out of order; expected '%s'. Rules in "
+                      "configuration file not in ascending sort order.")
+                 (:name (first mismatch)) (:name (second mismatch))))
+    sorted))
