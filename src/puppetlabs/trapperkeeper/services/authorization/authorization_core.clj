@@ -205,12 +205,22 @@
   configuration is found an IllegalArgumentException will be thrown, otherwise
   the input config will be returned."
   [config]
-  (when-not (vector? config)
+  (when-not config
     (throw (IllegalArgumentException.
-            "The provided authorization service config is not a list.")))
-  (doseq [rule config]
+            "Missing authorization service configuration.")))
+  (when-not (map? config)
+    (throw (IllegalArgumentException.
+            "The authorization service configuration is not a map.")))
+  (when-not (= 1 (:version config))
+    (throw (IllegalArgumentException.
+            (str "Unsupported or missing version in configuration file. "
+                 "Supported versions are: 1"))))
+  (when-not (vector? (:rules config))
+    (throw (IllegalArgumentException.
+            "The authorization service configuration rules is not a list.")))
+  (doseq [rule (:rules config)]
     (validate-auth-config-rule! rule))
-  (doseq [[name rules] (group-by :name config)]
+  (doseq [[name rules] (group-by :name (:rules config))]
     (when-not (= 1 (count rules))
       (throw (IllegalArgumentException.
               (str "Duplicate rules named '" name "'. "

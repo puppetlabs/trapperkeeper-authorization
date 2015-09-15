@@ -1,16 +1,17 @@
 (ns puppetlabs.trapperkeeper.services.authorization.authorization-service-test
   (:require
-    [clojure.test :refer :all]
-    [clojure.string :as str]
-    [puppetlabs.trapperkeeper.app :refer [get-service]]
-    [puppetlabs.trapperkeeper.authorization.testutils :refer :all]
-    [puppetlabs.trapperkeeper.services :refer [defservice]]
-    [puppetlabs.trapperkeeper.services.authorization.authorization-service :refer [authorization-service]]
-    [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
-    [puppetlabs.trapperkeeper.testutils.logging :refer [with-test-logging]]
-    [ring.mock.request :as mock]
-    [ring.util.response :refer [response]]
-    [schema.test :as schema-test])
+   [clojure.test :refer :all]
+   [clojure.string :as str]
+   [puppetlabs.trapperkeeper.app :refer [get-service]]
+   [puppetlabs.trapperkeeper.authorization.testutils :refer :all]
+   [puppetlabs.trapperkeeper.services :refer [defservice]]
+   [puppetlabs.trapperkeeper.services.authorization.authorization-service
+    :refer [authorization-service]]
+   [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
+   [puppetlabs.trapperkeeper.testutils.logging :refer [with-test-logging]]
+   [ring.mock.request :as mock]
+   [ring.util.response :refer [response]]
+   [schema.test :as schema-test])
   (:import (java.io ByteArrayInputStream)
            (java.nio.charset Charset)))
 
@@ -44,7 +45,7 @@
 
   An empty list representing no rules with an expected behavior of
   default-deny originating in the authorization library itself."
-  {:authorization {:rules []}})
+  {:authorization {:version 1 :rules []}})
 
 (def basic-rules
   "Basic config exercising the use case of restricting a catalog to a node"
@@ -181,14 +182,14 @@
         (is (= status 403))
         (is (= body "global deny all - no rules matched")))
       (let [req (assoc unauthenticated-request
-                  :uri "/puppet-ca/v1/certificate/ca"
-                  :body "FOOBAR")
+                       :uri "/puppet-ca/v1/certificate/ca"
+                       :body "FOOBAR")
             {:keys [status body]} (app req)]
         (is (= status 200))
         (is (= body "Prefix: RABOOF")))
       (let [req (assoc unauthenticated-request
-                  :uri "/puppet-ca/v1/certificate/ca"
-                  :ssl-client-cert nil)
+                       :uri "/puppet-ca/v1/certificate/ca"
+                       :ssl-client-cert nil)
             {:keys [status body]} (app req)]
         (is (= 200 status) ":ssl-client-cert with nil value works")
         (is (= body "Prefix: ")))
@@ -216,16 +217,16 @@
   (testing "certificate_request"
     (let [app (build-ring-handler default-rules)]
       (let [req (request "/puppet-ca/v1/certificate_request/ca"
-                  :head "127.0.0.1" test-domain-cert)
+                         :head "127.0.0.1" test-domain-cert)
             {:keys [status body]} (app req)]
         (is (= status 403))
         (is (= body "global deny all - no rules matched")))
       (let [req (request "/puppet-ca/v1/certificate_request/ca"
-                  :get "127.0.0.1" test-domain-cert)
+                         :get "127.0.0.1" test-domain-cert)
             {:keys [status]} (app req)]
         (is (= status 200)))
       (let [req (request "/puppet-ca/v1/certificate_request/ca"
-                  :put "127.0.0.1" test-domain-cert)
+                         :put "127.0.0.1" test-domain-cert)
             {:keys [status]} (app req)]
         (is (= status 200))))))
 
@@ -259,11 +260,11 @@
                                    (.getBytes body-string))
             body-as-input-stream (ByteArrayInputStream. body-stream-bytes)
             {:keys [request]}
-              (app (-> req
-                       (mock/query-string "environment=prod&foo=bar")
-                       (mock/content-type "application/x-www-form-urlencoded")
-                       (mock/content-length (count body-stream-bytes))
-                       (assoc :body body-as-input-stream)))
+            (app (-> req
+                     (mock/query-string "environment=prod&foo=bar")
+                     (mock/content-type "application/x-www-form-urlencoded")
+                     (mock/content-length (count body-stream-bytes))
+                     (assoc :body body-as-input-stream)))
             body-after-authorization (:body request)]
         (is (identical? body-as-input-stream body-after-authorization)
             "Body object changed after authorization")
