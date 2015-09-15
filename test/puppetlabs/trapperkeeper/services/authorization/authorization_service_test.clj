@@ -211,7 +211,8 @@
         (is (= status 403))
         (is (= body (str "Forbidden request: (127.0.0.1) "
                          "access to /puppet/v3/catalog/localhost "
-                         "(method :get) (authentic: false)"))))))
+                         "(method :get) (authentic: false) "
+                         "denied by rule 'puppetlabs catalog'."))))))
   (testing "certificate_request"
     (let [app (build-ring-handler default-rules)]
       (let [req (request "/puppet-ca/v1/certificate_request/ca"

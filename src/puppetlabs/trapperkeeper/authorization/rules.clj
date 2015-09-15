@@ -1,7 +1,8 @@
 (ns puppetlabs.trapperkeeper.authorization.rules
-  (:require [schema.core :as schema]
+  (:require [clojure.tools.logging :as log]
             [puppetlabs.trapperkeeper.authorization.acl :as acl]
-            [puppetlabs.trapperkeeper.authorization.ring :as ring])
+            [puppetlabs.trapperkeeper.authorization.ring :as ring]
+            [schema.core :as schema])
   (:import java.util.regex.Pattern))
 
 ;; Schemas
@@ -125,7 +126,8 @@
                   (flatten [(get request-params k)])))))
 
 (schema/defn match? :- RuleMatch
-  "Returns the rule if it matches the request URI, and also any capture groups of the Rule pattern if there are."
+  "Returns the rule if it matches the request URI, and also
+   any capture groups of the Rule pattern if there are any."
   [rule :- Rule
    request :- ring/Request]
   (if (and (method-match? (:request-method request) (:method rule))
@@ -139,18 +141,25 @@
         path (:uri request)
         method (:request-method request)
         authentic? (true? (get-in request ring/is-authentic-key))]
-    (str "Forbidden request: " (if name
-          (format "%s(%s)" name ip)
-          ip) " access to " path " (method " method ")"
-         (if-let [ file (:file rule) ]
-           (str " at " file ":" (:line rule)))
-         (format " (authentic: %s)" authentic?))))
+    (str "Forbidden request: " (if name (format "%s(%s)" name ip) ip)
+         " access to " path " (method " method ")"
+         (if-let [file (:file rule)] (str " at " file ":" (:line rule)))
+         (format " (authentic: %s) " authentic?)
+         (format "denied by rule '%s'." (:name rule)))))
 
 (schema/defn sort-rules :- Rules
   "Sorts the rules based on their :sort-order, and then their :name if they
    have the same sort order value."
   [rules :- Rules]
   (sort-by (juxt :sort-order :name) rules))
+
+(schema/defn deny-request :- AuthorizationResult
+  "Logs the reason message at ERROR level and
+   returns an unauthorized authorization result."
+  [reason :- schema/Str]
+  (log/error reason)
+  {:authorized false
+   :message reason})
 
 ;; Rules creation
 
@@ -175,8 +184,8 @@
       (if (and (true? (get-in request ring/is-authentic-key)) ; authenticated?
             (acl/allowed? (:acl rule) name (:remote-addr request) matches))
         {:authorized true :message ""}
-        {:authorized false :message (request->description request name rule)}))
-    {:authorized false :message "global deny all - no rules matched"}))
+        (deny-request (request->description request name rule))))
+    (deny-request "global deny all - no rules matched")))
 
 (schema/defn authorized? :- schema/Bool
   [result :- AuthorizationResult]

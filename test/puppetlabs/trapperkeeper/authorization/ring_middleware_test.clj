@@ -3,7 +3,8 @@
             [puppetlabs.trapperkeeper.authorization.ring-middleware :as ring-middleware]
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
             [puppetlabs.trapperkeeper.authorization.testutils :as testutils]
-            [schema.test :as schema-test]))
+            [schema.test :as schema-test]
+            [puppetlabs.trapperkeeper.testutils.logging :as logutils]))
 
 (use-fixtures :once schema-test/validate-schemas)
 
@@ -30,23 +31,30 @@
       (ring-middleware/wrap-authorization-check rules)))
 
 (deftest wrap-authorization-check-test
-  (let [ring-handler (build-ring-handler test-rule)]
-    (testing "access allowed when cert CN is allowed"
-      (let [response (ring-handler (testutils/request "/path/to/foo" :get "127.0.0.1" testutils/test-domain-cert))]
-        (is (= 200 (:status response)))
-        (is (= "hello" (:body response)))))
-    (testing "access denied when cert CN is not in the rule"
-      (let [response (ring-handler (testutils/request "/path/to/foo" :get "127.0.0.1" testutils/test-other-cert))]
-        (is (= 403 (:status response)))
-        (is (= "Forbidden request: www.other.org(127.0.0.1) access to /path/to/foo (method :get) (authentic: true)" (:body response)))))
-    (testing "access denied when cert CN is explicitly denied in the rule"
-      (let [response (ring-handler (testutils/request "/path/to/foo" :get "127.0.0.1" testutils/test-denied-cert))]
-        (is (= 403 (:status response)))
-        (is (= "Forbidden request: bad.guy.com(127.0.0.1) access to /path/to/foo (method :get) (authentic: true)" (:body response))))))
-  (testing "Denied when deny all"
-    (let [app (build-ring-handler [(-> (testutils/new-rule :path "/")
-                                       (rules/deny "*"))])]
-      (doseq [path ["a" "/" "/hip/hop/" "/a/hippie/to/the/hippi-dee/beat"]]
-        (let [req (testutils/request path :get "127.0.0.1" testutils/test-domain-cert)
-              {status :status} (app req)]
-          (is (= status 403)))))))
+  (logutils/with-test-logging
+    (let [ring-handler (build-ring-handler test-rule)]
+      (testing "access allowed when cert CN is allowed"
+        (let [response (ring-handler (testutils/request "/path/to/foo" :get "127.0.0.1" testutils/test-domain-cert))]
+          (is (= 200 (:status response)))
+          (is (= "hello" (:body response)))))
+      (testing "access denied when cert CN is not in the rule"
+        (let [response (ring-handler (testutils/request "/path/to/foo" :get "127.0.0.1" testutils/test-other-cert))]
+          (is (= 403 (:status response)))
+          (is (= (str "Forbidden request: www.other.org(127.0.0.1) access to "
+                      "/path/to/foo (method :get) (authentic: true) denied by "
+                      "rule 'test rule'.")
+                 (:body response)))))
+      (testing "access denied when cert CN is explicitly denied in the rule"
+        (let [response (ring-handler (testutils/request "/path/to/foo" :get "127.0.0.1" testutils/test-denied-cert))]
+          (is (= 403 (:status response)))
+          (is (= (str "Forbidden request: bad.guy.com(127.0.0.1) access to "
+                      "/path/to/foo (method :get) (authentic: true) denied by "
+                      "rule 'test rule'.")
+                 (:body response))))))
+    (testing "Denied when deny all"
+      (let [app (build-ring-handler [(-> (testutils/new-rule :path "/")
+                                         (rules/deny "*"))])]
+        (doseq [path ["a" "/" "/hip/hop/" "/a/hippie/to/the/hippi-dee/beat"]]
+          (let [req (testutils/request path :get "127.0.0.1" testutils/test-domain-cert)
+                {status :status} (app req)]
+            (is (= status 403))))))))

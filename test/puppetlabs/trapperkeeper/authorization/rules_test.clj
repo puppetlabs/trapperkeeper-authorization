@@ -1,10 +1,11 @@
 (ns puppetlabs.trapperkeeper.authorization.rules-test
   (:require [clojure.test :refer :all]
-            [schema.test :as schema-test]
-            [puppetlabs.trapperkeeper.authorization.testutils :as testutils]
-            [puppetlabs.trapperkeeper.authorization.rules :as rules]
             [puppetlabs.trapperkeeper.authorization.acl :as acl]
-            [puppetlabs.trapperkeeper.authorization.ring :as ring]))
+            [puppetlabs.trapperkeeper.authorization.ring :as ring]
+            [puppetlabs.trapperkeeper.authorization.rules :as rules]
+            [puppetlabs.trapperkeeper.authorization.testutils :as testutils]
+            [puppetlabs.trapperkeeper.testutils.logging :as logutils]
+            [schema.test :as schema-test]))
 
 (use-fixtures :once schema-test/validate-schemas)
 
@@ -133,23 +134,36 @@
           rules))
 
 (deftest test-allowed
-  (let [request (-> (request "/stairway/to/heaven" :get "192.168.1.23")
-                    (assoc-in ring/is-authentic-key true))]
-    (testing "allowed request by name"
-      (let [rules (build-rules ["/path/to/resource" "*.domain.org"] ["/stairway/to/heaven" "*.domain.org"])]
-        (is (rules/authorized? (rules/allowed? rules request "test.domain.org")))))
-    (testing "global deny"
-      (let [rules (build-rules ["/path/to/resource" "*.domain.org"] ["/path/to/other" "*.domain.org"])]
-        (is (not (rules/authorized? (rules/allowed? rules request "www.domain.org"))))
-        (is (= (:message (rules/allowed? rules request "www.domain.org")) "global deny all - no rules matched"))))
-    (testing "rule not allowing"
-      (let [rules (build-rules ["/path/to/resource" "*.domain.org"] ["/stairway/to/heaven" "*.domain.org"])]
-        (is (not (rules/authorized? (rules/allowed? rules request "www.test.org"))))
-        (is (= (:message (rules/allowed? rules request "www.test.org")) "Forbidden request: www.test.org(192.168.1.23) access to /stairway/to/heaven (method :get) (authentic: true)"))))
-    (testing "tagged rule not allowing "
-      (let [rules (map #(rules/tag-rule %1 "file.txt" 23) (build-rules ["/path/to/resource" "*.domain.org"] ["/stairway/to/heaven" "*.domain.org"]))]
-        (is (not (rules/authorized? (rules/allowed? rules request "www.test.org"))))
-        (is (= (:message (rules/allowed? rules request "www.test.org")) "Forbidden request: www.test.org(192.168.1.23) access to /stairway/to/heaven (method :get) at file.txt:23 (authentic: true)"))))))
+  (logutils/with-test-logging
+    (let [request (-> (request "/stairway/to/heaven" :get "192.168.1.23")
+                      (assoc-in ring/is-authentic-key true))]
+      (testing "allowed request by name"
+        (let [rules (build-rules ["/path/to/resource" "*.domain.org"]
+                                 ["/stairway/to/heaven" "*.domain.org"])]
+          (is (rules/authorized? (rules/allowed? rules request "test.domain.org")))))
+      (testing "global deny"
+        (let [rules (build-rules ["/path/to/resource" "*.domain.org"]
+                                 ["/path/to/other" "*.domain.org"])]
+          (is (not (rules/authorized? (rules/allowed? rules request "www.domain.org"))))
+          (is (= (:message (rules/allowed? rules request "www.domain.org"))
+                 "global deny all - no rules matched"))))
+      (testing "rule not allowing"
+        (let [rules (build-rules ["/path/to/resource" "*.domain.org"]
+                                 ["/stairway/to/heaven" "*.domain.org"])]
+          (is (not (rules/authorized? (rules/allowed? rules request "www.test.org"))))
+          (is (= (:message (rules/allowed? rules request "www.test.org"))
+                 (str "Forbidden request: www.test.org(192.168.1.23) access to "
+                      "/stairway/to/heaven (method :get) (authentic: true) "
+                      "denied by rule 'test rule'.")))))
+      (testing "tagged rule not allowing "
+        (let [rules (map #(rules/tag-rule %1 "file.txt" 23)
+                         (build-rules ["/path/to/resource" "*.domain.org"]
+                                      ["/stairway/to/heaven" "*.domain.org"]))]
+          (is (not (rules/authorized? (rules/allowed? rules request "www.test.org"))))
+          (is (= (:message (rules/allowed? rules request "www.test.org"))
+                 (str "Forbidden request: www.test.org(192.168.1.23) access to "
+                      "/stairway/to/heaven (method :get) at file.txt:23 "
+                      "(authentic: true) denied by rule 'test rule'."))))))))
 
 (deftest test-rule-sorting
   (testing "rules checked in order of sort-order not order of appearance"
