@@ -1,116 +1,104 @@
-# Trapperkeeper-authorization
+# Trapperkeeper Authorization Service
 
 [![Build Status](https://travis-ci.org/puppetlabs/trapperkeeper-authorization.svg?branch=master)](https://travis-ci.org/puppetlabs/trapperkeeper-authorization)
 
-This clojure project is an authorization service for PuppetLabs Trapperkeeper.
-It aims to port Puppet's `auth.conf` feature to clojure, along with a different
-way to express authorization rules.
-
-The core of this service is a configuration format to express authorization
-rules which govern the REST API by parsing authentication information out of
-the incoming request, then matching the request against the configured rules.
-
-# Credits
-
-The original work for this library, service, and the original REST authconfig
-work in Ruby Puppet were all contributed by [Brice
-Figureau](https://github.com/masterzen).  This project has been graciously
-transferred to Puppet Labs for further development and maintenance as it
-becomes a critical part of the [Puppet
-Server](https://github.com/puppetlabs/puppet-server) security model as
-authconfig became a critical part of Puppet's security model.
+This project provides an authorization service for use with the
+[trapperkeeper service framework](https://github.com/puppetlabs/trapperkeeper).
+It aims to port Puppet's
+[`auth.conf`](https://docs.puppetlabs.com/puppet/latest/reference/config_file_auth.html)
+feature to Clojure and the trapperkeeper framework, with a different way to 
+express authorization rules.
 
 ## Installation
 
-Add the following to your _leiningen_ `project.clj`:
+To use this service in your trapperkeeper application, simply add this project
+as a dependency in your leiningen project file:
 
 [![Clojars Project](http://clojars.org/puppetlabs/trapperkeeper-authorization/latest-version.svg)](http://clojars.org/puppetlabs/trapperkeeper-authorization)
 
+Then add the authorization service to your
+[`bootstrap.cfg`](https://github.com/puppetlabs/trapperkeeper/wiki/Bootstrapping)
+file, via:
 
-## Terminology
+    puppetlabs.trapperkeeper.services.authorization.authorization-service/authorization-service
 
-At the core of the library is the ACL. An ACL (access control list) is a list
-of ACE (access control entry).
+The authorization service provides an implementation of the
+ `:AuthorizationService` interface.
 
-A _rule_ protects a given resource, either by exact path or by regular
-expression. An ACL is attached to a rule.  When an incoming request goes
-through the process of checking if it is an authorized request, or not, this
-service will check if the pattern expressed in the rule matches the request and
-then check if the ACL allows the request by comparing the request identity
-against the list of allowed identities in the ACL.
+The authorization service is configured via the
+[trapperkeeper configuration service](https://github.com/puppetlabs/trapperkeeper/wiki/Built-in-Configuration-Service);
+so, you can control the authorization logic by adding an `authorization` section
+to one of your Trapperkeeper configuration files, and setting various 
+properties therein.  For more info, see
+[Configuring the Authorization Service](doc/authorization-config.md).
 
-The authorization service assumes authenticated identities are parsed from the
-CN attribute of a verified SSL client certificate.
+## Service Protocol
 
-Finally, we have the top-level rules, which is an ordered list of discrete
-rules.  The authorization service always processes this list in-order until it
-matches an incoming request with a discrete rule.
+This is the protocol for the current implementation of the `:AuthorizationService`:
 
-## ACE
+~~~~clj
+(defprotocol AuthorizationService
+  (wrap-with-authorization-check [this handler]))
+~~~~
 
-This library supports two types of entries:
+### `wrap-with-authorization-check`
 
-* `allow`: if the entry matches the incoming request identity, then the request will be allowed access
-* `deny`: if the entry matches the incoming request identity, then the resource access will be denied
+`wrap-with-authorization-check` takes one argument - `handler`.  The `handler`
+argument is just a
+[Ring handler](https://github.com/ring-clojure/ring/wiki/Concepts#handlers).
+`wrap-with-authorization-check` will wrap logic for authorizing web requests 
+around the supplied `handler` argument and return the wrapped handler.
 
-A third type is planned, something akin to Puppet's `allow any` behavior which
-is commonly used to authorize unauthenticated requests, which is common when
-bootstrapping a puppet agent that does not yet possess a valid client SSL
-certificate.
+Here is an example of how a Trapperkeeper service can use the
+`:AuthorizationService`:
 
-### Restricting access by name
+~~~~clj
+(defservice hello-service-using-tk-authz
+    [[:AuthorizationService wrap-with-authorization-check]
+     [:WebserverService add-ring-handler]]
+     (init [this context]
+         (add-ring-handler
+             (wrap-with-authorization-check
+                 (fn [_]
+                     {:status  200
+                     :headers {"Content-Type" "text/plain"}
+                     :body    "Hello, World!"}))
+                 "/hello")
+             context))
+~~~~
 
-This library supports those different possibilities:
+See the
+[Trapperkeeper web service](https://github.com/puppetlabs/trapperkeeper-webserver-jetty9)
+project for more information on the `:WebserverService`.
 
-* _exact name_: `www.domain.org`, only client with this exact CN will trigger a match
-* _wildcard name_: `*.domain.org`, only client whose CN will be under domain.org will match
-* _regex_: `(this-host|other-host)\.domain\.org`, only clients whose CN matches this regex will match
-* _backreferences_: `$1.domain.org` in combination with rule set as regex
+For this example, if the web server were to receive a request to the "/hello"
+endpoint, the middleware logic behind the `wrap-with-authorization-check` 
+function would evaluate the request to see if it is "authorized".  If the
+request were determined to be "allowed", the request would be handed on to 
+the `handler` passed into the original `wrap-with-authorization-check` 
+function call.  If the request were determined to be "denied", a Ring response
+with an HTTP status code of "403" and a message body with details about the 
+authorization failure is returned.  In the latter case, the original 
+`handler` supplied to the `wrap-with-authorization-check` function would not be
+called.
 
-## ACL
+For more information on the rule evaluation behavior (e.g., how a request is
+determined to be "allowed" or "denied"), see
+[Configuring the Authorization Service](doc/authorization-config.md).
 
-An ACL is an ordered list of ACE.  The system works the same as Puppet,
-ordering _allows_ before _deny_, and with an implicit _deny all_.
+## Credits
 
-## Rules
+The original work for this library, service, and the original REST authconfig
+work in Ruby Puppet were all contributed by [Brice Figureau](https://github
+.com/masterzen).  This project has been graciously transferred to Puppet Labs for
+further development and maintenance as it becomes a critical part of the
+[Puppet Server](https://github.com/puppetlabs/puppet-server) security model as
+authconfig became a critical part of Puppet's security model.
 
-### Rule
+## Support
 
-A `Rule` is:
-* a path or a regex
-* a sort-order number, which may be reused across rules
-* a name, which must be unique
-* an optional method (get, post, put, delete, head)
-* an optional map of request query parameters
-* an ACL
-
-#### Checking a request
-
-Incoming Ring requests are matched against the list of sorted rules. When a
-rule resource path (or regex) matches the request URI then the rule ACL is
-checked.
-
-The rules are sorted in ascending order based on their sort-order (e.g. a rule
-with sort-order 1 will be checked before a rule with sort-order 2). When rules
-have the same sort-order, they will be sorted by their name.
-
-~~~clojure
-(rules/allowed? rules request)
-~~~
-
-This returns a `AuthorizationResult`, which tells us if the request was
-allowed, and if not, which rule prevented it to be allowed.
-
-## authorization files
-
-Alongside with the programmatic access, this service also supports
-authorization files in typical Trapperkeeper configuration file formats.  This
-format and specification is currently evolving, see SERVER-111 for more
-information about the format and expression of authorization rules.
-
-# Support
-
-We use the [Trapperkeeper project on
-JIRA](https://tickets.puppetlabs.com/browse/TK) for tickets on the
-Trapperkeeper Authorization Service, although Github issues are welcome too.
-Please note that the best method to get our attention on an issue is via JIRA.
+We use the
+[Trapperkeeper project on JIRA](https://tickets.puppetlabs.com/browse/TK) for
+tickets on the Trapperkeeper Authorization Service, although Github issues 
+are welcome too.  Please note that the best method to get our attention on an
+issue is via JIRA.
