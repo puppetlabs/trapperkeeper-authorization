@@ -233,8 +233,8 @@
              [{:match-request
                {:path "/puppet/v3/environments"
                 :type "path"
-                :query-params {"environment" ["test" "prod"]
-                               "foo" ["bar"]}}
+                :query-params {:environment ["test" "prod"]
+                               :foo ["bar"]}}
                :allow "*"
                :sort-order 100
                :name "environments"}])

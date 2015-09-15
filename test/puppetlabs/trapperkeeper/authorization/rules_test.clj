@@ -64,11 +64,11 @@
 
 (deftest test-matching-query-parameters
   (let [rule (testutils/new-rule :path "/path/to/resource" :any)
-        foo-rule (rules/query-param rule "environment" "foo")
-        foo-bar-rule (rules/query-param rule "environment" ["foo" "bar"])
+        foo-rule (rules/query-param rule :environment "foo")
+        foo-bar-rule (rules/query-param rule :environment ["foo" "bar"])
         multiples-rule (-> rule
-                           (rules/query-param "beatles" ["lennon" "starr"])
-                           (rules/query-param "monkees" "davy"))]
+                           (rules/query-param :beatles ["lennon" "starr"])
+                           (rules/query-param :monkees "davy"))]
 
     (testing "request matches rule"
       (are [rule params] (= rule (->> params

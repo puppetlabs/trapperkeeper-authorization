@@ -16,10 +16,8 @@
 (def allow-list {:allow ["*.domain.org" "*.test.com"]})
 (def deny-single {:deny "bald.guy.com"})
 (def deny-list {:deny ["bald.eagle.com" "bald.bull.com"]})
-(def single-query-param {:match-request
-                         {:query-params {"environment" "production"}}})
-(def multi-query-param {:match-request
-                        {:query-params {"env" ["prod" "staging"]}}})
+(def single-query-param {:match-request {:query-params {:environment "production"}}})
+(def multi-query-param {:match-request {:query-params {:env ["prod" "staging"]}}})
 (def allow-unauthenticated {:allow-unauthenticated true})
 (def method-get {:match-request {:method "get"}})
 (def method-put {:match-request {:method "put"}})
@@ -167,21 +165,21 @@
          #".* It should be a string."
          (validate-auth-config-rule!
           (assoc-in testrule [:match-request :query-params]
-                    {:notastring []}))))
+                    {0 []}))))
 
     (is (thrown-with-msg?
          IllegalArgumentException
          #".* It should be a string or list of strings."
          (validate-auth-config-rule!
           (assoc-in testrule [:match-request :query-params]
-                    {"env" :notastringorlist}))))
+                    {:env :notastringorlist}))))
 
     (is (thrown-with-msg?
          IllegalArgumentException
          #".* contains one or more values that are not strings."
          (validate-auth-config-rule!
           (assoc-in testrule [:match-request :query-params]
-                    {"env" [:notastring]}))))
+                    {:env [:notastring]}))))
 
     (is (thrown-with-msg?
          IllegalArgumentException
@@ -212,12 +210,12 @@
         (is (= (str path) "^\\Q/foo/bar/baz\\E")))
       (is (= :put method))))
   (testing "Given a rule config with query parameters"
-    (is (= {"env" #{"prod" "staging"}}
+    (is (= {:env #{"prod" "staging"}}
            (-> (merge-with merge multi-query-param base-path-auth)
                config->rule
                :query-params)))
     (testing "single values are converted to sets"
-      (is (= {"environment" #{"production"}}
+      (is (= {:environment #{"production"}}
              (-> (merge-with merge single-query-param base-path-auth)
                  config->rule
                  :query-params)))))

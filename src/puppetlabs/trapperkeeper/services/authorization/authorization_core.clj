@@ -179,7 +179,7 @@
       (throw (IllegalArgumentException. "Rule query-params must be a map.")))
     (doseq [param (keys query-params)
             :let [value (get query-params param)]]
-      (when-not (string? param)
+      (when-not (keyword? param)
         (throw (IllegalArgumentException.
                 (str "The query-param '" param "' in the rule specified as "
                      (pprint-rule rule) " is invalid. It should be a string."))))
