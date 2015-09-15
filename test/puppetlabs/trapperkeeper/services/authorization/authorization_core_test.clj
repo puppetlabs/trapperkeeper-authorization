@@ -67,18 +67,34 @@
    :match-request {:path "/path" :type "path"}})
 
 (deftest invalid-configs-fail
+  (testing "Configuration section required"
+    (is (thrown-with-msg?
+         IllegalArgumentException
+         #"Missing authorization service configuration."
+         (validate-auth-config! nil))))
+
+  (testing "Version number required in configuration"
+    (doseq [invalid [{:rules []}
+                     {:rules [] :version 0}
+                     {:rules [] :version "1"}]]
+      (is (thrown-with-msg?
+           IllegalArgumentException
+           #"Unsupported or missing version in configuration file.*"
+           (validate-auth-config! invalid)))))
+
+  (testing "Rule names must be unique"
+    (is (thrown-with-msg?
+         IllegalArgumentException
+         #".* Rules must be uniquely named."
+         (validate-auth-config! {:version 1
+                                 :rules [testrule testrule]}))))
+
   (testing "With allow-unauthenticated true and allow rules"
     (let [rule (merge base-path-auth allow-unauthenticated allow-single)]
       (is (thrown-with-msg?
            IllegalArgumentException
            #"cannot have allow or deny if allow-unauthenticated"
            (validate-auth-config-rule! rule)))))
-
-  (testing "Rule names must be unique"
-    (is (thrown-with-msg?
-         IllegalArgumentException
-         #".* Rules must be uniquely named."
-         (validate-auth-config! [testrule testrule]))))
 
   (testing "Missing keys are not valid"
     (is (thrown-with-msg?

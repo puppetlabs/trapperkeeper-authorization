@@ -13,9 +13,9 @@
   [[:ConfigService get-in-config]]
   (init
     [this context]
-    (let [config (get-in-config [:authorization :rules])]
+    (let [config (get-in-config [:authorization])]
       (validate-auth-config! config)
-      (assoc-in context [:rules] (transform-config config))))
+      (assoc-in context [:rules] (transform-config (:rules config)))))
 
   (wrap-with-authorization-check
     [this handler]
