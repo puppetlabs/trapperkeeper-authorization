@@ -19,7 +19,7 @@
    :sort-order schema/Int
    :name schema/Str
    (schema/optional-key :allow-unauthenticated) schema/Bool
-   (schema/optional-key :query-params) {schema/Str #{schema/Str}}
+   (schema/optional-key :query-params) {schema/Keyword #{schema/Str}}
    (schema/optional-key :file) schema/Str
    (schema/optional-key :line) schema/Int})
 
@@ -69,10 +69,10 @@
    appended to existing values.
 
    The query parameters are in a map under the `:query-params` section of the
-   rule. Keys in the map are strings corresponding to the query parameters to
+   rule. Keys in the map are keywords corresponding to the query parameters to
    match, and the values are sets of strings of acceptable values."
   [rule :- Rule
-   param :- schema/Str
+   param :- schema/Keyword
    value :- (schema/either schema/Str [schema/Str])]
   (update-in rule [:query-params param] (comp set into) (flatten [value])))
 
@@ -123,7 +123,7 @@
   (every? some?
           (for [k (keys rule-params)]
             (some (get rule-params k)
-                  (flatten [(get request-params k)])))))
+                  (flatten [(get request-params (name k))])))))
 
 (schema/defn match? :- RuleMatch
   "Returns the rule if it matches the request URI, and also
