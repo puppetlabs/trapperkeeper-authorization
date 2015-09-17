@@ -37,7 +37,11 @@
   ;; code that we have.
   :classifiers [["test" :testutils]]
 
-  :profiles {:dev {:source-paths ["examples/ring_app/src"]
+  :profiles {:dev {:aliases {"ring-example"
+                             ["trampoline" "run"
+                              "-b" "./examples/ring_app/bootstrap.cfg"
+                              "-c" "./examples/ring_app/ring-example.conf"]}
+                   :source-paths ["examples/ring_app/src"]
                    :dependencies [[puppetlabs/trapperkeeper-webserver-jetty9 ~tk-jetty-version]
                                   [puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
                                   [puppetlabs/kitchensink ~ks-version :classifier "test"]

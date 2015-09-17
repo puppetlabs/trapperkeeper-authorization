@@ -39,11 +39,11 @@
                                         :port 8080
                                         :ssl-port 8081
                                         :ssl-cert
-                                        "./dev-resources/config/jetty/ssl/certs/localhost.pem"
+                                        "./examples/ring_app/ssl/certs/localhost.pem"
                                         :ssl-ca-cert
-                                        "./dev-resources/config/jetty/ssl/certs/ca.pem"
+                                        "./examples/ring_app/ssl/certs/ca.pem"
                                         :ssl-key
-                                        "./dev-resources/config/jetty/ssl/private_keys/localhost.pem"}
+                                        "./examples/ring_app/ssl/private_keys/localhost.pem"}
                             :authorization {:version 1
                                             :rules [{:match-request
                                                      {:path

@@ -3,7 +3,7 @@
 This example demonstrates how to incorporate the trapperkeeper-authorization
 service into a simple Ring app.  This is based loosely upon the
 [ring_app example] (https://github.com/puppetlabs/trapperkeeper-webserver-jetty9/tree/master/examples/ring_app)
-in the trapperkeeper-webservices-jetty9 project.  See that example for more
+in the trapperkeeper-webserver-jetty9 project.  See that example for more
 information on the use of the `jetty9-service` and the Jetty web server
 integration with Ring.
 
@@ -22,6 +22,13 @@ directory:
 ~~~~sh
 lein trampoline run --config ./examples/ring_app/ring-example.conf \
                     --bootstrap-config ./examples/ring_app/bootstrap.cfg
+~~~~
+
+For convenience, the application could also be run instead via the
+`ring-example` alias:
+
+~~~~sh
+lein ring-example
 ~~~~
 
 ### The `bootstrap.cfg` file
@@ -54,9 +61,9 @@ global: {
 webserver: {
     port: 8080
     ssl-port: 8081
-    ssl-cert: "./dev-resources/config/jetty/ssl/certs/localhost.pem"
-    ssl-ca-cert: "./dev-resources/config/jetty/ssl/certs/ca.pem"
-    ssl-key: "./dev-resources/config/jetty/ssl/private_keys/localhost.pem"
+    ssl-cert: "./examples/ring_app/ssl/certs/localhost.pem"
+    ssl-ca-cert: "./examples/ring_app/ssl/certs/ca.pem"
+    ssl-key: "./examples/ring_app/ssl/private_keys/localhost.pem"
 }
 
 authorization: {
@@ -87,7 +94,7 @@ authorization: {
 This configuration sets up two different web server ports - one unencrypted
 (8080) and one encrypted (8081) - and some simple authorization rules.  Some
 pre-generated certificates and keys for use with SSL have been provided in the
-`./dev-resources/config/jetty/ssl` directory.
+`./examples/ring_app/ssl` directory.
 
 ### Testing the authorization rules
 
@@ -118,9 +125,9 @@ certificate was provided, no user name could be matched to the URL.
 
 ~~~~sh
 curl "https://localhost:8081/hello/user-allowed/localhost" \
-  --cacert ./dev-resources/config/jetty/ssl/certs/ca.pem \
-  --cert ./dev-resources/config/jetty/ssl/certs/localhost.pem \
-  --key ./dev-resources/config/jetty/ssl/private_keys/localhost.pem
+  --cacert ./examples/ring_app/ssl/certs/ca.pem \
+  --cert ./examples/ring_app/ssl/certs/localhost.pem \
+  --key ./examples/ring_app/ssl/private_keys/localhost.pem
 ~~~~
 
 Should be "allowed" since the Common Name (CN) on the user's client
@@ -131,9 +138,9 @@ the CN from the client certificate via the backreference, would be
 
 ~~~~sh
 curl "https://localhost:8081/hello/user-allowed/not-localhost" \
-  --cacert ./dev-resources/config/jetty/ssl/certs/ca.pem \
-  --cert ./dev-resources/config/jetty/ssl/certs/localhost.pem \
-  --key ./dev-resources/config/jetty/ssl/private_keys/localhost.pem
+  --cacert ./examples/ring_app/ssl/certs/ca.pem \
+  --cert ./examples/ring_app/ssl/certs/localhost.pem \
+  --key ./examples/ring_app/ssl/private_keys/localhost.pem
 ~~~~
 
 Should be "denied" since the Common Name (CN) on the user's client
@@ -143,9 +150,9 @@ backreference.
 
 ~~~~sh
 curl "https://localhost:8081/hello" \
-  --cacert ./dev-resources/config/jetty/ssl/certs/ca.pem \
-  --cert ./dev-resources/config/jetty/ssl/certs/localhost.pem \
-  --key ./dev-resources/config/jetty/ssl/private_keys/localhost.pem
+  --cacert ./examples/ring_app/ssl/certs/ca.pem \
+  --cert ./examples/ring_app/ssl/certs/localhost.pem \
+  --key ./examples/ring_app/ssl/private_keys/localhost.pem
 ~~~~
 
 Should be "denied" since no rule matches the request.  In this case, the
