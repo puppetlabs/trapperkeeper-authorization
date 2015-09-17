@@ -13,13 +13,13 @@ authorization: {
     rules: [
             {
                 match-request: {
-                    path: "/my_path"
-                    type: path
+                    path: "^/my_path/([^/]+)$"
+                    type: regex
                     method: get
                 }
-                allow: "*"
+                allow: "$1"
                 sort-order: 1
-                name: "my_path"
+                name: "user-specific my_path"
             },
             {
                 match-request: {
@@ -212,8 +212,8 @@ Allowed values for `method` include `get`, `post`, `put`, `delete`, and `head`.
 
 ##### `query-params`
 
-Optional.  If present, the value is should be a map of key/value pairs which 
-are matched against the
+Optional.  If present, the value should be a map of key/value pairs which are
+matched against the
 [query component] (https://tools.ietf.org/html/rfc3986#section-3.4) of the 
 request URL.  The rule is only considered a match if each of the keys listed 
 in the `query-params` section are present in the request's query string and 
@@ -271,7 +271,9 @@ users to insert custom rules ahead of any default Puppet ones and from 601 to
 Required.  `name` values are represented as a string and each rule's `name` 
 value must be unique from any other rule's `name` value.  The presence of the
 same `name` value in one or more rules would result in a service startup 
-failure.
+failure.  When choosing a value, consider that the `name` may be written both
+to server logs and in the body of an error response returned to an
+unauthorized client.
 
 #### `allow`
 
