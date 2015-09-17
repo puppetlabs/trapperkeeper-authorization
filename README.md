@@ -32,7 +32,13 @@ to one of your Trapperkeeper configuration files, and setting various
 properties therein.  For more info, see
 [Configuring the Authorization Service](doc/authorization-config.md).
 
-## Service Protocol
+## Example code
+
+One example, a Trapperkeeper service which wraps the authorization service
+around a Ring handler, is included with this project
+([source code](./examples/ring_app/README.md)).
+
+## Service protocol
 
 This is the protocol for the current implementation of the `:AuthorizationService`:
 
