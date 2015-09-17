@@ -1,6 +1,6 @@
 (def ks-version "1.0.0")
 (def tk-version "1.1.1")
-(def tk-jetty-version "1.3.1")
+(def tk-jetty-version "1.4.1")
 
 (defproject puppetlabs/trapperkeeper-authorization "0.1.3-SNAPSHOT"
   :description "Trapperkeeper authorization system"
@@ -37,8 +37,11 @@
   ;; code that we have.
   :classifiers [["test" :testutils]]
 
-  :profiles {:dev {:dependencies [[puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
-                                  [puppetlabs/kitchensink ~ks-version :classifier "test"]]}
+  :profiles {:dev {:source-paths ["examples/ring_app/src"]
+                   :dependencies [[puppetlabs/trapperkeeper-webserver-jetty9 ~tk-jetty-version]
+                                  [puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
+                                  [puppetlabs/kitchensink ~ks-version :classifier "test"]
+                                  [org.clojure/tools.namespace "0.2.10"]]}
              :testutils {:source-paths ^:replace ["test"]}}
 
   ;; this plugin is used by jenkins jobs to interrogate the project version
@@ -52,4 +55,6 @@
                                      :username :env/clojars_jenkins_username
                                      :password :env/clojars_jenkins_password
                                      :sign-releases false}]
-                        ["snapshots" "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/"]])
+                        ["snapshots" "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/"]]
+
+  :main puppetlabs.trapperkeeper.main)
