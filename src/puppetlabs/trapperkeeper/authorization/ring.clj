@@ -2,6 +2,10 @@
   (:require [schema.core :as schema])
   (:import (java.security.cert X509Certificate)))
 
+(def cert-key
+  "The nested key where the client certificate for the request is stored"
+  [:authorization :certificate])
+
 (def is-authentic-key
   "The nested key where authenticity information is stored."
   [:authorization :authentic?])

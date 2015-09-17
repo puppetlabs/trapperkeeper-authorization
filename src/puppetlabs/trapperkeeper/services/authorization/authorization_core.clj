@@ -3,8 +3,7 @@
             [clojure.tools.logging :as log]
             [puppetlabs.kitchensink.core :as ks]
             [schema.core :as schema]
-            [puppetlabs.trapperkeeper.authorization.rules :as rules]
-            [puppetlabs.trapperkeeper.authorization.acl :as acl])
+            [puppetlabs.trapperkeeper.authorization.rules :as rules])
   (:import (java.util.regex PatternSyntaxException)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -211,6 +210,11 @@
   (when-not (map? config)
     (throw (IllegalArgumentException.
             "The authorization service configuration is not a map.")))
+  (let [allow-header-cert-info (:allow-header-cert-info config)]
+    (when (and (not (nil? allow-header-cert-info))
+               (not (ks/boolean? allow-header-cert-info)))
+      (throw (IllegalArgumentException.
+              "allow-header-cert-info is not a boolean."))))
   (when-not (= 1 (:version config))
     (throw (IllegalArgumentException.
             (str "Unsupported or missing version in configuration file. "

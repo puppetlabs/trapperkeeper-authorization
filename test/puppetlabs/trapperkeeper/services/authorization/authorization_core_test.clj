@@ -2,8 +2,7 @@
   (:require [clojure.test :refer :all]
             [puppetlabs.trapperkeeper.services.authorization.authorization-core :refer :all]
             [schema.test]
-            [puppetlabs.kitchensink.core :refer [dissoc-in]]
-            [puppetlabs.trapperkeeper.authorization.rules :as rules]))
+            [puppetlabs.kitchensink.core :refer [dissoc-in]]))
 
 (use-fixtures :once schema.test/validate-schemas)
 
@@ -81,6 +80,14 @@
            IllegalArgumentException
            #"Unsupported or missing version in configuration file.*"
            (validate-auth-config! invalid)))))
+
+  (testing "allow-header-cert-info is a boolean"
+    (is (thrown-with-msg?
+         IllegalArgumentException
+         #"allow-header-cert-info is not a boolean"
+         (validate-auth-config! {:version 1
+                                 :rules []
+                                 :allow-header-cert-info "maybe?"}))))
 
   (testing "Rule names must be unique"
     (is (thrown-with-msg?

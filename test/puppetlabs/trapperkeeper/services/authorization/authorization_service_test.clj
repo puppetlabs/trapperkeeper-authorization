@@ -1,17 +1,18 @@
 (ns puppetlabs.trapperkeeper.services.authorization.authorization-service-test
   (:require
-   [clojure.test :refer :all]
-   [clojure.string :as str]
-   [puppetlabs.trapperkeeper.app :refer [get-service]]
-   [puppetlabs.trapperkeeper.authorization.testutils :refer :all]
-   [puppetlabs.trapperkeeper.services :refer [defservice]]
-   [puppetlabs.trapperkeeper.services.authorization.authorization-service
-    :refer [authorization-service]]
-   [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
-   [puppetlabs.trapperkeeper.testutils.logging :refer [with-test-logging]]
-   [ring.mock.request :as mock]
-   [ring.util.response :refer [response]]
-   [schema.test :as schema-test])
+    [clojure.test :refer :all]
+    [clojure.string :as str]
+    [puppetlabs.ssl-utils.core :as ssl-utils]
+    [puppetlabs.trapperkeeper.app :refer [get-service]]
+    [puppetlabs.trapperkeeper.authorization.testutils :refer :all]
+    [puppetlabs.trapperkeeper.services :refer [defservice]]
+    [puppetlabs.trapperkeeper.services.authorization.authorization-service
+     :refer [authorization-service]]
+    [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
+    [puppetlabs.trapperkeeper.testutils.logging :refer [with-test-logging]]
+    [ring.mock.request :as mock]
+    [ring.util.response :refer [response]]
+    [schema.test :as schema-test])
   (:import (java.io ByteArrayInputStream)
            (java.nio.charset Charset)))
 
@@ -145,16 +146,18 @@
 
 (defn build-ring-handler
   "Build a ring handler around the echo reverse service"
-  [rules]
-  (fn [request]
-    (with-test-logging
+  ([rules]
+   (build-ring-handler rules minimal-config))
+  ([rules config]
+   (fn [request]
+     (with-test-logging
       (with-app-with-config
-        app
-        [echo-reverse-service authorization-service]
-        (assoc-in minimal-config [:authorization :rules] rules)
-        (let [svc (get-service app :EchoReverseService)
-              echo-handler (echo-reverse svc "Prefix: ")]
-          (echo-handler request))))))
+       app
+       [echo-reverse-service authorization-service]
+       (assoc-in config [:authorization :rules] rules)
+       (let [svc (get-service app :EchoReverseService)
+             echo-handler (echo-reverse svc "Prefix: ")]
+         (echo-handler request)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Tests
@@ -214,7 +217,7 @@
                          "access to /puppet/v3/catalog/localhost "
                          "(method :get) (authentic: false) "
                          "denied by rule 'puppetlabs catalog'."))))))
-  (testing "certificate_request"
+  (testing "Evaluation against rule with 'method' restrictions"
     (let [app (build-ring-handler default-rules)]
       (let [req (request "/puppet-ca/v1/certificate_request/ca"
                          :head "127.0.0.1" test-domain-cert)
@@ -229,6 +232,52 @@
                          :put "127.0.0.1" test-domain-cert)
             {:keys [status]} (app req)]
         (is (= status 200))))))
+
+(deftest ^:integration authorized-user-test
+  (testing "Authorized user info preserved for request with SSL certificate"
+    (let [app (build-ring-handler default-rules)]
+      (let [req (-> base-request
+                    (assoc :uri "/puppet/v3/environments")
+                    (assoc :body "Hello World!"))
+            authorization (get-in (app req) [:request :authorization])]
+        (is (true? (:authentic? authorization)))
+        (is (= "test.domain.org" (:name authorization)))
+        (is (= "test.domain.org" (ssl-utils/get-cn-from-x509-certificate
+                                  (:certificate authorization)))))))
+  (testing "Authorized user info preserved for request with HTTP header credentials"
+    (let [app (build-ring-handler default-rules
+                                  (assoc-in minimal-config
+                                            [:authorization
+                                             :allow-header-cert-info]
+                                            true))]
+      (let [req (-> base-request
+                    (assoc :uri "/puppet/v3/environments")
+                    (assoc :body "Hello World!")
+                    (update-in [:headers] merge
+                               {"x-client-dn" "CN=test.domain.org"
+                                "x-client-verify" "SUCCESS"
+                                "x-client-cert" (url-encoded-cert
+                                                 test-domain-cert)}))
+            response (app req)
+            authorization (get-in response [:request :authorization])]
+        (is (= 200 (:status response)))
+        (is (true? (:authentic? authorization)))
+        (is (= "test.domain.org" (:name authorization)))
+        (is (= "test.domain.org" (ssl-utils/get-cn-from-x509-certificate
+                                  (:certificate authorization)))))))
+  (testing "Bad authorized user info generates bad request error"
+    (let [app (build-ring-handler default-rules
+                                  (assoc-in minimal-config
+                                            [:authorization
+                                             :allow-header-cert-info]
+                                            true))]
+      (let [req (-> base-request
+                    (assoc :uri "/puppet/v3/environments")
+                    (assoc :body "Hello World!")
+                    (update-in [:headers] assoc "x-client-cert" "NOCERTS"))
+            {:keys [status body]} (app req)]
+        (is (= status 400))
+        (is (= body "No certs found in PEM read from x-client-cert"))))))
 
 (deftest ^:integration query-params-test
   (let [app (build-ring-handler
