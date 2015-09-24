@@ -203,20 +203,20 @@
             {:keys [status body]} (app req)]
         (is (= status 403) "Unauthentic requests are denied with allow-unauthenticated false"))))
   (testing "With a minimal config of an empty list of rules"
-    (let [app (build-ring-handler [])]
-      (let [req (request "/path/to/foo" :get "127.0.0.1" test-domain-cert)
-            {:keys [status body]} (app req)]
-        (is (= status 403))
-        (is (= body "global deny all - no rules matched")))))
+    (let [app (build-ring-handler [])
+          req (request "/path/to/foo" :get "127.0.0.1" test-domain-cert)
+          {:keys [status body]} (app req)]
+      (is (= status 403))
+      (is (= body "global deny all - no rules matched"))))
   (testing "With a basic config protecting the catalog"
-    (let [app (build-ring-handler basic-rules)]
-      (let [req (assoc catalog-request-nocert :body "Hello World!")
-            {:keys [status body]} (app req)]
-        (is (= status 403))
-        (is (= body (str "Forbidden request: (127.0.0.1) "
-                         "access to /puppet/v3/catalog/localhost "
-                         "(method :get) (authentic: false) "
-                         "denied by rule 'puppetlabs catalog'."))))))
+    (let [app (build-ring-handler basic-rules)
+          req (assoc catalog-request-nocert :body "Hello World!")
+          {:keys [status body]} (app req)]
+      (is (= status 403))
+      (is (= body (str "Forbidden request: (127.0.0.1) "
+                       "access to /puppet/v3/catalog/localhost "
+                       "(method :get) (authentic: false) "
+                       "denied by rule 'puppetlabs catalog'.")))))
   (testing "Evaluation against rule with 'method' restrictions"
     (let [app (build-ring-handler default-rules)]
       (let [req (request "/puppet-ca/v1/certificate_request/ca"
@@ -235,49 +235,49 @@
 
 (deftest ^:integration authorized-user-test
   (testing "Authorized user info preserved for request with SSL certificate"
-    (let [app (build-ring-handler default-rules)]
-      (let [req (-> base-request
-                    (assoc :uri "/puppet/v3/environments")
-                    (assoc :body "Hello World!"))
-            authorization (get-in (app req) [:request :authorization])]
-        (is (true? (:authentic? authorization)))
-        (is (= "test.domain.org" (:name authorization)))
-        (is (= "test.domain.org" (ssl-utils/get-cn-from-x509-certificate
-                                  (:certificate authorization)))))))
+    (let [app (build-ring-handler default-rules)
+          req (-> base-request
+                  (assoc :uri "/puppet/v3/environments")
+                  (assoc :body "Hello World!"))
+          authorization (get-in (app req) [:request :authorization])]
+      (is (true? (:authentic? authorization)))
+      (is (= "test.domain.org" (:name authorization)))
+      (is (= "test.domain.org" (ssl-utils/get-cn-from-x509-certificate
+                                 (:certificate authorization))))))
   (testing "Authorized user info preserved for request with HTTP header credentials"
     (let [app (build-ring-handler default-rules
                                   (assoc-in minimal-config
                                             [:authorization
                                              :allow-header-cert-info]
-                                            true))]
-      (let [req (-> base-request
-                    (assoc :uri "/puppet/v3/environments")
-                    (assoc :body "Hello World!")
-                    (update-in [:headers] merge
-                               {"x-client-dn" "CN=test.domain.org"
-                                "x-client-verify" "SUCCESS"
-                                "x-client-cert" (url-encoded-cert
-                                                 test-domain-cert)}))
-            response (app req)
-            authorization (get-in response [:request :authorization])]
-        (is (= 200 (:status response)))
-        (is (true? (:authentic? authorization)))
-        (is (= "test.domain.org" (:name authorization)))
-        (is (= "test.domain.org" (ssl-utils/get-cn-from-x509-certificate
-                                  (:certificate authorization)))))))
+                                            true))
+          req (-> base-request
+                  (assoc :uri "/puppet/v3/environments")
+                  (assoc :body "Hello World!")
+                  (update-in [:headers] merge
+                             {"x-client-dn" "CN=test.domain.org"
+                              "x-client-verify" "SUCCESS"
+                              "x-client-cert" (url-encoded-cert
+                                                test-domain-cert)}))
+          response (app req)
+          authorization (get-in response [:request :authorization])]
+      (is (= 200 (:status response)))
+      (is (true? (:authentic? authorization)))
+      (is (= "test.domain.org" (:name authorization)))
+      (is (= "test.domain.org" (ssl-utils/get-cn-from-x509-certificate
+                                 (:certificate authorization))))))
   (testing "Bad authorized user info generates bad request error"
     (let [app (build-ring-handler default-rules
                                   (assoc-in minimal-config
                                             [:authorization
                                              :allow-header-cert-info]
-                                            true))]
-      (let [req (-> base-request
-                    (assoc :uri "/puppet/v3/environments")
-                    (assoc :body "Hello World!")
-                    (update-in [:headers] assoc "x-client-cert" "NOCERTS"))
-            {:keys [status body]} (app req)]
-        (is (= status 400))
-        (is (= body "No certs found in PEM read from x-client-cert"))))))
+                                            true))
+          req (-> base-request
+                  (assoc :uri "/puppet/v3/environments")
+                  (assoc :body "Hello World!")
+                  (update-in [:headers] assoc "x-client-cert" "NOCERTS"))
+          {:keys [status body]} (app req)]
+      (is (= status 400))
+      (is (= body "No certs found in PEM read from x-client-cert")))))
 
 (deftest ^:integration query-params-test
   (let [app (build-ring-handler

@@ -66,7 +66,7 @@ request was validated successfully.  If the `X-Client-Verify` HTTP header is not
 present or does not have a value of `SUCCESS` and/or the CN cannot be extracted
 from the `X-Client-DN` value, the request is considered "unauthenticated".
 
-The `X-Client-DN` will attempt to be parsed first as an DN per
+The `X-Client-DN` will attempt to be parsed first as a DN per
 [RFC 2253](https://www.ietf.org/rfc/rfc2253.txt).  For example:
  
 ~~~~
