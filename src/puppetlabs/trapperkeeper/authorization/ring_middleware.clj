@@ -207,14 +207,14 @@
   (let [name (request->name request allow-header-cert-info)]
     (->
       request
-      (assoc-in ring/name-key (str name))
-      (assoc-in ring/is-authentic-key (and
+      (ring/set-authorized-name (str name))
+      (ring/set-authorized-authentic? (and
                                        (verified? request
                                                   name
                                                   allow-header-cert-info)
                                        (not (empty? name))))
-      (assoc-in ring/cert-key (request->cert request
-                                             allow-header-cert-info)))))
+      (ring/set-authorized-certificate (request->cert request
+                                                      allow-header-cert-info)))))
 
 (defn assoc-query-params
   "Associate a `query-params` map onto the supplied request from any
@@ -249,7 +249,7 @@
    allow-header-cert-info :- schema/Bool]
   (fn [request]
     (let [req (add-authinfo request allow-header-cert-info)
-          name (get-in req ring/name-key "")
+          name (ring/get-authorized-name req)
           {:keys [authorized message]} (rules/allowed? rules req name)]
       (if (true? authorized)
         (handler req)

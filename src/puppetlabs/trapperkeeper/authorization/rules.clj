@@ -140,7 +140,7 @@
   (let [ip (:remote-addr request)
         path (:uri request)
         method (:request-method request)
-        authentic? (true? (get-in request ring/is-authentic-key))]
+        authentic? (true? (ring/get-authorized-authentic? request))]
     (str "Forbidden request: " (if name (format "%s(%s)" name ip) ip)
          " access to " path " (method " method ")"
          (if-let [file (:file rule)] (str " at " file ":" (:line rule)))
@@ -181,7 +181,7 @@
   (if-let [{:keys [rule matches]} (some #(match? % request) rules)]
     (if (true? (:allow-unauthenticated rule))
       {:authorized true :message "allow-unauthenticated is true - allowed"}
-      (if (and (true? (get-in request ring/is-authentic-key)) ; authenticated?
+      (if (and (true? (ring/get-authorized-authentic? request)) ; authenticated?
             (acl/allowed? (:acl rule) name (:remote-addr request) matches))
         {:authorized true :message ""}
         (deny-request (request->description request name rule))))
