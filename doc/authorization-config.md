@@ -283,7 +283,11 @@ A block in the middle of the `sort-order` range - from 400 to 600
 (inclusive) is reserved for use by Puppet, e.g., for the default rules 
 delivered with a package.  Rules from 1 to 399 (inclusive) are reserved for 
 users to insert custom rules ahead of any default Puppet ones and from 601 to
-999 (inclusive) for inserting custom rules behind any default Puppet ones.
+998 (inclusive) for inserting custom rules behind any default Puppet ones.
+
+The 999 `sort-order` is reserved for a Puppet rule that denies all users access
+to all routes in the event that no other rule in the configuration was a match
+for the request.
 
 #### `name`
 
