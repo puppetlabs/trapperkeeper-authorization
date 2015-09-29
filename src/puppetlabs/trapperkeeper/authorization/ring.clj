@@ -16,7 +16,7 @@
 
 ;; Functions
 
-(schema/defn get-authorized-authentic? :- schema/Bool
+(schema/defn authorized-authentic? :- schema/Bool
   "Get whether the authorized client is considered authentic or not."
   [request :- Request]
   (get-in request [:authorization :authentic?]))
@@ -27,7 +27,7 @@
    authentic? :- schema/Bool]
   (assoc-in request [:authorization :authentic?] authentic?))
 
-(schema/defn get-authorized-certificate :- (schema/maybe X509Certificate)
+(schema/defn authorized-certificate :- (schema/maybe X509Certificate)
   "Get the certificate of the authorized client."
   [request :- Request]
   (get-in request [:authorization :certificate]))
@@ -38,7 +38,7 @@
    certificate :- (schema/maybe X509Certificate)]
   (assoc-in request [:authorization :certificate] certificate))
 
-(schema/defn get-authorized-name :- schema/Str
+(schema/defn authorized-name :- schema/Str
   "Get the authorized client name from the request."
   [request :- Request]
   (get-in request [:authorization :name] ""))

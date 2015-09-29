@@ -6,13 +6,13 @@
 
 (use-fixtures :once schema-test/validate-schemas)
 
-(deftest get-authorized-authentic?
+(deftest authorized-authentic?
   (is (true? (-> (testutils/request)
                  (assoc-in [:authorization :authentic?] true)
-                 (ring/get-authorized-authentic?))))
+                 (ring/authorized-authentic?))))
   (is (false? (-> (testutils/request)
                   (assoc-in [:authorization :authentic?] false)
-                  (ring/get-authorized-authentic?)))))
+                  (ring/authorized-authentic?)))))
 
 (deftest set-authorized-authentic?
   (is (true? (-> (testutils/request)
@@ -22,12 +22,12 @@
                   (ring/set-authorized-authentic? false)
                   (get-in [:authorization :authentic?])))))
 
-(deftest get-authorized-certificate
+(deftest authorized-certificate
   (is (identical? testutils/test-domain-cert
                   (-> (testutils/request)
                       (assoc-in [:authorization :certificate]
                                 testutils/test-domain-cert)
-                      (ring/get-authorized-certificate)))))
+                      (ring/authorized-certificate)))))
 
 (deftest set-authorized-certificate
   (is (identical? testutils/test-domain-cert
@@ -36,12 +36,12 @@
                        testutils/test-domain-cert)
                       (get-in [:authorization :certificate])))))
 
-(deftest get-authorized-name
+(deftest authorized-name
   (is (= "tester" (-> (testutils/request)
                       (assoc-in [:authorization :name] "tester")
-                      (ring/get-authorized-name))))
+                      (ring/authorized-name))))
   (is (= "" (-> (testutils/request)
-                (ring/get-authorized-name)))))
+                (ring/authorized-name)))))
 
 (deftest set-authorized-name
   (is (= "tester" (-> (testutils/request)

@@ -249,7 +249,7 @@
    allow-header-cert-info :- schema/Bool]
   (fn [request]
     (let [req (add-authinfo request allow-header-cert-info)
-          name (ring/get-authorized-name req)
+          name (ring/authorized-name req)
           {:keys [authorized message]} (rules/allowed? rules req name)]
       (if (true? authorized)
         (handler req)
