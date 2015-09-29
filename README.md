@@ -77,20 +77,61 @@ See the
 [Trapperkeeper web service](https://github.com/puppetlabs/trapperkeeper-webserver-jetty9)
 project for more information on the `:WebserverService`.
 
-For this example, if the web server were to receive a request to the "/hello"
+For this example, if the web server receives a request to the "/hello"
 endpoint, the middleware logic behind the `wrap-with-authorization-check` 
-function would evaluate the request to see if it is "authorized".  If the
-request were determined to be "allowed", the request would be handed on to 
+function evaluates the request to see if it is "authorized".  If the
+request is determined to be "allowed", the request is handed on to
 the `handler` passed into the original `wrap-with-authorization-check` 
-function call.  If the request were determined to be "denied", a Ring response
+function call.  If the request is determined to be "denied", a Ring response
 with an HTTP status code of "403" and a message body with details about the 
 authorization failure is returned.  In the latter case, the original 
-`handler` supplied to the `wrap-with-authorization-check` function would not be
+`handler` supplied to the `wrap-with-authorization-check` function is not
 called.
 
 For more information on the rule evaluation behavior (e.g., how a request is
 determined to be "allowed" or "denied"), see
 [Configuring the Authorization Service](doc/authorization-config.md).
+
+Upon successful authorization, a key name of `authorization` is appended to
+the Ring request map which is passed through to the `handler` function.  The
+value associated with the `authorization` key is a map containing the
+following key/value pairs:
+
+* `name` - CN (Common Name) extracted from the Distinguished Name in the
+  subject of the certificate presented with the request.  When the
+  `allow-header-cert-info` configuration setting is `false`, the `name` value
+  is pulled from the CN attribute in the certificate provided by the client
+  during SSL session negotiation.  When the `allow-header-cert-info`
+  configuration setting is `true`, the `name` value is pulled from the CN
+   attribute in the `X-Client-DN` HTTP header provided with the request.
+  If no certificate is available or a CN value cannot be retrieved from the
+  certificate, the `name` is set to an empty string.
+
+* `authentic?` - A boolean value representing whether or not the client
+  request included an authenticated user.  In any case where the `name` value
+  has an empty string, `authentic?` is `false`.  If the
+  `allow-header-cert-info` configuration setting is `false` and the `name` value
+  is non-empty, `authentic?` is `true`.  If the `allow-header-cert-info`
+  configuration setting is `true`, the `name` value is non-empty, and an HTTP
+  header named `X-Client-Cert` with a value of `SUCCESS` is provided,
+  `authentic?` is `true`; for a value other than `SUCCESS` for
+  `X-Client-Cert`, `authentic?` is `false`.
+
+* `certificate` - An `java.security.cert.X509Certificate` object for the client's
+  certificate, if available for the request, else a value of `nil`.  If the
+  `allow-header-cert-info` configuration setting is `false`, the value is just
+  reassigned from whatever is set for the `ssl-client-cert` key in the Ring
+  request map.  If the `allow-header-cert-info` configuration setting is `true`,
+  the `X509Certificate` object is constructed by URL-decoding the string
+  value passed in for the request's `X-Client-Cert` HTTP header and parsing
+  the result as a PEM-formatted (Base-64 encoded) certificate.  If the header
+  value cannot be URL-decoded and/or converted from a Base-64 encoded string, a
+  value of `nil` is set.
+  
+> **Note:** Apache's mod_proxy converts line breaks in PEM documents in HTTP
+headers to spaces for some reason and trapperkeeper-authorization can't URL
+decode the result.  We're tracking this issue as
+[SERVER-217](https://tickets.puppetlabs.com/browse/SERVER-217).
 
 ## Credits
 

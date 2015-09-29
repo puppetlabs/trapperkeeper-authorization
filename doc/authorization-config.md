@@ -45,15 +45,13 @@ should use.  The only supported value is "1".
 
 ### `allow-header-cert-info`
 
-*(TBD, [SERVER-763](https://tickets.puppetlabs.com/browse/SERVER-763))*
-
 Optional.  Controls how the authenticated user "name" is derived for a 
 request being authorized.  Default value for the setting is `false`.
 
 For a value of `false`, the authenticated "name" for the request is derived 
 from the Common Name (CN) attribute within an X.509 certificate's Subject 
 Distinguished Name (DN).  The `wrap-with-authorization-check` middleware 
-tries to get the request's X.509 certificate from the `:ssl-client-cert` key 
+tries to get the request's X.509 certificate from the `ssl-client-cert` key
 in the Ring request map.  If the certificate cannot be found, e.g., if the 
 request was made over plaintext or was made over SSL/TLS but no certificate 
 was provided by the client, or the CN is not present in the certificate, the
@@ -62,13 +60,38 @@ request is considered "unauthenticated".
 For a value of `true`, the authenticated "name" for the request is derived from
 evaluating the values set for the `X-Client-DN` and `X-Client-Verify` HTTP 
 headers in the request.  The value for an `X-Client-DN` HTTP header should be
-in the form of a Subject DN from an X.509 certificate.  If the 
-`X-Client-Verify` HTTP header for the request has a value of `SUCCESS`, the 
-authenticated "name" for the request is extracted from the CN attribute in 
-the `X-Client-DN` value, if available.  If the `X-Client-Verify` HTTP header 
-is not present or does not have a value of `SUCCESS` and/or the CN cannot be 
-extracted from the `X-Client-DN` value, the request is considered
-"unauthenticated".
+in the form of a Subject DN from an X.509 certificate (e.g., `CN=myname`).  A
+value of `SUCCESS` for the `X-Client-Verify` HTTP header indicates that the
+request was validated successfully.  If the `X-Client-Verify` HTTP header is not
+present or does not have a value of `SUCCESS` and/or the CN cannot be extracted
+from the `X-Client-DN` value, the request is considered "unauthenticated".
+
+The `X-Client-DN` will attempt to be parsed first as a DN per
+[RFC 2253](https://www.ietf.org/rfc/rfc2253.txt).  For example:
+ 
+~~~~
+O=tester\, inc., CN=tester.test.org
+~~~~
+
+If the DN is not found to conform to the RFC 2253 format, the `X-Client-DN`
+will be parsed per the OpenSSL
+[compat](https://www.openssl.org/docs/manmaster/apps/x509.html) DN format, where
+attribute key/value pairs are delimited by solidus, `/`, characters:
+
+~~~~
+/O=tester, inc./CN=tester.test.org
+~~~~
+
+If a CN value cannot be derived via either parsing approach, the handler returns
+an HTTP 400/Bad Request response.
+
+> **Note:** The "compat" OpenSSL DN format does not provide a way to escape
+special characters in the DN.  If a solidus character were intended to be
+part of the value of an attribute, an unintended CN value could be derived.
+For example, the CN extracted from a DN of `/CN=tester/ inc.` is interpreted as
+`tester` rather than as `tester/ inc.`.  The RFC 2253 format has a specified
+approach for escaping special characters and is, therefore, preferred for
+expressing DN values, where possible.
 
 An "unauthenticated" request can only be "allowed" when the first matching 
 rule has an `allow-unauthenticated` setting with a value of `true`.  If 
@@ -79,10 +102,6 @@ request, the request is "denied" - in which case the handler returns an HTTP
 settings for the first rule which matches the request.  See the documentation
 for the [`allow`](#allow) and [`deny`](#deny) settings for more information.
 
-Until the work is completed for SERVER-763, trapperkeeper-authorization will
-only try to derive the authenticated "name" for a request from the CN in the
-X.509 certificate.
-
 ### `rules`
 
 Required.  An array in which each of the elements is a map of settings 
@@ -92,13 +111,13 @@ pertaining to a rule.  Here is an example of an array with two rules:
 rules: [
         {
             match-request: {
-                path: "/my_path"
-                type: path
+                path: "^/my_path/([^/]+)$"
+                type: regex
                 method: get
             }
-            allow: "*"
+            allow: "$1"
             sort-order: 1
-            name: "my_path"
+            name: "user-specific my_path"
         },
         {
             match-request: {

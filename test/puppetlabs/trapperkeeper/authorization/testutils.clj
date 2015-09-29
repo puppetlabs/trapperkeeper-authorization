@@ -1,10 +1,15 @@
 (ns puppetlabs.trapperkeeper.authorization.testutils
   (:require [puppetlabs.ssl-utils.simple :as ssl]
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
-            [ring.mock.request :as mock]))
+            [ring.mock.request :as mock]
+            [puppetlabs.ssl-utils.core :as ssl-utils]
+            [ring.util.codec :as ring-codec])
+  (:import (java.io StringWriter)))
 
 (defn request
   "Build a ring request for testing"
+  ([]
+   (request "/path/to/resource" :get))
   ([path method]
    (request path method "127.0.0.1"))
   ([path method ip]
@@ -26,3 +31,9 @@
    (new-rule type path :any))
   ([type path method]
    (rules/new-rule type path method 500 "test rule")))
+
+(defn url-encoded-cert
+  [x509-cert]
+  (let [cert-writer (StringWriter.)
+        _ (ssl-utils/cert->pem! x509-cert cert-writer)]
+    (ring-codec/url-encode cert-writer)))

@@ -136,7 +136,7 @@
 (deftest test-allowed
   (logutils/with-test-logging
     (let [request (-> (request "/stairway/to/heaven" :get "192.168.1.23")
-                      (assoc-in ring/is-authentic-key true))]
+                      (ring/set-authorized-authentic? true))]
       (testing "allowed request by name"
         (let [rules (build-rules ["/path/to/resource" "*.domain.org"]
                                  ["/stairway/to/heaven" "*.domain.org"])]
@@ -173,7 +173,7 @@
                   (-> (rules/new-rule :path "/foo" :any 1 "name")
                       (rules/allow "*"))])
           request (-> (request "/foo")
-                      (assoc-in ring/is-authentic-key true))]
+                      (ring/set-authorized-authentic? true))]
       (is (rules/authorized? (rules/allowed? rules request "test.org")))))
   (testing "rules checked in order of name when sort-order is the same"
     (let [rules (rules/sort-rules
@@ -182,5 +182,5 @@
                   (-> (rules/new-rule :path "/foo" :any 1 "aaa")
                       (rules/allow "*"))])
           request (-> (request "/foo")
-                      (assoc-in ring/is-authentic-key true))]
+                      (ring/set-authorized-authentic? true))]
       (is (rules/authorized? (rules/allowed? rules request "test.org"))))))
