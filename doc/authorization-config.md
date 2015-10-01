@@ -40,10 +40,25 @@ authorizing a request.
 
 ### `version`
 
+~~~~hocon
+authorization: {
+    version: 1
+    rules: [...]
+}
+~~~~
+
 Required.  Version of the rule definitions that the authorization service 
 should use.  The only supported value is "1".
 
 ### `allow-header-cert-info`
+
+~~~~hocon
+authorization: {
+    version: 1
+    allow-header-cert-info: true
+    rules: [...]
+}
+~~~~
 
 Optional.  Controls how the authenticated user "name" is derived for a 
 request being authorized.  Default value for the setting is `false`.
@@ -108,27 +123,25 @@ Required.  An array in which each of the elements is a map of settings
 pertaining to a rule.  Here is an example of an array with two rules:
 
 ~~~~hocon
-rules: [
-        {
-            match-request: {
-                path: "^/my_path/([^/]+)$"
-                type: regex
-                method: get
-            }
-            allow: "$1"
-            sort-order: 1
-            name: "user-specific my_path"
-        },
-        {
-            match-request: {
-                path: "/my_other_path"
-                type: path
-            }
-            allow-unauthenticated: true
-            sort-order: 2
-            name: "my_other_path"
-        },
-       ]
+authorization: {
+    version: 1
+    rules: [
+            {
+                match-request: {
+                    path: "^/my_path/([^/]+)$"
+                    type: regex
+                }
+                ...
+            },
+            {
+                match-request: {
+                    path: "/my_other_path"
+                    type: path
+                }
+                ...
+            },
+    ]
+}
 ~~~~
 
 The request is evaluated against each rule until either a rule is determined
@@ -166,6 +179,21 @@ rule entries.
 
 #### `match-request`
 
+~~~~hocon
+authorization: {
+    version: 1
+    rules: [
+            {
+                match-request: {
+                    path: "/my_path"
+                    type: path
+                }
+                ...
+            }
+    ]
+}
+~~~~
+
 Required.  In order for a rule to be considered a match for the request, the
 request must match each of the settings in the rule's `match-request` section.
 For example, if the rule were to specify values for `path`, `type`, and `method`
@@ -179,6 +207,21 @@ move on to the next rule to see if it matches the request.
 
 ##### `path`
 
+~~~~hocon
+authorization: {
+    version: 1
+    rules: [
+            {
+                match-request: {
+                    path: "/my_path"
+                    type: path
+                }
+                ...
+            }
+    ]
+}
+~~~~
+  
 Required.  The `path` setting is matched up against the
 [path component] (https://tools.ietf.org/html/rfc3986#section-3.3) of the 
 request's URL.  For example, if the request URL were 
@@ -188,6 +231,21 @@ be performed depends upon the value of the corresponding `type` setting for
 the rule.
 
 ##### `type`
+
+~~~~hocon
+authorization: {
+    version: 1
+    rules: [
+            {
+                match-request: {
+                    path: "/my_path"
+                    type: path
+                }
+                ...
+            }
+    ]
+}
+~~~~
 
 Required.  The `type` setting controls the type of match which is done with 
 the value in the `path` setting against the path component in the request URL.
@@ -218,13 +276,37 @@ considered a match.  The `method` can be represented either as a single
 string value ...
 
 ~~~~hocon
-method: get
+authorization: {
+    version: 1
+    rules: [
+            {
+                match-request: {
+                    path: "/my_path"
+                    type: path
+                    method: get
+                }
+                ...
+            }
+    ]
+}
 ~~~~
 
 ... or as an array of values ...
 
 ~~~~hocon
-method: [ get, post ]
+authorization: {
+    version: 1
+    rules: [
+            {
+                match-request: {
+                    path: "/my_path"
+                    type: path
+                    method: [ get, post ]
+                }
+                ...
+            }
+    ]
+}
 ~~~~
 
 Allowed values for `method` include `get`, `post`, `put`, `delete`, and `head`.
@@ -242,10 +324,22 @@ values in the rule.
 For example, the `query-params` section may have the following content:
 
 ~~~~hocon
-query-params: {
-                oneparam: [ valuea, valueb ]
-                twoparam: valuec
-              }
+authorization: {
+    version: 1
+    rules: [
+            {
+                match-request: {
+                    path: "/my_path"
+                    type: path
+                    query-params: {
+                        oneparam: [ valuea, valueb ]
+                        twoparam: valuec
+                    }
+                }
+                ...
+            }
+    ]
+}
 ~~~~
 
 The following request URLs would be considered a match for this 
@@ -269,6 +363,20 @@ what query string is associated with it - would be considered a match.
 
 ##### `sort-order`
 
+~~~~hocon
+authorization: {
+    version: 1
+    rules: [
+            {
+                match-request: {...}
+                allow: "*"
+                sort-order: 1
+                name: "my path"
+            }
+    ]
+}
+~~~~
+
 Required.  `sort-order` is a numeric value, where any value from 1 to 999 
 (inclusive) is valid.  `sort-order` controls the order in which one rule is 
 evaluated relative to another rule when authorizing a request.  Rules with 
@@ -291,6 +399,20 @@ for the request.
 
 #### `name`
 
+~~~~hocon
+authorization: {
+    version: 1
+    rules: [
+            {
+                match-request: {...}
+                allow: "*"
+                sort-order: 1
+                name: "my path"
+            }
+    ]
+}
+~~~~
+
 Required.  `name` values are represented as a string and each rule's `name` 
 value must be unique from any other rule's `name` value.  The presence of the
 same `name` value in one or more rules would result in a service startup 
@@ -308,13 +430,33 @@ The value for an `allow` setting can be represented either as a single
 string value ...
 
 ~~~~hocon
-allow: node1
+authorization: {
+    version: 1
+    rules: [
+            {
+                match-request: {...}
+                allow: node1
+                sort-order: 1
+                name: "my path"
+            }
+    ]
+}
 ~~~~
 
 ... or as an array of values ...
 
 ~~~~hocon
-allow: [ node1, node2, node3 ]
+authorization: {
+    version: 1
+    rules: [
+            {
+                match-request: {...}
+                allow: [ node1, node2, node3 ]
+                sort-order: 1
+                name: "my path"
+            }
+    ]
+}
 ~~~~
 
 If a request matches the criteria in the [`match-request`] (#match-request) 
@@ -364,13 +506,33 @@ The value for a `deny` setting can be represented either as a single string
 value ...
 
 ~~~~hocon
-deny: node1
+authorization: {
+    version: 1
+    rules: [
+            {
+                match-request: {...}
+                deny: node1
+                sort-order: 1
+                name: "my path"
+            }
+    ]
+}
 ~~~~
 
 ... or as an array of values ...
 
 ~~~~hocon
-deny: [ node1, node2, node3 ]
+authorization: {
+    version: 1
+    rules: [
+            {
+                match-request: {...}
+                deny: [ node1, node2, node3 ]
+                sort-order: 1
+                name: "my path"
+            }
+    ]
+}
 ~~~~
 
 If a request matches the criteria in the [`match-request`] (#match-request) 
@@ -390,6 +552,20 @@ entry.  See documentation for the [`allow`] (#allow) setting for more
 information.
 
 #### `allow-unauthenticated`
+
+~~~~hocon
+authorization: {
+    version: 1
+    rules: [
+            {
+                match-request: {...}
+                allow-unauthenticated: true
+                sort-order: 1
+                name: "my path"
+            }
+    ]
+}
+~~~~
 
 One of `allow`, `deny`, or `allow-unauthenticated` is required to be present
 for a rule.  If `allow-unauthenticated` is set to `true` for a rule, neither
