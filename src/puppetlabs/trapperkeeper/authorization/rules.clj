@@ -32,9 +32,9 @@
   (schema/maybe {:rule Rule :matches [schema/Str]}))
 
 (def AuthorizationResult
-  "A result returned by rules/allowed? that can be either authorized or non-authorized. If non-authorized it also
-  contains an explanation message"
-  { :authorized schema/Bool :message schema/Str })
+  "A result returned by rules/allowed? that can be either authorized or
+  non-authorized. If non-authorized it also contains an explanation message"
+  {:authorized schema/Bool :message schema/Str})
 
 ;; Rule creation
 
@@ -45,14 +45,14 @@
    method :- Methods
    sort-order :- schema/Int
    name :- schema/Str]
-   {:type type
-    :path (condp = type
-            :path (re-pattern (str "^" (Pattern/quote path)))
-            :regex (re-pattern path))
-    :acl acl/empty-acl
-    :method method
-    :sort-order sort-order
-    :name name})
+  {:type type
+   :path (condp = type
+           :path (re-pattern (str "^" (Pattern/quote path)))
+           :regex (re-pattern path))
+   :acl acl/empty-acl
+   :method method
+   :sort-order sort-order
+   :name name})
 
 (schema/defn tag-rule :- Rule
   "Tag a rule with a file/line - useful for instance when the rule has been read
@@ -122,7 +122,7 @@
    request :- ring/Request]
   (if (and (method-match? (:request-method request) (:method rule))
            (query-params-match? (:query-params request) (:query-params rule)))
-    (if-let [matches (re-find* (:path rule) (:uri request))] ;; check rule against request uri
+    (if-let [matches (re-find* (:path rule) (:uri request))]
       {:rule rule :matches (into [] (rest matches))})))
 
 (defn- request->description
@@ -172,7 +172,7 @@
     (if (true? (:allow-unauthenticated rule))
       {:authorized true :message "allow-unauthenticated is true - allowed"}
       (if (and (true? (ring/authorized-authentic? request)) ; authenticated?
-            (acl/allowed? (:acl rule) name matches))
+               (acl/allowed? (:acl rule) name matches))
         {:authorized true :message ""}
         (deny-request (request->description request name rule))))
     (deny-request "global deny all - no rules matched")))
