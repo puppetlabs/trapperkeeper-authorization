@@ -245,7 +245,7 @@
 (schema/defn wrap-authorization-check :- IFn
   "A ring middleware that checks the request is allowed by the provided rules"
   [handler :- IFn
-   rules :- rules/Rules
+   rules :- [rules/Rule]
    allow-header-cert-info :- schema/Bool]
   (fn [request]
     (let [req (add-authinfo request allow-header-cert-info)

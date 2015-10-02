@@ -23,13 +23,9 @@
    (schema/optional-key :file) schema/Str
    (schema/optional-key :line) schema/Int})
 
-(def Rules
-  "A list of rules"
-  [Rule])
-
 (def RuleMatch
-  "A match? result"
-  (schema/maybe {:rule Rule :matches [schema/Str]}))
+  "A `match?' result containing the matched rule and any regex capture groups."
+  {:rule Rule :matches [schema/Str]})
 
 (def AuthorizationResult
   "A result returned by rules/allowed? that can be either authorized or
@@ -115,7 +111,7 @@
             (some (get rule-params k)
                   (flatten [(get request-params (name k))])))))
 
-(schema/defn match? :- RuleMatch
+(schema/defn match? :- (schema/maybe RuleMatch)
   "Returns the rule if it matches the request URI, and also
    any capture groups of the Rule pattern if there are any."
   [rule :- Rule
@@ -137,10 +133,10 @@
          (format " (authentic: %s) " authentic?)
          (format "denied by rule '%s'." (:name rule)))))
 
-(schema/defn sort-rules :- Rules
+(schema/defn sort-rules :- [Rule]
   "Sorts the rules based on their :sort-order, and then their :name if they
    have the same sort order value."
-  [rules :- Rules]
+  [rules :- [Rule]]
   (sort-by (juxt :sort-order :name) rules))
 
 (schema/defn deny-request :- AuthorizationResult
@@ -151,21 +147,12 @@
   {:authorized false
    :message reason})
 
-;; Rules creation
-
-(def empty-rules [])
-
-(schema/defn add-rule
-  [rules :- Rules
-   rule :- Rule]
-  (conj rules rule))
-
 ;; Rules check
 
 (schema/defn allowed? :- AuthorizationResult
   "Checks if a request is allowed access given the list of rules. Rules
    will be checked in the given order; use `sort-rules` to first sort them."
-  [rules :- Rules
+  [rules :- [Rule]
    request :- ring/Request
    name :- schema/Str]
   (if-let [{:keys [rule matches]} (some #(match? % request) rules)]

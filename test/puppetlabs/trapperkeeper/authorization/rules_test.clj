@@ -117,9 +117,9 @@
 (defn- build-rules
   "Build a list of rules from individual vectors of [path allow]"
   [& rules]
-  (reduce #(rules/add-rule %1 (-> (testutils/new-rule :path (first %2))
-                                  (rules/allow (second %2))))
-          rules/empty-rules
+  (reduce #(conj %1 (-> (testutils/new-rule :path (first %2))
+                        (rules/allow (second %2))))
+          []
           rules))
 
 (deftest test-allowed

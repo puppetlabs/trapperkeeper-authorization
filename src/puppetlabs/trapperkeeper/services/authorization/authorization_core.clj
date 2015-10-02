@@ -15,8 +15,8 @@
 
 (def acl-func-map
   "A function map to allow a programmatic execution of allow/deny directives"
-  {:allow #(rules/allow %1 %2)
-   :deny #(rules/deny %1 %2)})
+  {:allow rules/allow
+   :deny rules/deny})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private
@@ -231,7 +231,7 @@
                    "Rules must be uniquely named.")))))
   config)
 
-(schema/defn transform-config :- rules/Rules
+(schema/defn transform-config :- [rules/Rule]
   "Transforms the (validated) authorization service config into a list of Rules
    that work with the authorization code. Assumes config has been validated via
    `validate-auth-config!`. A warning is logged if the rules in the config are
