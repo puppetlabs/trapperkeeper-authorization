@@ -206,9 +206,9 @@
 
 (deftest test-acl-ordering
   (testing "allow before deny"
-    (is (= :allow) (:auth-type (first (acl/deny (acl/allow "www.google.com") "www.domain.com")))))
+    (is (= :allow (:auth-type (first (acl/deny (acl/allow "www.google.com") "www.domain.com"))))))
   (testing "ip before name"
-    (is (= :ip) (:type (first (acl/allow-ip (acl/allow "www.google.com") "192.168.0.0/24"))))))
+    (is (= :ip (:type (first (acl/allow-ip (acl/allow "www.google.com") "192.168.0.0/24")))))))
 
 (deftest test-acl-matching
   (let [acl (-> (acl/allow "*.domain.com") (acl/allow-ip "192.168.0.0/24") (acl/deny "*.test.org") (acl/deny-ip "127.0.0.0/8"))]
