@@ -182,7 +182,7 @@
     (if (true? (:allow-unauthenticated rule))
       {:authorized true :message "allow-unauthenticated is true - allowed"}
       (if (and (true? (ring/authorized-authentic? request)) ; authenticated?
-            (acl/allowed? (:acl rule) name (:remote-addr request) matches))
+            (acl/allowed? (:acl rule) name matches))
         {:authorized true :message ""}
         (deny-request (request->description request name rule))))
     (deny-request "global deny all - no rules matched")))

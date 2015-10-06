@@ -260,14 +260,14 @@
     (testing "Allow rules with no deny are returned in order"
       (let [m (merge base-path-auth allow-list)
             {:keys [acl]} (config->rule m)]
-        (is (= ["com" "test"] (:pattern (first acl))))
+        (is (= ["org" "domain"] (:pattern (first acl))))
         (is (= :inexact (:qualifier (first acl))))
-        (is (= ["org" "domain"] (:pattern (second acl))))
+        (is (= ["com" "test"] (:pattern (second acl))))
         (is (= :inexact (:qualifier (second acl))))))
     (testing "Deny rules with no allow are returned in order"
       (let [m (merge base-path-auth deny-list)
             {:keys [acl]} (config->rule m)]
-        (is (= ["com" "bull" "bald"] (:pattern (first acl))))
+        (is (= ["com" "eagle" "bald"] (:pattern (first acl))))
         (is (= :exact (:qualifier (first acl))))
-        (is (= ["com" "eagle" "bald"] (:pattern (second acl))))
+        (is (= ["com" "bull" "bald"] (:pattern (second acl))))
         (is (= :exact (:qualifier (first acl))))))))

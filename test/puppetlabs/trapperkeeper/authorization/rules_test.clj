@@ -98,32 +98,18 @@
 (deftest test-rule-acl-creation
   (let [rule (testutils/new-rule :path "/highway/to/hell" :any)]
     (testing "allowing a host"
-      (is (acl/allowed? (:acl (rules/allow rule "*.domain.com")) "www.domain.com" "127.0.0.1")))
+      (is (acl/allowed? (:acl (rules/allow rule "*.domain.com")) "www.domain.com")))
     (testing "several allow in a row"
       (let [new-rule (-> rule (rules/allow "*.domain.com") (rules/allow "*.test.org"))]
-        (is (acl/allowed? (:acl new-rule) "www.domain.com" "127.0.0.1"))
-        (is (acl/allowed? (:acl new-rule) "www.test.org" "127.0.0.1"))
-        (is (not (acl/allowed? (:acl new-rule) "www.different.tld" "127.0.0.1")))))
-    (testing "allowing an ip"
-      (is (acl/allowed? (:acl (rules/allow-ip rule "192.168.1.0/24")) "www.domain.com" "192.168.1.23")))
-    (testing "several allow-ip in a row"
-      (let [new-rule (-> rule (rules/allow-ip "192.168.1.0/24") (rules/allow-ip "192.168.10.0/24"))]
-        (is (acl/allowed? (:acl new-rule) "www.domain.com" "192.168.1.23"))
-        (is (acl/allowed? (:acl new-rule) "www.domain.com" "192.168.10.4"))
-        (is (not (acl/allowed? (:acl new-rule) "www.domain.com" "127.0.0.1")))))
-    (testing "a mix of allow-ip and allow in a row"
-      (let [new-rule (-> rule (rules/allow "*.test.org") (rules/allow-ip "192.168.10.0/24"))]
-        (is (acl/allowed? (:acl new-rule) "www.test.org" "192.168.1.23"))
-        (is (acl/allowed? (:acl new-rule) "www.domain.com" "192.168.10.4"))
-        (is (not (acl/allowed? (:acl new-rule) "www.domain.com" "127.0.0.1")))))
-    (testing "deny-ip"
-      (let [new-rule (-> rule (rules/allow "*.test.org") (rules/deny-ip "192.168.10.0/24"))]
-        (is (acl/allowed? (:acl new-rule) "www.test.org" "192.168.1.23"))
-        (is (not (acl/allowed? (:acl new-rule) "www.test.org" "192.168.10.2")))))
-    (testing "deny"
-      (let [new-rule (-> rule (rules/allow-ip "192.168.1.0/24") (rules/deny "*.domain.org"))]
-        (is (acl/allowed? (:acl new-rule) "www.test.org" "192.168.1.23"))
-        (is (not (acl/allowed? (:acl new-rule) "www.domain.org" "192.168.10.2")))))))
+        (is (acl/allowed? (:acl new-rule) "www.domain.com"))
+        (is (acl/allowed? (:acl new-rule) "www.test.org"))
+        (is (not (acl/allowed? (:acl new-rule) "www.different.tld")))))
+    (testing "deny overrides allow"
+      (let [new-rule (-> rule
+                         (rules/allow "*.domain.org")
+                         (rules/deny "deny.domain.org"))]
+        (is (acl/allowed? (:acl new-rule) "allow.domain.org"))
+        (is (not (acl/allowed? (:acl new-rule) "deny.domain.org")))))))
 
 (defn- build-rules
   "Build a list of rules from individual vectors of [path allow]"
