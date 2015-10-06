@@ -1,7 +1,6 @@
 (ns puppetlabs.trapperkeeper.authorization.acl
   (:require [schema.core :as schema]
-            [clojure.string :as str]
-            [inet.data.ip :as ip]))
+            [clojure.string :as str]))
 
 ;; Schemas
 
@@ -10,7 +9,7 @@
 (def Entry
   "An authorization entry matching a network or a domain"
   {:auth-type auth-type
-  :type (schema/enum :allow-all :ip :domain :opaque :regex :dynamic)
+  :type (schema/enum :allow-all :domain :opaque :regex :dynamic)
   :qualifier (schema/enum :exact :inexact)
   :length (schema/maybe schema/Int)
   :pattern schema/Any})
@@ -116,21 +115,6 @@
     :else
     (throw (Exception. (str "invalid domain pattern: " pattern)))))
 
-(schema/defn new-ip :- Entry
-  "Creates a new ACE for an ip address or network"
-  [type :- auth-type
-   pattern :- schema/Str]
-  (cond
-    ; exact domain
-    (re-matches #"^((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.){1,3}\*$" pattern)
-      (let [segments (-> pattern (str/split #"\.") drop-last)
-            bits (* 8 (count segments))]
-      {:auth-type type :type :ip :qualifier :inexact
-       :length bits
-       :pattern (ip/network (str (str/join "." (map str (take 4 (concat segments [0 0 0])))) "/" bits))})
-    (ip/network? pattern) {:auth-type type :type :ip :qualifier :inexact :length (ip/network-length pattern) :pattern (ip/network pattern)}
-    (ip/address? pattern) {:auth-type type :type :ip :qualifier :exact :length nil :pattern (ip/address pattern)}))
-
 ;; ACE matching
 
 (schema/defn match-name? :- schema/Bool
@@ -191,32 +175,6 @@
   ([acl :- ACL
     pattern :- schema/Str]
     (add-name acl :deny pattern)))
-
-(schema/defn add-ip :- ACL
-  "Add a new ip ACE to an ACL"
-  ([type :- auth-type
-    pattern :- schema/Str]
-    (add-ip empty-acl type pattern))
-  ([acl :- ACL
-    type :- auth-type
-    pattern :- schema/Str]
-    (conj acl (new-ip type pattern))))
-
-(schema/defn allow-ip :- ACL
-  "Allow a new ip to an ACL"
-  ([pattern :- schema/Str]
-    (add-ip :allow pattern))
-  ([acl :- ACL
-    pattern :- schema/Str]
-    (add-ip acl :allow pattern)))
-
-(schema/defn deny-ip :- ACL
-  "Deny a new ip to an ACL"
-  ([pattern :- schema/Str]
-    (add-ip :deny pattern))
-  ([acl :- ACL
-    pattern :- schema/Str]
-    (add-ip acl :deny pattern)))
 
 ;; ACL result
 

@@ -9,7 +9,9 @@
 (defn request
   "Build a ring request for testing"
   ([]
-   (request "/path/to/resource" :get))
+   (request "/path/to/resource"))
+  ([path]
+   (request path :get))
   ([path method]
    (request path method "127.0.0.1"))
   ([path method ip]

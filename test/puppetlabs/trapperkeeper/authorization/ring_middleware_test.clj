@@ -15,10 +15,8 @@
 
 (def test-rule [(-> (testutils/new-rule :path "/path/to/foo")
                     (rules/deny "bad.guy.com")
-                    (rules/allow-ip "192.168.0.0/24")
                     (rules/allow "*.domain.org")
-                    (rules/allow "*.test.com")
-                    (rules/deny-ip "192.168.1.0/24"))])
+                    (rules/allow "*.test.com"))])
 
 (defn wrap-x-client-dn
   [request name]

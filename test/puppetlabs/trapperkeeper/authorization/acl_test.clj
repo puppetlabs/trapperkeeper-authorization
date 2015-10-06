@@ -80,11 +80,7 @@
   (testing "not empty when allowing a domain"
     (is (not= 0 (count (acl/allow "www.google.com")))))
   (testing "not empty when denying a domain"
-    (is (not= 0 (count (acl/deny "www.google.com")))))
-  (testing "not empty when allowing an ip"
-    (is (not= 0 (count (acl/allow-ip "192.168.0.0/24")))))
-  (testing "not empty when denying an ip"
-    (is (not= 0 (count (acl/deny-ip "192.168.0.0/24"))))))
+    (is (not= 0 (count (acl/deny "www.google.com"))))))
 
 (deftest test-acl-ordering
   (testing "deny ACEs ordered before allow ACEs"

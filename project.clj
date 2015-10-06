@@ -16,7 +16,6 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/tools.logging "0.2.6"]
                  [org.clojure/tools.cli "0.3.0"]
-                 [inet.data "0.5.5"]
                  [me.raynes/fs "1.4.5"]
                  [prismatic/schema "0.4.0"]
                  [ring/ring-core "1.4.0"]

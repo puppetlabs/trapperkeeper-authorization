@@ -83,20 +83,10 @@
    pattern :- schema/Str]
   (assoc rule :acl (acl/allow (:acl rule) pattern)))
 
-(schema/defn allow-ip :- Rule
-  [rule :- Rule
-   pattern :- schema/Str]
-  (assoc rule :acl (acl/allow-ip (:acl rule) pattern)))
-
 (schema/defn deny :- Rule
   [rule :- Rule
    pattern :- schema/Str]
   (assoc rule :acl (acl/deny (:acl rule) pattern)))
-
-(schema/defn deny-ip :- Rule
-  [rule :- Rule
-   pattern :- schema/Str]
-  (assoc rule :acl (acl/deny-ip (:acl rule) pattern)))
 
 ;; Rule matching
 
