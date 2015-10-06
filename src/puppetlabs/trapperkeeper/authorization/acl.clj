@@ -9,7 +9,7 @@
 (def Entry
   "An authorization entry matching a network or a domain"
   {:auth-type auth-type
-  :type (schema/enum :allow-all :domain :opaque :regex :dynamic)
+  :type (schema/enum :domain :opaque :regex :dynamic)
   :qualifier (schema/enum :exact :inexact)
   :length (schema/maybe schema/Int)
   :pattern schema/Any})
@@ -22,13 +22,9 @@
   [ace :- Entry]
   (= (ace :auth-type) :deny))
 
-(schema/defn allow-all? :- schema/Bool
-  [ace :- Entry]
-  (= (ace :type) :allow-all))
-
 (schema/defn allow? :- schema/Bool
   [ace :- Entry]
-  (or (= (ace :auth-type) :allow) (allow-all? ace)))
+  (= (ace :auth-type) :allow))
 
 ;; ACE comparison
 
@@ -53,19 +49,14 @@
   [pattern]
   (-> pattern (str/lower-case) (str/split #"\.") reverse vec))
 
-(def allow-all { :auth-type :allow :type :allow-all :qualifier :exact :length nil :pattern [] })
-
 (schema/defn new-domain :- Entry
   "Creates a new ACE for a domain"
   [type :- auth-type
    pattern :- schema/Str]
   (cond
-    (and (= "*" pattern) (= type :allow))
-    allow-all
-
-    ; global deny
-    (and (= "*" pattern) (= type :deny))
-    {:auth-type :deny
+    ; global
+    (= "*" pattern)
+    {:auth-type type
      :type :regex
      :qualifier :exact
      :length nil
@@ -121,14 +112,14 @@
   "Checks that name matches the given ace"
   [ace :- Entry
    name :- schema/Str]
-  (if (= ace allow-all) ; always match
-    true
-    (if (= (ace :type) :regex)
-      (boolean (re-find (re-pattern (ace :pattern)) name))
-      (let [name (munge-name name)
-            pattern (ace :pattern)
-            exact (= (ace :qualifier) :exact)]
-        (or (= pattern name) (and (not exact) (every? (fn [[a b]] (= a b)) (map vector pattern name))))))))
+  (if (= (ace :type) :regex)
+    (boolean (re-find (re-pattern (ace :pattern)) name))
+    (let [name (munge-name name)
+          pattern (ace :pattern)
+          exact (= (ace :qualifier) :exact)]
+      (or (= pattern name)
+          (and (not exact)
+               (every? (fn [[a b]] (= a b)) (map vector pattern name)))))))
 
 (defn- substitute-backreference
   "substiture $1, $2... by the same index in the captures vector"
