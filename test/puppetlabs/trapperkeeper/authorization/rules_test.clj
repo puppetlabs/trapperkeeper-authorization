@@ -3,22 +3,11 @@
             [puppetlabs.trapperkeeper.authorization.acl :as acl]
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
-            [puppetlabs.trapperkeeper.authorization.testutils :as testutils]
+            [puppetlabs.trapperkeeper.authorization.testutils :as testutils :refer [request]]
             [puppetlabs.trapperkeeper.testutils.logging :as logutils]
             [schema.test :as schema-test]))
 
 (use-fixtures :once schema-test/validate-schemas)
-
-(defmacro dbg [x] `(let [x# ~x] (println "dbg:" '~x "=" x#) x#))
-
-(defn- request
-  "Builds a fake request"
-  ([path]
-   (request path :get))
-  ([path method]
-   (request path method "127.0.0.1"))
-  ([path method ip]
-   {:uri path :request-method method :remote-addr ip}))
 
 (defn- request-with-params
   [path params]
@@ -98,32 +87,32 @@
 (deftest test-rule-acl-creation
   (let [rule (testutils/new-rule :path "/highway/to/hell" :any)]
     (testing "allowing a host"
-      (is (acl/allowed? (:acl (rules/allow rule "*.domain.com")) "www.domain.com" "127.0.0.1")))
+      (testutils/is-allowed (acl/allowed? (:acl (rules/allow rule "*.domain.com")) "www.domain.com" "127.0.0.1")))
     (testing "several allow in a row"
       (let [new-rule (-> rule (rules/allow "*.domain.com") (rules/allow "*.test.org"))]
-        (is (acl/allowed? (:acl new-rule) "www.domain.com" "127.0.0.1"))
-        (is (acl/allowed? (:acl new-rule) "www.test.org" "127.0.0.1"))
-        (is (not (acl/allowed? (:acl new-rule) "www.different.tld" "127.0.0.1")))))
+        (testutils/is-allowed (acl/allowed? (:acl new-rule) "www.domain.com" "127.0.0.1"))
+        (testutils/is-allowed (acl/allowed? (:acl new-rule) "www.test.org" "127.0.0.1"))
+        (testutils/is-not-allowed (acl/allowed? (:acl new-rule) "www.different.tld" "127.0.0.1"))))
     (testing "allowing an ip"
-      (is (acl/allowed? (:acl (rules/allow-ip rule "192.168.1.0/24")) "www.domain.com" "192.168.1.23")))
+      (testutils/is-allowed  (acl/allowed? (:acl (rules/allow-ip rule "192.168.1.0/24")) "www.domain.com" "192.168.1.23")))
     (testing "several allow-ip in a row"
       (let [new-rule (-> rule (rules/allow-ip "192.168.1.0/24") (rules/allow-ip "192.168.10.0/24"))]
-        (is (acl/allowed? (:acl new-rule) "www.domain.com" "192.168.1.23"))
-        (is (acl/allowed? (:acl new-rule) "www.domain.com" "192.168.10.4"))
-        (is (not (acl/allowed? (:acl new-rule) "www.domain.com" "127.0.0.1")))))
+        (testutils/is-allowed (acl/allowed? (:acl new-rule) "www.domain.com" "192.168.1.23"))
+        (testutils/is-allowed (acl/allowed? (:acl new-rule) "www.domain.com" "192.168.10.4"))
+        (testutils/is-not-allowed (acl/allowed? (:acl new-rule) "www.domain.com" "127.0.0.1")))
     (testing "a mix of allow-ip and allow in a row"
       (let [new-rule (-> rule (rules/allow "*.test.org") (rules/allow-ip "192.168.10.0/24"))]
-        (is (acl/allowed? (:acl new-rule) "www.test.org" "192.168.1.23"))
-        (is (acl/allowed? (:acl new-rule) "www.domain.com" "192.168.10.4"))
-        (is (not (acl/allowed? (:acl new-rule) "www.domain.com" "127.0.0.1")))))
+        (testutils/is-allowed (acl/allowed? (:acl new-rule) "www.test.org" "192.168.1.23"))
+        (testutils/is-allowed (acl/allowed? (:acl new-rule) "www.domain.com" "192.168.10.4"))
+        (testutils/is-not-allowed (acl/allowed? (:acl new-rule) "www.domain.com" "127.0.0.1")))
     (testing "deny-ip"
       (let [new-rule (-> rule (rules/allow "*.test.org") (rules/deny-ip "192.168.10.0/24"))]
-        (is (acl/allowed? (:acl new-rule) "www.test.org" "192.168.1.23"))
-        (is (not (acl/allowed? (:acl new-rule) "www.test.org" "192.168.10.2")))))
+        (testutils/is-allowed (acl/allowed? (:acl new-rule) "www.test.org" "192.168.1.23"))
+        (testutils/is-not-allowed (acl/allowed? (:acl new-rule) "www.test.org" "192.168.10.2")))
     (testing "deny"
       (let [new-rule (-> rule (rules/allow-ip "192.168.1.0/24") (rules/deny "*.domain.org"))]
-        (is (acl/allowed? (:acl new-rule) "www.test.org" "192.168.1.23"))
-        (is (not (acl/allowed? (:acl new-rule) "www.domain.org" "192.168.10.2")))))))
+        (testutils/is-allowed (acl/allowed? (:acl new-rule) "www.test.org" "192.168.1.23"))
+        (testutils/is-not-allowed (acl/allowed? (:acl new-rule) "www.domain.org" "192.168.10.2")))))))))
 
 (defn- build-rules
   "Build a list of rules from individual vectors of [path allow]"
@@ -132,6 +121,11 @@
                                   (rules/allow (second %2))))
           rules/empty-rules
           rules))
+
+(deftest test-match-rule
+  (let [request (request "/stairway/to/heaven" :get "192.168.1.23")]
+    (testing "match-rule"
+      ())))
 
 (deftest test-allowed
   (logutils/with-test-logging
@@ -184,3 +178,21 @@
           request (-> (request "/foo")
                       (ring/set-authorized-authentic? true))]
       (is (rules/authorized? (rules/allowed? rules request "test.org"))))))
+
+(deftest test-match-report
+  (let [request (-> (request "/stairway/to/heaven" :get "192.168.1.23")
+                    (ring/set-authorized-authentic? true))
+        rules (build-rules ["/path/to/resource" "*.domain.org"] ["/stairway/to/heaven" "*.domain.org"])]
+    (testing "embedded request"
+      (is (= "/stairway/to/heaven" (get-in (rules/allowed? rules request "test.domain.org") [:match-report :request :path])))
+      (is (= "GET" (get-in (rules/allowed? rules request "test.domain.org") [:match-report :request :method])))
+      (is (= "test.domain.org" (get-in (rules/allowed? rules request "test.domain.org") [:match-report :request :name])))
+      (is (= "192.168.1.23" (get-in (rules/allowed? rules request "test.domain.org") [:match-report :request :ip]))))
+    (testing "acl report"
+      (is (= 2 (count (get-in (rules/allowed? rules request "test.domain.org") [:match-report :matches]))))
+      (is (= [:no :yes] (mapv :match (get-in (rules/allowed? rules request "test.domain.org") [:match-report :matches])))))))
+
+(deftest test-rules-method->string
+  (testing "simple method"
+    (is "GET" (rules/method->string :get))
+    (is "GET,PUT" (rules/method->string [:get :put]))))

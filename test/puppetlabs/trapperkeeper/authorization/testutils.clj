@@ -3,13 +3,16 @@
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
             [ring.mock.request :as mock]
             [puppetlabs.ssl-utils.core :as ssl-utils]
-            [ring.util.codec :as ring-codec])
+            [ring.util.codec :as ring-codec]
+            [clojure.test :refer :all])
   (:import (java.io StringWriter)))
 
 (defn request
   "Build a ring request for testing"
   ([]
    (request "/path/to/resource" :get))
+  ([path]
+   (request path :get "127.0.0.1"))
   ([path method]
    (request path method "127.0.0.1"))
   ([path method ip]
@@ -37,3 +40,10 @@
   (let [cert-writer (StringWriter.)
         _ (ssl-utils/cert->pem! x509-cert cert-writer)]
     (ring-codec/url-encode cert-writer)))
+
+(defmacro is-allowed
+  [form] `(try-expr nil (:result ~form)))
+
+(defmacro is-not-allowed
+  [form] `(try-expr nil (not (:result ~form))))
+
