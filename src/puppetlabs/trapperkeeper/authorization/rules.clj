@@ -1,9 +1,11 @@
 (ns puppetlabs.trapperkeeper.authorization.rules
-  (:require [clojure.tools.logging :as log]
+  (:require [schema.core :as schema]
+            [clojure.tools.logging :as log]
+            [clojure.string :as str]
             [puppetlabs.trapperkeeper.authorization.acl :as acl]
-            [puppetlabs.trapperkeeper.authorization.ring :as ring]
-            [schema.core :as schema])
-  (:import java.util.regex.Pattern))
+            [puppetlabs.trapperkeeper.authorization.report :as report]
+            [puppetlabs.trapperkeeper.authorization.ring :as ring])
+(:import java.util.regex.Pattern))
 
 ;; Schemas
 
@@ -31,12 +33,23 @@
   "A match? result"
   (schema/maybe {:rule Rule :matches [schema/Str]}))
 
+(def MatchReport
+  "A match result containing a match report"
+  {:report report/Report :result schema/Bool (schema/optional-key :match-result) RuleMatch})
+
 (def AuthorizationResult
   "A result returned by rules/allowed? that can be either authorized or non-authorized. If non-authorized it also
   contains an explanation message"
-  { :authorized schema/Bool :message schema/Str })
+  { :authorized schema/Bool :message schema/Str :match-report report/Report})
 
 ;; Rule creation
+
+(defn- unmangle-path
+  [path]
+  (-> path
+      (str/replace "\\Q" "")
+      (str/replace "\\E" "")
+      (str/replace #"^\^" "")))
 
 (schema/defn new-rule :- Rule
   "Creates a new rule with an empty ACL"
@@ -156,10 +169,12 @@
 (schema/defn deny-request :- AuthorizationResult
   "Logs the reason message at ERROR level and
    returns an unauthorized authorization result."
-  [reason :- schema/Str]
+  [reason :- schema/Str
+   report :- report/Report]
   (log/error reason)
   {:authorized false
-   :message reason})
+   :message reason
+   :match-report report})
 
 ;; Rules creation
 
@@ -172,20 +187,81 @@
 
 ;; Rules check
 
+(defn method->string
+  "Transform a method as a keyword or a vector of keywords to a human-readable string"
+  [m]
+  (str/join "," (map #(-> % name str/upper-case) (flatten (vector m)))))
+
+(schema/defn rule->name :- schema/Str
+  "Returns a rule unique identifier"
+  [rule :- Rule]
+  (str (method->string (:method rule)) " " (unmangle-path (:path rule))))
+
+(schema/defn new-rule-match :- report/RuleReport
+  ([rule :- Rule
+    result :- report/Match]
+    (new-rule-match rule result []))
+  ([rule :- Rule
+    result :- report/Match
+    acl-report :- report/ACLReport]
+    { :rule (rule->name rule) :match result :acl-match acl-report }))
+
+(schema/defn allow-rules? :- { :match schema/Bool (schema/optional-key :allowed) schema/Bool (schema/optional-key :reason) schema/Str :report report/Report (schema/optional-key :match-result) RuleMatch }
+  "Find a matching rule in the given rules, and if one is found return if it is allowed or not.
+  At the same time, fill a Report with all the match results."
+  [rules :- Rules
+   request :- ring/Request
+   name :- schema/Str
+   report :- report/Report]
+  (letfn [
+          ; rule matched, and possibly an ace matched
+          (positive-match [v r match-result] (if (true? (:allow-unauthenticated r))
+                                               (assoc v :match true :allowed true :report (report/append-rule-report (new-rule-match r :allow-unauthenticated) report) :reason "allow-unauthenticated is true - allowed")
+                                               (let [report (:report v)
+                                                     ip (:remote-addr request)
+                                                     acl (:acl (:rule match-result))
+                                                     matches (:matches match-result)
+                                                     common-result {:match true :reason "" :match-result match-result}
+                                                     ]
+                                                 (if-let [{allowed :result rule-report :report} (and (true? (ring/authorized-authentic? request)) ; authenticated?
+                                                                                                     (acl/allowed? acl name ip matches))]
+                                                   (merge v
+                                                          common-result
+                                                          {:allowed allowed :report (report/append-rule-report (new-rule-match r :yes rule-report) report)})
+                                                   (merge v
+                                                          common-result
+                                                          {:allowed false :report (report/append-rule-report (new-rule-match r :yes) report)})))))
+
+
+          ; this rule doesn't match
+          (no-match [v r] (assoc v :report (report/append-rule-report (new-rule-match r :no) (:report v))))
+
+          ; this rule is skipped (previous match occured)
+          (skipped [v r] (assoc v :report (report/append-rule-report (new-rule-match r :skipped) (:report v))))
+
+          ; the core of the logic: while we don't have a match, try to match the current rule, but after a
+          ; given match, skip all following rules, marking them as skipped
+          (rule-match [v r] (if (not (:match v))
+                              (if-let [match-result (match? r request)]
+                                (positive-match v r match-result)
+                                (no-match v r))
+                              (skipped v r)))]
+    (reduce rule-match {:report report :match false } rules)))
+
 (schema/defn allowed? :- AuthorizationResult
   "Checks if a request is allowed access given the list of rules. Rules
    will be checked in the given order; use `sort-rules` to first sort them."
   [rules :- Rules
    request :- ring/Request
    name :- schema/Str]
-  (if-let [{:keys [rule matches]} (some #(match? % request) rules)]
-    (if (true? (:allow-unauthenticated rule))
-      {:authorized true :message "allow-unauthenticated is true - allowed"}
-      (if (and (true? (ring/authorized-authentic? request)) ; authenticated?
-            (acl/allowed? (:acl rule) name (:remote-addr request) matches))
-        {:authorized true :message ""}
-        (deny-request (request->description request name rule))))
-    (deny-request "global deny all - no rules matched")))
+
+  (let [report (report/new-report request name)
+        {match :match report :report allowed :allowed match-result :match-result reason :reason} (allow-rules? rules request name report)]
+    (if match
+      (if allowed
+        {:authorized true :message reason :match-report report}
+        (deny-request (request->description request name (:rule match-result)) report))
+    (deny-request "global deny all - no rules matched" report))))
 
 (schema/defn authorized? :- schema/Bool
   [result :- AuthorizationResult]

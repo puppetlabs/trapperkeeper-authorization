@@ -1,6 +1,7 @@
 (ns puppetlabs.trapperkeeper.authorization.acl
   (:require [schema.core :as schema]
             [clojure.string :as str]
+            [puppetlabs.trapperkeeper.authorization.report :as report]
             [inet.data.ip :as ip]))
 
 ;; Schemas
@@ -18,6 +19,41 @@
 (def ACL
   "An ordered list of authorization Entry"
   #{Entry})
+
+;; Rules description
+
+(defn- unmunge-name
+  "the reverse of munge-name"
+  [name]
+  (str/join "." (reverse name)))
+
+(defn- pattern->string
+  "Transform back a pattern into a human-readable form"
+  [entry]
+  (let [pattern (:pattern entry)
+        type (:type entry)
+        length (:length entry)]
+    (condp = type
+      :allow-all "*"
+      :domain (unmunge-name (if-not length
+                              pattern
+                              (conj pattern "*")))
+      :opaque (first pattern)
+      :regex (str "/" pattern "/")
+      :dynamic (unmunge-name pattern)
+      :ip (str pattern))))
+
+(schema/defn entry->string :- schema/Str
+  "Converts an Entry to a human-readable string"
+  [entry :- Entry]
+  (let [auth-type (name (:auth-type entry))
+        pattern (pattern->string entry)]
+    (str auth-type " " pattern)))
+
+(schema/defn acl->string :- [schema/Str]
+  "Converts an acl to a human-readable form"
+  [a :- ACL]
+  (vec (map entry->string a)))
 
 (schema/defn exact? :- schema/Bool
   [ace :- Entry]
@@ -245,7 +281,41 @@
 
 ;; ACL result
 
-(schema/defn allowed? :- schema/Bool
+(schema/defn new-entry-report :- report/EntryReport
+  "Creates a new EntryReport for a given match"
+  [ace :- Entry
+   match :- schema/Bool]
+  {:pattern (pattern->string ace) :type (:auth-type ace) :match (if match :yes :no)})
+
+(schema/defn new-skipped-entry-report :- report/EntryReport
+  "Creates a new EntryReport for a given match"
+  [ace :- Entry]
+  {:pattern (pattern->string ace) :type (:auth-type ace) :match :skipped})
+
+(schema/defn find-ace-match :- { :match schema/Bool :report report/EntryReport }
+  "Find if the given Entry matches. If it matches return true for the :result
+  At the same time accumulate information in the report"
+  [ace :- Entry
+   name :- schema/Str
+   ip :- schema/Str]
+  (let [match (match? ace name ip)]
+    {:match match :report (new-entry-report ace match)}))
+
+(schema/defn find-acl-match :- {:match schema/Bool :entry Entry :report report/ACLReport}
+  "Scan all interpolated acl to find one that matches. If one matches then return true as :result
+  At the same time accumulate information in the report "
+  [acl :- [Entry]
+   name :- schema/Str
+   ip :- schema/Str]
+  (let [report (report/new-acl-report)
+        initial-result {:match false :report report}]
+    (letfn [(match-and-report [v entry] (if (not (:match v))
+                                          (let [{m :match r :report} (find-ace-match entry name ip)]
+                                            {:match m :entry entry :report (report/append-acl-report (:report v) r)})
+                                          (assoc v :report (report/append-acl-report (:report v) (new-skipped-entry-report entry)))))]
+      (reduce match-and-report initial-result acl))))
+
+(schema/defn allowed? :- {:result schema/Bool :report report/ACLReport}
   "Returns true if either name or ip are allowed by acl, otherwise returns false"
   ([acl :- ACL
     name :- schema/Str
@@ -256,7 +326,7 @@
    ip :- schema/Str
    captures :- [schema/Str]]
   (let [interpolated-acl (map #(interpolate-backreference % captures) acl)
-        match (some #(if (match? % name ip) % false) interpolated-acl)]
+        { match :match entry :entry report :report } (find-acl-match interpolated-acl name ip)]
       (if match
-        (allow? match)
-        false))))
+        {:result (allow? entry) :report report}
+        {:result false :report report}))))

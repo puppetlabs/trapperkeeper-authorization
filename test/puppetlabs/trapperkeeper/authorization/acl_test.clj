@@ -1,7 +1,9 @@
 (ns puppetlabs.trapperkeeper.authorization.acl-test
   (:require [clojure.test :refer :all]
             [puppetlabs.trapperkeeper.authorization.acl :as acl]
+            [puppetlabs.trapperkeeper.authorization.report :as report]
             [clojure.string :as str]
+            [puppetlabs.trapperkeeper.authorization.testutils :refer [is-allowed is-not-allowed request]]
             [schema.test :as schema-test]))
 
 (use-fixtures :once schema-test/validate-schemas)
@@ -213,28 +215,61 @@
 (deftest test-acl-matching
   (let [acl (-> (acl/allow "*.domain.com") (acl/allow-ip "192.168.0.0/24") (acl/deny "*.test.org") (acl/deny-ip "127.0.0.0/8"))]
     (testing "allowing by name"
-      (is (acl/allowed? acl "test.domain.com" "10.1.1.23")))
+      (is-allowed (acl/allowed? acl "test.domain.com" "10.1.1.23")))
     (testing "allowing by ip"
-      (is (acl/allowed? acl "www.google.com" "192.168.0.24")))
+      (is-allowed (acl/allowed? acl "www.google.com" "192.168.0.24")))
     (testing "denying by name"
-      (is (not (acl/allowed? acl "www.test.org" "10.1.1.23"))))
+      (is-not-allowed (acl/allowed? acl "www.test.org" "10.1.1.23")))
     (testing "denying by ip"
-      (is (not (acl/allowed? acl "www.google.com" "127.12.34.56"))))
+      (is-not-allowed (acl/allowed? acl "www.google.com" "127.12.34.56")))
     (testing "no match is deny"
-      (is (not (acl/allowed? acl "www.google.com" "212.23.45.67"))))))
+      (is-not-allowed (acl/allowed? acl "www.google.com" "212.23.45.67")))))
 
 (deftest test-global-allow
   (let [acl (acl/allow "*")]
     (testing "should allow anything"
-      (is (acl/allowed? acl "anything" "127.0.0.1")))))
+      (is-allowed (acl/allowed? acl "anything" "127.0.0.1")))))
 
 (deftest test-acl-matching-with-captures
   (testing "matching backreference of simple name"
     (let [acl (acl/allow "$1.google.com")]
-      (is (acl/allowed? acl "www.google.com" "127.0.0.1" ["www"]))))
+      (is-allowed (acl/allowed? acl "www.google.com" "127.0.0.1" ["www"]))))
   (testing "matching backreference of opaque name"
     (let [acl (acl/allow "$1")]
-      (is (acl/allowed? acl "c216f41a-f902-4bfb-a222-850dd957bebb" "127.0.0.1" ["c216f41a-f902-4bfb-a222-850dd957bebb"]))))
+      (is-allowed (acl/allowed? acl "c216f41a-f902-4bfb-a222-850dd957bebb" "127.0.0.1" ["c216f41a-f902-4bfb-a222-850dd957bebb"]))))
   (testing "matching backreference of name"
     (let [acl (acl/allow "$1")]
-      (is (acl/allowed? acl "admin.mgmt.nym1" "127.0.0.1" ["admin.mgmt.nym1"])))))
+      (is-allowed (acl/allowed? acl "admin.mgmt.nym1" "127.0.0.1" ["admin.mgmt.nym1"])))))
+
+(deftest test-single-entry->string
+  (testing "human-readable allow entry form"
+    (is (= (acl/acl->string (acl/allow "www.google.com")) ["allow www.google.com"]))
+    (is (= (acl/acl->string (acl/allow "*.google.com")) ["allow *.google.com"]))
+    (is (= (acl/acl->string (acl/allow "$1.google.com")) ["allow $1.google.com"]))
+    (is (= (acl/acl->string (acl/allow "*")) ["allow *"]))
+    (is (= (acl/acl->string (acl/allow "opaque")) ["allow opaque"]))
+    (is (= (acl/acl->string (acl/allow "/^(test-)?host[0-9]+\\.other-domain\\.(com|org|net)$|some-domain\\.com/")) ["allow /^(test-)?host[0-9]+\\.other-domain\\.(com|org|net)$|some-domain\\.com/"]))
+    (is (= (acl/acl->string (acl/allow-ip "192.168.5.25")) ["allow 192.168.5.25"]))
+    (is (= (acl/acl->string (acl/allow-ip "192.168.5.*")) ["allow 192.168.5.0/24"]))
+    (is (= (acl/acl->string (acl/allow-ip "192.168.5.0/24")) ["allow 192.168.5.0/24"])))
+  (testing "human-readable deny entry form"
+    (is (= (acl/acl->string (acl/deny "www.google.com")) ["deny www.google.com"]))
+    (is (= (acl/acl->string (acl/deny "*.google.com")) ["deny *.google.com"]))
+    (is (= (acl/acl->string (acl/deny "$1.google.com")) ["deny $1.google.com"]))
+    (is (= (acl/acl->string (acl/deny "*")) ["deny /^*$/"]))
+    (is (= (acl/acl->string (acl/deny "opaque")) ["deny opaque"]))
+    (is (= (acl/acl->string (acl/deny "/^(test-)?host[0-9]+\\.other-domain\\.(com|org|net)$|some-domain\\.com/")) ["deny /^(test-)?host[0-9]+\\.other-domain\\.(com|org|net)$|some-domain\\.com/"]))
+    (is (= (acl/acl->string (acl/deny-ip "192.168.5.25")) ["deny 192.168.5.25"]))
+    (is (= (acl/acl->string (acl/deny-ip "192.168.5.*")) ["deny 192.168.5.0/24"]))
+    (is (= (acl/acl->string (acl/deny-ip "192.168.5.0/24")) ["deny 192.168.5.0/24"]))))
+
+(deftest test-acl->string
+  (testing "a set of allow and deny"
+    (let [acl (-> (acl/allow "*.domain.com") (acl/allow-ip "192.168.0.0/24") (acl/deny "*.test.org") (acl/deny-ip "127.0.0.0/8"))]
+      (is (= (acl/acl->string acl) ["allow 192.168.0.0/24" "deny 127.0.0.0/8" "deny *.test.org" "allow *.domain.com"])))))
+
+(deftest test-acl-allowed-report
+  (testing "match report"
+    (let [acl (-> (acl/allow "*.domain.com") (acl/allow-ip "192.168.0.0/24") (acl/deny "*.test.org") (acl/deny-ip "127.0.0.0/8"))]
+      (is (= 4 (count (:report (acl/allowed? acl "www.domain.org" "172.16.10.4")))))
+      (is (=  (count (:report (acl/allowed? acl "www.domain.org" "172.16.10.4"))))))))
