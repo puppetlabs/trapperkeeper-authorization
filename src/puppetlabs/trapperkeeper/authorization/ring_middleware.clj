@@ -15,6 +15,12 @@
            (java.io StringReader)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Schemas
+
+(def AuthResultWithRequest
+  (assoc rules/AuthorizationResult :req ring/Request))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private
 
 (def header-cert-name
@@ -242,15 +248,25 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
 
+(schema/defn authorization-check :- AuthResultWithRequest
+  "A function that checks that the request is allowed by the provided rules.
+  Returns a map with the request with auth info added, whether the request is
+  authorized, and a message."
+  [request :- ring/Request
+   rules :- rules/Rules
+   allow-header-cert-info :- schema/Bool]
+  (let [req (add-authinfo request allow-header-cert-info)
+        name (ring/authorized-name req)]
+     (assoc (rules/allowed? rules req name) :req req)))
+
 (schema/defn wrap-authorization-check :- IFn
   "A ring middleware that checks the request is allowed by the provided rules"
   [handler :- IFn
    rules :- rules/Rules
    allow-header-cert-info :- schema/Bool]
   (fn [request]
-    (let [req (add-authinfo request allow-header-cert-info)
-          name (ring/authorized-name req)
-          {:keys [authorized message]} (rules/allowed? rules req name)]
+    (let [{:keys [authorized message req]}
+          (authorization-check request rules allow-header-cert-info)]
       (if (true? authorized)
         (handler req)
         (-> (ring-response/response message)
