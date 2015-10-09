@@ -11,57 +11,60 @@
 
 (defmacro dbg [x] `(let [x# ~x] (println "dbg:" '~x "=" x#) x#))
 
-(defn- request
-  "Builds a fake request"
-  ([path]
-   (request path :get))
-  ([path method]
-   (request path method "127.0.0.1"))
-  ([path method ip]
-   {:uri path :request-method method :remote-addr ip}))
-
 (defn- request-with-params
   [path params]
-  (assoc (request path) :query-params params))
+  (assoc (testutils/request path) :query-params params))
 
 (deftest test-matching-path-rules
   (let [rule (testutils/new-rule :path "/path/to/resource")]
     (testing "matching identical path"
-      (is (= (:rule (rules/match? rule (request "/path/to/resource"))) rule)))
+      (is (= (:rule (rules/match? rule (testutils/request
+                                        "/path/to/resource"))) rule)))
     (testing "matching non-identical path"
-      (is (nil? (rules/match? rule (request "/path/to/different-resource")))))))
+      (is (nil? (rules/match? rule (testutils/request
+                                    "/path/to/different-resource")))))))
 
 (deftest test-matching-regex-rules
   (let [rule (testutils/new-rule :regex "(resource|path)" :any)]
     (testing "matching path"
-      (is (= (:rule (rules/match? rule (request "/going/to/resource"))) rule)))
+      (is (= (:rule (rules/match? rule (testutils/request
+                                        "/going/to/resource")))
+             rule)))
     (testing "non-matching path"
-      (is (nil? (rules/match? rule (request "/other/file")))))))
+      (is (nil? (rules/match? rule (testutils/request "/other/file")))))))
 
 (deftest test-matching-regex-rules-with-captures
   (let [rule (testutils/new-rule :regex "^/path/(.*?)/(.*?)$" :any)]
     (testing "matching regex returns captures"
-      (is (= (:matches (rules/match? rule (request "/path/to/resource"))) [ "to" "resource" ])))))
+      (is (= (:matches (rules/match? rule (testutils/request
+                                           "/path/to/resource")))
+             [ "to" "resource" ])))))
 
 (deftest test-matching-supports-request-method
   (let [rule (testutils/new-rule :path "/path/to/resource" :delete)]
     (testing "matching identical method"
-      (is (= (:rule (rules/match? rule (request "/path/to/resource" :delete))) rule)))
+      (is (= (:rule (rules/match? rule (testutils/request "/path/to/resource"
+                                                     :delete))) rule)))
     (testing "non matching method"
-      (is (nil? (rules/match? rule (request "/path/to/resource" :get)))))
+      (is (nil? (rules/match? rule
+                              (testutils/request "/path/to/resource" :get)))))
     (let [path "/path/to/resource"
           methods [:get :put :delete]
           rule (testutils/new-rule :path path methods)]
       (testing "matching rule with multiple methods"
         (doseq [method methods]
-          (is (= (:rule (rules/match? rule (request path method))) rule))))
+          (is (= (:rule (rules/match? rule (testutils/request path method)))
+                 rule))))
       (doseq [method [:post :head]]
         (testing "no match to rule with multiple methods"
-          (is (nil? (rules/match? rule (request path method))))))))
+          (is (nil? (rules/match? rule (testutils/request path method))))))))
   (let [rule (testutils/new-rule :path "/path/to/resource" :any)]
     (doseq [x [:get :post :put :delete :head]]
       (testing (str "matching " x)
-        (is (= (:rule (rules/match? rule (request "/path/to/resource" x))) rule))))))
+        (is (= (:rule (rules/match? rule
+                                    (testutils/request
+                                     "/path/to/resource" x)))
+               rule))))))
 
 (deftest test-matching-query-parameters
   (let [rule (testutils/new-rule :path "/path/to/resource" :any)
@@ -98,32 +101,18 @@
 (deftest test-rule-acl-creation
   (let [rule (testutils/new-rule :path "/highway/to/hell" :any)]
     (testing "allowing a host"
-      (is (acl/allowed? (:acl (rules/allow rule "*.domain.com")) "www.domain.com" "127.0.0.1")))
+      (is (acl/allowed? (:acl (rules/allow rule "*.domain.com")) "www.domain.com")))
     (testing "several allow in a row"
       (let [new-rule (-> rule (rules/allow "*.domain.com") (rules/allow "*.test.org"))]
-        (is (acl/allowed? (:acl new-rule) "www.domain.com" "127.0.0.1"))
-        (is (acl/allowed? (:acl new-rule) "www.test.org" "127.0.0.1"))
-        (is (not (acl/allowed? (:acl new-rule) "www.different.tld" "127.0.0.1")))))
-    (testing "allowing an ip"
-      (is (acl/allowed? (:acl (rules/allow-ip rule "192.168.1.0/24")) "www.domain.com" "192.168.1.23")))
-    (testing "several allow-ip in a row"
-      (let [new-rule (-> rule (rules/allow-ip "192.168.1.0/24") (rules/allow-ip "192.168.10.0/24"))]
-        (is (acl/allowed? (:acl new-rule) "www.domain.com" "192.168.1.23"))
-        (is (acl/allowed? (:acl new-rule) "www.domain.com" "192.168.10.4"))
-        (is (not (acl/allowed? (:acl new-rule) "www.domain.com" "127.0.0.1")))))
-    (testing "a mix of allow-ip and allow in a row"
-      (let [new-rule (-> rule (rules/allow "*.test.org") (rules/allow-ip "192.168.10.0/24"))]
-        (is (acl/allowed? (:acl new-rule) "www.test.org" "192.168.1.23"))
-        (is (acl/allowed? (:acl new-rule) "www.domain.com" "192.168.10.4"))
-        (is (not (acl/allowed? (:acl new-rule) "www.domain.com" "127.0.0.1")))))
-    (testing "deny-ip"
-      (let [new-rule (-> rule (rules/allow "*.test.org") (rules/deny-ip "192.168.10.0/24"))]
-        (is (acl/allowed? (:acl new-rule) "www.test.org" "192.168.1.23"))
-        (is (not (acl/allowed? (:acl new-rule) "www.test.org" "192.168.10.2")))))
-    (testing "deny"
-      (let [new-rule (-> rule (rules/allow-ip "192.168.1.0/24") (rules/deny "*.domain.org"))]
-        (is (acl/allowed? (:acl new-rule) "www.test.org" "192.168.1.23"))
-        (is (not (acl/allowed? (:acl new-rule) "www.domain.org" "192.168.10.2")))))))
+        (is (acl/allowed? (:acl new-rule) "www.domain.com"))
+        (is (acl/allowed? (:acl new-rule) "www.test.org"))
+        (is (not (acl/allowed? (:acl new-rule) "www.different.tld")))))
+    (testing "deny overrides allow"
+      (let [new-rule (-> rule
+                         (rules/allow "*.domain.org")
+                         (rules/deny "deny.domain.org"))]
+        (is (acl/allowed? (:acl new-rule) "allow.domain.org"))
+        (is (not (acl/allowed? (:acl new-rule) "deny.domain.org")))))))
 
 (defn- build-rules
   "Build a list of rules from individual vectors of [path allow]"
@@ -135,7 +124,8 @@
 
 (deftest test-allowed
   (logutils/with-test-logging
-    (let [request (-> (request "/stairway/to/heaven" :get "192.168.1.23")
+    (let [request (-> (testutils/request
+                       "/stairway/to/heaven" :get "192.168.1.23")
                       (ring/set-authorized-authentic? true))]
       (testing "allowed request by name"
         (let [rules (build-rules ["/path/to/resource" "*.domain.org"]
@@ -172,7 +162,7 @@
                       (rules/deny "*"))
                   (-> (rules/new-rule :path "/foo" :any 1 "name")
                       (rules/allow "*"))])
-          request (-> (request "/foo")
+          request (-> (testutils/request "/foo")
                       (ring/set-authorized-authentic? true))]
       (is (rules/authorized? (rules/allowed? rules request "test.org")))))
   (testing "rules checked in order of name when sort-order is the same"
@@ -181,6 +171,6 @@
                       (rules/deny "*"))
                   (-> (rules/new-rule :path "/foo" :any 1 "aaa")
                       (rules/allow "*"))])
-          request (-> (request "/foo")
+          request (-> (testutils/request "/foo")
                       (ring/set-authorized-authentic? true))]
       (is (rules/authorized? (rules/allowed? rules request "test.org"))))))

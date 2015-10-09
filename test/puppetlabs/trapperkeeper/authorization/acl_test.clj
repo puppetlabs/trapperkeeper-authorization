@@ -7,139 +7,21 @@
 (use-fixtures :once schema-test/validate-schemas)
 
 (deftest test-compare-entry
-  (let [ip (acl/new-ip :allow "127.0.0.1")
-        host (acl/new-domain :allow "www.google.com")
-        opaque (acl/new-domain :allow "opaque")
-        inexact (acl/new-domain :allow "*.inexact.com")]
-    (testing "ip?"
-      (is (acl/ip? ip))
-      (is (not (acl/ip? host))))
-    (testing "exact?"
-      (is (acl/exact? host))
-      (is (not (acl/exact? inexact))))
-    (testing "ip before host"
-      (is (= -1 (acl/ace-compare ip host))))
-    (testing "ip before opaque"
-      (is (= -1 (acl/ace-compare ip opaque))))))
-
-(deftest test-ip-ace
-  (let [ips ["100.101.99.98" "100.100.100.100" "1.2.3.4" "11.22.33.44"]]
-    (doseq [ip ips]
-      (let [acl (acl/new-ip :allow ip)]
-          (testing (str ip " match input ip")
-                   (is (acl/match? acl "test.domain.com" ip)))
-          (testing (str ip " doesn't match other ip")
-            (is (not (acl/match? acl "test.domain.com" "202.124.67.29")))))
-      (doseq [i (range 1 4)]
-        (let [ip-pattern (str (str/join "." (take i (str/split ip #"\."))) ".*")
-              acl (acl/new-ip :allow ip-pattern)]
-          (testing (str ip-pattern " match ip")
-            (is (acl/match? acl "test.domain.com" ip)))
-          (testing (str ip-pattern " doesn't match other ip")
-            (is (not (acl/match? acl "test.domain.com" "202.124.67.29")))))))))
-
-
-(def valid-ips
-  [
-   "1.2.3.4"
-   "2001:0000:1234:0000:0000:C1C0:ABCD:0876"
-   "3ffe:0b00:0000:0000:0001:0000:0000:000a"
-   "FF02:0000:0000:0000:0000:0000:0000:0001"
-   "0000:0000:0000:0000:0000:0000:0000:0001"
-   "0000:0000:0000:0000:0000:0000:0000:0000"
-   "::ffff:192.168.1.26"
-   "2::10"
-   "ff02::1"
-   "fe80::"
-   "2002::"
-   "2001:db8::"
-   "2001:0db8:1234::"
-   "::ffff:0:0"
-   "::1"
-   "::ffff:192.168.1.1"
-   "1:2:3:4:5:6:7:8"
-   "1:2:3:4:5:6::8"
-   "1:2:3:4:5::8"
-   "1:2:3:4::8"
-   "1:2:3::8"
-   "1:2::8"
-   "1::8"
-   "1::2:3:4:5:6:7"
-   "1::2:3:4:5:6"
-   "1::2:3:4:5"
-   "1::2:3:4"
-   "1::2:3"
-   "1::8"
-   "::2:3:4:5:6:7"
-   "::2:3:4:5:6"
-   "::2:3:4:5"
-   "::2:3:4"
-   "::2:3"
-   "::8"
-   "1:2:3:4:5:6::"
-   "1:2:3:4:5::"
-   "1:2:3:4::"
-   "1:2:3::"
-   "1:2::"
-   "1::"
-   "1:2:3:4:5::7:8"
-   "1:2:3:4::7:8"
-   "1:2:3::7:8"
-   "1:2::7:8"
-   "1::7:8"
-   "1:2:3:4:5:6:1.2.3.4"
-   "1:2:3:4:5::1.2.3.4"
-   "1:2:3:4::1.2.3.4"
-   "1:2:3::1.2.3.4"
-   "1:2::1.2.3.4"
-   "1::1.2.3.4"
-   "1:2:3:4::5:1.2.3.4"
-   "1:2:3::5:1.2.3.4"
-   "1:2::5:1.2.3.4"
-   "1::5:1.2.3.4"
-   "1::5:11.22.33.44"
-   "fe80::217:f2ff:254.7.237.98"
-   "fe80::217:f2ff:fe07:ed62"
-   "2001:DB8:0:0:8:800:200C:417A" ;unicast, full
-   "FF01:0:0:0:0:0:0:101" ;multicast, full
-   "0:0:0:0:0:0:0:1" ;loopback, full
-   "0:0:0:0:0:0:0:0" ;unspecified, full
-   "2001:DB8::8:800:200C:417A" ;unicast, compressed
-   "FF01::101" ;multicast, compressed
-   "::1" ;loopback, compressed, non-routable
-   "::" ;unspecified, compressed, non-routable
-   "0:0:0:0:0:0:13.1.68.3" ;IPv4-compatible IPv6 address, full, deprecated
-   "0:0:0:0:0:FFFF:129.144.52.38" ;IPv4-mapped IPv6 address, full
-   "::13.1.68.3" ;IPv4-compatible IPv6 address, compressed, deprecated
-   "::FFFF:129.144.52.38" ;IPv4-mapped IPv6 address, compressed
-   "2001:0DB8:0000:CD30:0000:0000:0000:0000/60" ;full, with prefix
-   "2001:0DB8::CD30:0:0:0:0/60" ;compressed, with prefix
-   "2001:0DB8:0:CD30::/60" ;compressed, with prefix #2
-   "::/128" ;compressed, unspecified address type, non-routable
-   "::1/128" ;compressed, loopback address type, non-routable
-   "FF00::/8" ;compressed, multicast address type
-   "FE80::/10" ;compressed, link-local unicast, non-routable
-   "FEC0::/10" ;compressed, site-local unicast, deprecated
-   "127.0.0.1" ;standard IPv4, loopback, non-routable
-   "0.0.0.0" ;standard IPv4, unspecified, non-routable
-   "255.255.255.255" ;standard IPv4
-   "fe80:0000:0000:0000:0204:61ff:fe9d:f156"
-   "fe80:0:0:0:204:61ff:fe9d:f156"
-   "fe80::204:61ff:fe9d:f156"
-   "fe80:0:0:0:204:61ff:254.157.241.86"
-   "fe80::204:61ff:254.157.241.86"
-   "::1"
-   "fe80::"
-   "fe80::1"
-   ])
-
-(deftest test-valid-ip-ace
-  (doseq [ip valid-ips]
-    (let [acl (acl/new-ip :allow ip)]
-      (testing (str ip " match input ip")
-        (is (acl/match? acl "test.domain.com" ip)))
-      (testing (str ip " doesn't match other ip")
-        (is (not (acl/match? acl "test.domain.com" "202.124.67.29")))))))
+  (testing "deny before allow"
+    (let [allow-host (acl/new-domain :allow "www.google.com")
+          deny-host (acl/new-domain :deny "www.google.com")]
+      (is (= -1 (acl/ace-compare deny-host allow-host)))
+      (is (= 1 (acl/ace-compare allow-host deny-host)))))
+  (testing "existing allow before new allow"
+    (let [allow-host-1 (acl/new-domain :allow "www.first.com")
+          allow-host-2 (acl/new-domain :allow "www.second.com")]
+      (is (= 1 (acl/ace-compare allow-host-1 allow-host-2)))
+      (is (= 1 (acl/ace-compare allow-host-2 allow-host-1)))))
+  (testing "existing deny before new deny"
+    (let [deny-host-1 (acl/new-domain :deny "www.first.com")
+          deny-host-2 (acl/new-domain :deny "www.second.com")]
+      (is (= 1 (acl/ace-compare deny-host-1 deny-host-2)))
+      (is (= 1 (acl/ace-compare deny-host-2 deny-host-1))))))
 
 (def valid-names
   ["spirit.mars.nasa.gov"
@@ -151,7 +33,7 @@
   (doseq [name valid-names]
     (let [acl (acl/new-domain :allow name)]
       (testing (str name " match input name")
-        (is (acl/match? acl name "127.0.0.1"))))))
+        (is (acl/match? acl name))))))
 
 (def valid-names-wildcard
   [ "abc.12seps.edu.phisher.biz" "www.google.com" "slashdot.org"])
@@ -163,27 +45,27 @@
         (let [host (str/join "." (concat ["*"] (reverse (take i (reverse name-split)))))
              acl (acl/new-domain :allow host)]
           (testing (str host " match input name")
-            (is (acl/match? acl name "127.0.0.1")))
+            (is (acl/match? acl name)))
           (testing (str host " doesn't match www.testsite.gov")
-            (is (not (acl/match? acl "www.testsite.gov" "127.0.0.1"))))
+            (is (not (acl/match? acl "www.testsite.gov"))))
           (testing (str host " doesn't match hosts that differ in the first non-wildcard segment")
             (let [other-split (str/split name #"\.")
                   pos (- (count other-split) i)
                   other (str/join "." (assoc other-split pos (str "test" (nth other-split pos))))]
-              (is (not (acl/match? acl other "127.0.0.1"))))))))))
+              (is (not (acl/match? acl other))))))))))
 
 (deftest test-fqdn
   (testing "match a similar PQDN"
-    (is (not (acl/match? (acl/new-domain :allow "spirit.mars.nasa.gov.") "spirit.mars.nasa.gov" "127.0.0.1")))))
+    (is (not (acl/match? (acl/new-domain :allow "spirit.mars.nasa.gov.") "spirit.mars.nasa.gov")))))
 
 (deftest test-regex
   (let [acl (acl/new-domain :allow "/^(test-)?host[0-9]+\\.other-domain\\.(com|org|net)$|some-domain\\.com/")]
     (doseq [host ["host5.other-domain.com" "test-host12.other-domain.net" "foo.some-domain.com"]]
       (testing (str host "match regex")
-        (is (acl/match? acl host "127.0.0.1"))))
+        (is (acl/match? acl host))))
     (doseq [host ["'host0.some-other-domain.com" ""]]
       (testing (str host " doesn't match regex")
-        (is (not (acl/match? acl host "127.0.0.1")))))))
+        (is (not (acl/match? acl host)))))))
 
 (deftest test-backreference-interpolation
   (testing "injecting backreference values"
@@ -198,43 +80,55 @@
   (testing "not empty when allowing a domain"
     (is (not= 0 (count (acl/allow "www.google.com")))))
   (testing "not empty when denying a domain"
-    (is (not= 0 (count (acl/deny "www.google.com")))))
-  (testing "not empty when allowing an ip"
-    (is (not= 0 (count (acl/allow-ip "192.168.0.0/24")))))
-  (testing "not empty when denying an ip"
-    (is (not= 0 (count (acl/deny-ip "192.168.0.0/24"))))))
+    (is (not= 0 (count (acl/deny "www.google.com"))))))
 
 (deftest test-acl-ordering
-  (testing "allow before deny"
-    (is (= :allow) (:auth-type (first (acl/deny (acl/allow "www.google.com") "www.domain.com")))))
-  (testing "ip before name"
-    (is (= :ip) (:type (first (acl/allow-ip (acl/allow "www.google.com") "192.168.0.0/24"))))))
+  (testing "deny ACEs ordered before allow ACEs"
+    (let [expected-acl [(acl/new-domain :deny "*.domain.com")
+                        (acl/new-domain :deny "my.domain.com")
+                        (acl/new-domain :allow "*.domain.com")
+                        (acl/new-domain :allow "my.domain.com")]]
+      (testing "when allow ACEs added first"
+        (is (= expected-acl (-> (acl/allow "*.domain.com")
+                                (acl/allow "my.domain.com")
+                                (acl/deny "*.domain.com")
+                                (acl/deny "my.domain.com")
+                                ((partial into []))))))
+      (testing "when deny ACEs added first"
+        (is (= expected-acl (-> (acl/deny "*.domain.com")
+                                (acl/deny "my.domain.com")
+                                (acl/allow "*.domain.com")
+                                (acl/allow "my.domain.com")
+                                ((partial into []))))))
+      (testing "when ACEs added in mixed order"
+        (is (= expected-acl (-> (acl/allow "*.domain.com")
+                                (acl/deny "*.domain.com")
+                                (acl/deny "my.domain.com")
+                                (acl/allow "my.domain.com")
+                                ((partial into [])))))))))
 
 (deftest test-acl-matching
-  (let [acl (-> (acl/allow "*.domain.com") (acl/allow-ip "192.168.0.0/24") (acl/deny "*.test.org") (acl/deny-ip "127.0.0.0/8"))]
+  (let [acl (-> (acl/allow "*.domain.com")
+                (acl/deny "*.test.org"))]
     (testing "allowing by name"
-      (is (acl/allowed? acl "test.domain.com" "10.1.1.23")))
-    (testing "allowing by ip"
-      (is (acl/allowed? acl "www.google.com" "192.168.0.24")))
+      (is (acl/allowed? acl "test.domain.com")))
     (testing "denying by name"
-      (is (not (acl/allowed? acl "www.test.org" "10.1.1.23"))))
-    (testing "denying by ip"
-      (is (not (acl/allowed? acl "www.google.com" "127.12.34.56"))))
+      (is (not (acl/allowed? acl "www.test.org"))))
     (testing "no match is deny"
-      (is (not (acl/allowed? acl "www.google.com" "212.23.45.67"))))))
+      (is (not (acl/allowed? acl "www.google.com"))))))
 
 (deftest test-global-allow
   (let [acl (acl/allow "*")]
     (testing "should allow anything"
-      (is (acl/allowed? acl "anything" "127.0.0.1")))))
+      (is (acl/allowed? acl "anything")))))
 
 (deftest test-acl-matching-with-captures
   (testing "matching backreference of simple name"
     (let [acl (acl/allow "$1.google.com")]
-      (is (acl/allowed? acl "www.google.com" "127.0.0.1" ["www"]))))
+      (is (acl/allowed? acl "www.google.com" ["www"]))))
   (testing "matching backreference of opaque name"
     (let [acl (acl/allow "$1")]
-      (is (acl/allowed? acl "c216f41a-f902-4bfb-a222-850dd957bebb" "127.0.0.1" ["c216f41a-f902-4bfb-a222-850dd957bebb"]))))
+      (is (acl/allowed? acl "c216f41a-f902-4bfb-a222-850dd957bebb" ["c216f41a-f902-4bfb-a222-850dd957bebb"]))))
   (testing "matching backreference of name"
     (let [acl (acl/allow "$1")]
-      (is (acl/allowed? acl "admin.mgmt.nym1" "127.0.0.1" ["admin.mgmt.nym1"])))))
+      (is (acl/allowed? acl "admin.mgmt.nym1" ["admin.mgmt.nym1"])))))

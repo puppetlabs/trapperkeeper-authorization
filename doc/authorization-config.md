@@ -467,9 +467,8 @@ calls through to the next handler in the middleware chain.  See the
 on how the authenticated "name" is derived for a request.
 
 Note that if both `allow` and `deny` settings are included in the rule and 
-the authenticated "name" matches an entry in both settings, precedence is 
-not, at present, specifically given to `allow` or `deny` as a result.  See
-[TK-268](https://tickets.puppetlabs.com/browse/TK-268).
+the authenticated "name" matches an entry in both settings, the request is
+denied.
 
 One of the following forms may be used as the value for an `allow` entry:
 
@@ -543,9 +542,8 @@ an HTTP 403/Forbidden response.  See the
 how the authenticated "name" is derived for a request.
 
 Note that if both `allow` and `deny` settings are included in the rule and 
-the authenticated "name" matches an entry in both settings, precedence is 
-not, at present, specifically given to `allow` or `deny` as a result.  See
-[TK-268](https://tickets.puppetlabs.com/browse/TK-268).
+the authenticated "name" matches an entry in both settings, the request is
+denied.
 
 The supported forms for a `deny` entry are the same as those for an `allow` 
 entry.  See documentation for the [`allow`] (#allow) setting for more 

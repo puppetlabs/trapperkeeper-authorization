@@ -58,7 +58,7 @@
 (defn add-acl
   "Add various ACL to the incoming rule, based on content of the config-map"
   [rule config-map]
-  (->> (select-keys config-map #{:allow :allow-ip :deny :deny-ip})
+  (->> (select-keys config-map #{:allow :deny})
        (reduce #(add-individual-acl (first %2) (second %2) %1) rule)))
 
 (defn add-query-params
