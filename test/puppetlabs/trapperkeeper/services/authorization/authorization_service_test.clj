@@ -213,7 +213,7 @@
           req (assoc catalog-request-nocert :body "Hello World!")
           {:keys [status body]} (app req)]
       (is (= status 403))
-      (is (= body (str "Forbidden request: (127.0.0.1) "
+      (is (= body (str "Forbidden request: 127.0.0.1 "
                        "access to /puppet/v3/catalog/localhost "
                        "(method :get) (authentic: false) "
                        "denied by rule 'puppetlabs catalog'.")))))

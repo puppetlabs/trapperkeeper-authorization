@@ -14,9 +14,9 @@
   #{"get" "post" "put" "delete" "head"})
 
 (def acl-func-map
-  "This is a function map to allow a programmatic execution of allow/deny directives"
-  {:allow #(rules/allow %1 %2)
-   :deny #(rules/deny %1 %2)})
+  "A function map to allow a programmatic execution of allow/deny directives"
+  {:allow rules/allow
+   :deny rules/deny})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private
@@ -78,8 +78,8 @@
       (add-query-params m)))
 
 (defn valid-method?
-  "Returns true if the given rule contains either a valid method, or no speicfied
-  method."
+  "Returns true if the given rule contains either a valid method,
+  or no specified method."
   [rule]
   (let [rule-method (get-in rule [:match-request :method])
         method (if (string? rule-method) [rule-method] rule-method)]
@@ -124,12 +124,12 @@
   (if (:allow-unauthenticated rule)
     (if (some #{:deny :allow} (keys rule))
       (throw (IllegalArgumentException.
-               (str "Authorization rule specified as  " (pprint-rule rule)
-                 " cannot have allow or deny if allow-unauthenticated."))))
+              (str "Authorization rule specified as  " (pprint-rule rule)
+                   " cannot have allow or deny if allow-unauthenticated."))))
     (when-not (some #{:deny :allow} (keys rule))
       (throw (IllegalArgumentException.
-               (str "Authorization rule specified as " (pprint-rule rule)
-                 " must contain either a 'deny' or 'allow' rule.")))))
+              (str "Authorization rule specified as " (pprint-rule rule)
+                   " must contain either a 'deny' or 'allow' rule.")))))
   (when-not (string? (:type (:match-request rule)))
     (throw (IllegalArgumentException.
             (str "The type set in the authorization rule specified "
@@ -148,11 +148,11 @@
                  "It should be a string."))))
   (when-not (valid-method? rule)
     (throw (IllegalArgumentException.
-             (str "The method specified in the authorization rule specified as "
-                  (pprint-rule rule) " is invalid. "
-                  "It should be either a string or list of strings that is equal "
-                  "to one of the following methods: '"
-                  (str/join "', '" (sort valid-methods)) "'"))))
+            (str "The method specified in the authorization rule specified as "
+                 (pprint-rule rule) " is invalid. "
+                 "It should be either a string or list of strings that is "
+                 "equal to one of the following methods: '"
+                 (str/join "', '" (sort valid-methods)) "'"))))
   (when (= "regex" (-> rule :match-request :type name str/lower-case))
     (try
       (re-pattern (:path (:match-request rule)))
@@ -231,7 +231,7 @@
                    "Rules must be uniquely named.")))))
   config)
 
-(schema/defn transform-config :- rules/Rules
+(schema/defn transform-config :- [rules/Rule]
   "Transforms the (validated) authorization service config into a list of Rules
    that work with the authorization code. Assumes config has been validated via
    `validate-auth-config!`. A warning is logged if the rules in the config are

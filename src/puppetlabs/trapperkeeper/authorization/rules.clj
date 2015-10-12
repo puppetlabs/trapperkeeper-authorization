@@ -23,18 +23,14 @@
    (schema/optional-key :file) schema/Str
    (schema/optional-key :line) schema/Int})
 
-(def Rules
-  "A list of rules"
-  [Rule])
-
 (def RuleMatch
-  "A match? result"
-  (schema/maybe {:rule Rule :matches [schema/Str]}))
+  "A `match?' result containing the matched rule and any regex capture groups."
+  {:rule Rule :matches [schema/Str]})
 
 (def AuthorizationResult
-  "A result returned by rules/allowed? that can be either authorized or non-authorized. If non-authorized it also
-  contains an explanation message"
-  { :authorized schema/Bool :message schema/Str })
+  "A result returned by rules/allowed? that can be either authorized or
+  non-authorized. If non-authorized it also contains an explanation message"
+  {:authorized schema/Bool :message schema/Str})
 
 ;; Rule creation
 
@@ -45,14 +41,14 @@
    method :- Methods
    sort-order :- schema/Int
    name :- schema/Str]
-   {:type type
-    :path (condp = type
-            :path (re-pattern (str "^" (Pattern/quote path)))
-            :regex (re-pattern path))
-    :acl acl/empty-acl
-    :method method
-    :sort-order sort-order
-    :name name})
+  {:type type
+   :path (condp = type
+           :path (re-pattern (str "^" (Pattern/quote path)))
+           :regex (re-pattern path))
+   :acl acl/empty-acl
+   :method method
+   :sort-order sort-order
+   :name name})
 
 (schema/defn tag-rule :- Rule
   "Tag a rule with a file/line - useful for instance when the rule has been read
@@ -115,67 +111,91 @@
             (some (get rule-params k)
                   (flatten [(get request-params (name k))])))))
 
-(schema/defn match? :- RuleMatch
+(schema/defn sort-rules :- [Rule]
+  "Sorts the rules based on their :sort-order, and then their :name if they
+   have the same sort order value."
+  [rules :- [Rule]]
+  (sort-by (juxt :sort-order :name) rules))
+
+(schema/defn requestor :- schema/Str
+  "Returns a string that identifies the source of the request containing
+   at least the IP address and the hostname if available."
+  [request :- ring/Request]
+  (let [ip (:remote-addr request)
+        name (ring/authorized-name request)]
+    (if (empty? name)
+      (str ip)
+      (format "%s(%s)" name ip))))
+
+(schema/defn match? :- (schema/maybe RuleMatch)
   "Returns the rule if it matches the request URI, and also
    any capture groups of the Rule pattern if there are any."
   [rule :- Rule
    request :- ring/Request]
   (if (and (method-match? (:request-method request) (:method rule))
            (query-params-match? (:query-params request) (:query-params rule)))
-    (if-let [matches (re-find* (:path rule) (:uri request))] ;; check rule against request uri
-      {:rule rule :matches (into [] (rest matches))})))
+    (if-let [matches (re-find* (:path rule) (:uri request))]
+      {:rule rule :matches (into [] (rest matches))}
+      (log/tracef
+       "Request to '%s' from '%s' did not match rule '%s' - continuing matching"
+       (:uri request) (requestor request) (:name rule)))))
 
 (defn- request->description
-  [request name rule]
-  (let [ip (:remote-addr request)
+  [request rule]
+  (let [from (requestor request)
         path (:uri request)
         method (:request-method request)
         authentic? (true? (ring/authorized-authentic? request))]
-    (str "Forbidden request: " (if name (format "%s(%s)" name ip) ip)
-         " access to " path " (method " method ")"
+    (str "Forbidden request: " from " access to " path " (method " method ")"
          (if-let [file (:file rule)] (str " at " file ":" (:line rule)))
          (format " (authentic: %s) " authentic?)
          (format "denied by rule '%s'." (:name rule)))))
 
-(schema/defn sort-rules :- Rules
-  "Sorts the rules based on their :sort-order, and then their :name if they
-   have the same sort order value."
-  [rules :- Rules]
-  (sort-by (juxt :sort-order :name) rules))
+(schema/defn allow-request :- AuthorizationResult
+  "Logs debugging information about the request and rule at the TRACE level
+   and returns an authorized authorization result with the provided message."
+  [request :- ring/Request
+   rule :- Rule
+   message :- schema/Str]
+  (log/tracef
+   "Request to '%s' from '%s' handled by rule '%s' - request allowed"
+   (:uri request) (requestor request) (:name rule))
+  {:authorized true
+   :message message})
 
 (schema/defn deny-request :- AuthorizationResult
-  "Logs the reason message at ERROR level and
-   returns an unauthorized authorization result."
-  [reason :- schema/Str]
+  "Logs debugging information about the request and rule at the TRACE level
+   as well as the reason for denial at the ERROR level, and returns an
+   unauthorized authorization result with the provided reason message."
+  [request :- ring/Request
+   rule :- (schema/maybe Rule)
+   reason :- schema/Str]
+  (if rule
+    (log/tracef
+     "Request to '%s' from '%s' handled by rule '%s' - request denied"
+     (:uri request) (requestor request) (:name rule))
+    (log/tracef
+     "Request to '%s' from '%s' did not match any rules - request denied"
+     (:uri request) (requestor request)))
   (log/error reason)
   {:authorized false
    :message reason})
-
-;; Rules creation
-
-(def empty-rules [])
-
-(schema/defn add-rule
-  [rules :- Rules
-   rule :- Rule]
-  (conj rules rule))
 
 ;; Rules check
 
 (schema/defn allowed? :- AuthorizationResult
   "Checks if a request is allowed access given the list of rules. Rules
    will be checked in the given order; use `sort-rules` to first sort them."
-  [rules :- Rules
-   request :- ring/Request
-   name :- schema/Str]
+  [rules :- [Rule]
+   request :- ring/Request]
   (if-let [{:keys [rule matches]} (some #(match? % request) rules)]
     (if (true? (:allow-unauthenticated rule))
-      {:authorized true :message "allow-unauthenticated is true - allowed"}
-      (if (and (true? (ring/authorized-authentic? request)) ; authenticated?
-            (acl/allowed? (:acl rule) name matches))
-        {:authorized true :message ""}
-        (deny-request (request->description request name rule))))
-    (deny-request "global deny all - no rules matched")))
+      (allow-request request rule "allow-unauthenticated is true - allowed")
+      (if (and (true? (ring/authorized-authentic? request))
+               (acl/allowed? (:acl rule) (ring/authorized-name request) matches))
+        (allow-request request rule "")
+        (deny-request request rule (request->description request rule))))
+    (deny-request request nil "global deny all - no rules matched")))
 
 (schema/defn authorized? :- schema/Bool
   [result :- AuthorizationResult]

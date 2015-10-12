@@ -207,7 +207,7 @@
   (let [name (request->name request allow-header-cert-info)]
     (->
       request
-      (ring/set-authorized-name (str name))
+      (ring/set-authorized-name name)
       (ring/set-authorized-authentic? (and
                                        (verified? request
                                                   name
@@ -245,12 +245,11 @@
 (schema/defn wrap-authorization-check :- IFn
   "A ring middleware that checks the request is allowed by the provided rules"
   [handler :- IFn
-   rules :- rules/Rules
+   rules :- [rules/Rule]
    allow-header-cert-info :- schema/Bool]
   (fn [request]
     (let [req (add-authinfo request allow-header-cert-info)
-          name (ring/authorized-name req)
-          {:keys [authorized message]} (rules/allowed? rules req name)]
+          {:keys [authorized message]} (rules/allowed? rules req)]
       (if (true? authorized)
         (handler req)
         (-> (ring-response/response message)

@@ -93,19 +93,19 @@
                                 (acl/allow "my.domain.com")
                                 (acl/deny "*.domain.com")
                                 (acl/deny "my.domain.com")
-                                ((partial into []))))))
+                                vec))))
       (testing "when deny ACEs added first"
         (is (= expected-acl (-> (acl/deny "*.domain.com")
                                 (acl/deny "my.domain.com")
                                 (acl/allow "*.domain.com")
                                 (acl/allow "my.domain.com")
-                                ((partial into []))))))
+                                vec))))
       (testing "when ACEs added in mixed order"
         (is (= expected-acl (-> (acl/allow "*.domain.com")
                                 (acl/deny "*.domain.com")
                                 (acl/deny "my.domain.com")
                                 (acl/allow "my.domain.com")
-                                ((partial into [])))))))))
+                                vec)))))))
 
 (deftest test-acl-matching
   (let [acl (-> (acl/allow "*.domain.com")
