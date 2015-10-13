@@ -15,12 +15,6 @@
            (java.io StringReader)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Schemas
-
-(def AuthResultWithRequest
-  (assoc rules/AuthorizationResult :req ring/Request))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private
 
 (def header-cert-name
@@ -208,8 +202,8 @@
 
 (schema/defn add-authinfo :- ring/Request
   "Add authentication information to the ring request."
-  [request :- ring/Request
-   allow-header-cert-info :- schema/Bool]
+  [allow-header-cert-info :- schema/Bool
+   request :- ring/Request]
   (let [name (request->name request allow-header-cert-info)]
     (->
       request
@@ -248,38 +242,30 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
 
-(schema/defn authorization-check :- AuthResultWithRequest
-  "A function that checks that the request is allowed by the provided rules.
-  Returns a map with the request with auth info added, whether the request is
-  authorized, and a message."
+(schema/defn authorization-check :- rules/AuthorizationResult
+  "Checks that the request is allowed by the provided rules and returns an
+   authorization result map containing the request with authorization info
+   added, whether the request is authorized, and a message."
   [request :- ring/Request
-   rules :- rules/Rules
+   rules :- [rules/Rule]
    allow-header-cert-info :- schema/Bool]
-  (let [req (add-authinfo request allow-header-cert-info)]
-     (assoc (rules/allowed? rules req) :req req)))
+  (->> (assoc-query-params request)
+       (add-authinfo allow-header-cert-info)
+       (rules/allowed? rules)))
 
 (schema/defn wrap-authorization-check :- IFn
-  "A ring middleware that checks the request is allowed by the provided rules"
+  "Middleware that checks if the request is allowed by the provided rules,
+   and if not returns a 403 response with a user-friendly message."
   [handler :- IFn
    rules :- [rules/Rule]
    allow-header-cert-info :- schema/Bool]
-  (fn [request]
-    (let [{:keys [authorized message req]}
-          (authorization-check request rules allow-header-cert-info)]
+  (fn [req]
+    (let [{:keys [authorized message request]}
+          (authorization-check req rules allow-header-cert-info)]
       (if (true? authorized)
-        (handler req)
+        (handler request)
         (-> (ring-response/response message)
             (ring-response/status 403))))))
-
-(schema/defn wrap-query-params :- IFn
-  "A ring middleware for destructuring query params from the request. This is
-   similar to ring's wrap-params except that it only looks at query string and
-   not at form params in the request body for a urlencodedform post.  tk-authz
-   uses this so that it doesn't consume a request body before downstream
-   middleware has a chance to access it."
-  [handler :- IFn]
-  (fn [request]
-    (handler (assoc-query-params request))))
 
 (schema/defn wrap-with-error-handling :- IFn
   "Middleware that wraps an authorization request with some error handling to

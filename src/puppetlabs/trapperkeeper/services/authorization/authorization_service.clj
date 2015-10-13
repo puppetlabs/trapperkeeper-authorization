@@ -34,5 +34,4 @@
    (let [{:keys [allow-header-cert-info rules]} (service-context this)]
      (-> handler
          (ring-middleware/wrap-authorization-check rules allow-header-cert-info)
-         ring-middleware/wrap-query-params
          ring-middleware/wrap-with-error-handling))))

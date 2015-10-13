@@ -5,7 +5,8 @@
             [schema.core :as schema])
   (:import java.util.regex.Pattern))
 
-;; Schemas
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Schemas
 
 (def Type (schema/enum :path :regex))
 (def Method (schema/enum :get :post :put :delete :head :any))
@@ -24,15 +25,19 @@
    (schema/optional-key :line) schema/Int})
 
 (def RuleMatch
-  "A `match?' result containing the matched rule and any regex capture groups."
+  "A `match?` result containing the matched rule and any regex capture groups."
   {:rule Rule :matches [schema/Str]})
 
 (def AuthorizationResult
-  "A result returned by rules/allowed? that can be either authorized or
-  non-authorized. If non-authorized it also contains an explanation message"
-  {:authorized schema/Bool :message schema/Str})
+  "The result of a `rules/allowed?` indicating whether the request should be
+   authorized or not, and an explanation message if it's not. Also contains
+   meta-information like the request in question."
+  {:authorized schema/Bool
+   :message schema/Str
+   :request ring/Request})
 
-;; Rule creation
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Rule creation
 
 (schema/defn new-rule :- Rule
   "Creates a new rule with an empty ACL"
@@ -72,8 +77,6 @@
    value :- (schema/either schema/Str [schema/Str])]
   (update-in rule [:query-params param] (comp set into) (flatten [value])))
 
-;; Rule ACL creation
-
 (schema/defn allow :- Rule
   [rule :- Rule
    pattern :- schema/Str]
@@ -84,7 +87,8 @@
    pattern :- schema/Str]
   (assoc rule :acl (acl/deny (:acl rule) pattern)))
 
-;; Rule matching
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Rule matching
 
 (defn- re-find*
   "Like re-find, but always returns either nil or a vector of groups."
@@ -161,7 +165,8 @@
    "Request to '%s' from '%s' handled by rule '%s' - request allowed"
    (:uri request) (requestor request) (:name rule))
   {:authorized true
-   :message message})
+   :message message
+   :request request})
 
 (schema/defn deny-request :- AuthorizationResult
   "Logs debugging information about the request and rule at the TRACE level
@@ -179,9 +184,11 @@
      (:uri request) (requestor request)))
   (log/error reason)
   {:authorized false
-   :message reason})
+   :message reason
+   :request request})
 
-;; Rules check
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Rules checking
 
 (schema/defn allowed? :- AuthorizationResult
   "Checks if a request is allowed access given the list of rules. Rules
