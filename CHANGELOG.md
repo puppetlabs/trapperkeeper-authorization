@@ -1,3 +1,12 @@
+### 0.1.5
+
+ * Added API function `authorization-check` to the AuthorizationService
+   protocol to support authorization from non-Ring-based handlers such as Java
+   Servlets.
+ * [TK-268](https://tickets.puppetlabs.com/browse/TK-268) Weight 'deny' ACEs
+   before 'allow' ACEs - regardless of any attributes of their patterns - to
+   simplify behavior.
+
 ### 0.1.4
  * [TK-282](https://tickets.puppetlabs.com/browse/TK-282) Added support for an
    `allow-header-cert-info` field to the `authorization` config.
