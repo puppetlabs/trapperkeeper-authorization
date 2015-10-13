@@ -8,4 +8,8 @@
     <root level="info">
         <appender-ref ref="STDOUT" />
     </root>
+
+    <!-- Uncomment the following loggers to turn on rule-by-rule logging -->
+    <!-- <logger name="puppetlabs.trapperkeeper.authorization.rules" level="TRACE"/> -->
+    <!-- <logger name="puppetlabs.trapperkeeper.services.authorization.authorization-service" level="DEBUG"/> -->
 </configuration>
