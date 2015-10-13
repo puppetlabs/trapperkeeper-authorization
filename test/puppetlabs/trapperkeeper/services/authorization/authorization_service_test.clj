@@ -4,6 +4,7 @@
     [clojure.string :as str]
     [puppetlabs.ssl-utils.core :as ssl-utils]
     [puppetlabs.trapperkeeper.app :refer [get-service]]
+    [puppetlabs.trapperkeeper.authorization.rules :as rules]
     [puppetlabs.trapperkeeper.authorization.testutils :refer :all]
     [puppetlabs.trapperkeeper.services :refer [defservice]]
     [puppetlabs.trapperkeeper.services.authorization.authorization-service
@@ -20,25 +21,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Utilities
-
-(defprotocol EchoReverseService
-  (echo-reverse [this msg]))
-
-; A simple service using authorization via ring middleware
-(defservice
-  echo-reverse-service EchoReverseService
-  [[:AuthorizationService wrap-with-authorization-check]]
-  (echo-reverse
-    [this msg]
-    (let [handler (fn [req]
-                    (-> req
-                        (:body)
-                        str
-                        str/reverse
-                        ((partial str msg))
-                        response
-                        (assoc :request req)))]
-      (wrap-with-authorization-check handler))))
 
 (def minimal-config
   "Minimal config required to bootstrap AuthorizationService with
@@ -144,6 +126,25 @@
   "A basic unauthenticated request to feed into the tests"
   (request "/" :get "127.0.0.1"))
 
+(defprotocol EchoReverseService
+  (echo-reverse [this msg]))
+
+;; A simple service using authorization via ring middleware
+(defservice
+  echo-reverse-service EchoReverseService
+  [[:AuthorizationService wrap-with-authorization-check]]
+  (echo-reverse
+   [this msg]
+   (let [handler (fn [req]
+                   (-> req
+                       (:body)
+                       str
+                       str/reverse
+                       ((partial str msg))
+                       response
+                       (assoc :request req)))]
+     (wrap-with-authorization-check handler))))
+
 (defn build-ring-handler
   "Build a ring handler around the echo reverse service"
   ([rules]
@@ -158,6 +159,15 @@
        (let [svc (get-service app :EchoReverseService)
              echo-handler (echo-reverse svc "Prefix: ")]
          (echo-handler request)))))))
+
+(defprotocol PlumbingService
+  (call-authorization-check [this request]))
+
+(defservice plumbing-service PlumbingService
+  [[:AuthorizationService authorization-check]]
+  (call-authorization-check
+   [this request]
+   (authorization-check request)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Tests
@@ -389,3 +399,19 @@
             {:keys [status body]} (app req)]
         (is (= 403 status))
         (is (re-matches #"Forbidden.*" body))))))
+
+(deftest ^:integration authorization-check-test
+  (with-test-logging
+    (with-app-with-config
+      app
+      [plumbing-service authorization-service]
+      (assoc-in minimal-config [:authorization :rules] basic-rules)
+      (testing "allowed request"
+        (is (-> (get-service app :PlumbingService)
+                (call-authorization-check
+                 (assoc base-request :uri "/puppet/v3/catalog/test.domain.org"))
+                (rules/authorized?))))
+      (testing "denied request"
+        (is (not (-> (get-service app :PlumbingService)
+                     (call-authorization-check catalog-request-nocert)
+                     (rules/authorized?))))))))
