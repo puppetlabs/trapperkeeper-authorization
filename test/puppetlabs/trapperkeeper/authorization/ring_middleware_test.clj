@@ -1,11 +1,13 @@
 (ns puppetlabs.trapperkeeper.authorization.ring-middleware-test
   (:require [clojure.test :refer :all]
             [puppetlabs.ssl-utils.core :as ssl-utils]
+            [puppetlabs.trapperkeeper.authorization.ring :as ring]
             [puppetlabs.trapperkeeper.authorization.ring-middleware :as ring-middleware]
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
             [puppetlabs.trapperkeeper.authorization.testutils :as testutils]
             [puppetlabs.trapperkeeper.testutils.logging :as logutils]
             [schema.test :as schema-test]
+            [ring.mock.request :as ring-mock]
             [ring.util.codec :as ring-codec]
             [ring.util.response :as ring-response]
             [slingshot.test :refer :all])
@@ -302,3 +304,30 @@
               "Unexpected authentic? value for authorization map")
           (is (= "" (:name authorization))
               "Unexpected name for authorization map"))))))
+
+(deftest authorization-check-test
+  (let [rules [(-> (testutils/new-rule :path "/foo/bar")
+                   (rules/query-param :baz "qux")
+                   (rules/allow "test.domain.org"))]
+        request (testutils/request
+                 "/foo/bar" :get "127.0.0.1" testutils/test-domain-cert)]
+    (testing "allows and rejects appropriately"
+      (is (rules/authorized? (ring-middleware/authorization-check
+                              (ring-mock/query-string request "baz=qux")
+                              rules
+                              false)))
+      (logutils/with-test-logging
+        (is (not (rules/authorized? (ring-middleware/authorization-check
+                                     request
+                                     rules
+                                     false))))))
+
+    (testing "appends authorization info to the request"
+      (let [result (-> (ring-mock/query-string request "baz=qux")
+                       (ring-middleware/authorization-check rules false))]
+        (is (not (nil? (:request result))))
+        (is (not (nil? (get-in result [:request :authorization]))))
+        (is (= "test.domain.org" (ring/authorized-name (:request result))))
+        (is (= testutils/test-domain-cert
+               (ring/authorized-certificate (:request result))))
+        (is (= true (ring/authorized-authentic? (:request result))))))))

@@ -44,7 +44,8 @@ This is the protocol for the current implementation of the `:AuthorizationServic
 
 ~~~~clj
 (defprotocol AuthorizationService
-  (wrap-with-authorization-check [this handler]))
+  (wrap-with-authorization-check [this handler])
+  (authorization-check [this request]))
 ~~~~
 
 ### `wrap-with-authorization-check`
@@ -132,6 +133,19 @@ following key/value pairs:
 headers to spaces for some reason and trapperkeeper-authorization can't URL
 decode the result.  We're tracking this issue as
 [SERVER-217](https://tickets.puppetlabs.com/browse/SERVER-217).
+
+### `authorization-check`
+
+A function for directly checking whether a request is authorized or not.
+Useful if you'd like to take more control of the behavior than what
+`wrap-authorization-check` allows for, such as if you've got a servlet request.
+
+The result of this function contains the authorization boolean as well as a
+user-friendly message if it's denied, and some meta-information like the
+request in question. The request will be updated to include things like
+destructured query parameters and authorization information.
+See the [`wrap-with-authorization-check`](#wrap-with-authorization-check)
+section for more information on the authorization information.
 
 ## Credits
 
