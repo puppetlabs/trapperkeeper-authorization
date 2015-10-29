@@ -149,10 +149,10 @@
   (let [from (requestor request)
         path (:uri request)
         method (:request-method request)
-        authentic? (true? (ring/authorized-authentic? request))]
+        authenticated? (true? (ring/authorized-authentic? request))]
     (str "Forbidden request: " from " access to " path " (method " method ")"
          (if-let [file (:file rule)] (str " at " file ":" (:line rule)))
-         (format " (authentic: %s) " authentic?)
+         (format " (authenticated: %s) " authenticated?)
          (format "denied by rule '%s'." (:name rule)))))
 
 (schema/defn allow-request :- AuthorizationResult

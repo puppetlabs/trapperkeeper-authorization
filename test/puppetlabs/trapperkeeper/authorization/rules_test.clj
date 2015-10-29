@@ -146,7 +146,7 @@
           (is (not (rules/authorized? (rules/allowed? rules request))))
           (is (= (:message (rules/allowed? rules request))
                  (str "Forbidden request: www.test.org(192.168.1.23) access to "
-                      "/stairway/to/heaven (method :get) (authentic: true) "
+                      "/stairway/to/heaven (method :get) (authenticated: true) "
                       "denied by rule 'test rule'.")))))
       (testing "tagged rule not allowing "
         (let [rules (map #(rules/tag-rule %1 "file.txt" 23)
@@ -157,7 +157,7 @@
           (is (= (:message (rules/allowed? rules request))
                  (str "Forbidden request: www.test.org(192.168.1.23) access to "
                       "/stairway/to/heaven (method :get) at file.txt:23 "
-                      "(authentic: true) denied by rule 'test rule'."))))))))
+                      "(authenticated: true) denied by rule 'test rule'."))))))))
 
 (deftest test-rule-sorting
   (testing "rules checked in order of sort-order not order of appearance"

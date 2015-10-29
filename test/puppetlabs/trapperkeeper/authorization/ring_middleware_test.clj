@@ -178,7 +178,7 @@
                                        testutils/test-other-cert))]
            (is (= 403 (:status response)))
            (is (= (str "Forbidden request: www.other.org(127.0.0.1) access to "
-                       "/path/to/foo (method :get) (authentic: true) denied by "
+                       "/path/to/foo (method :get) (authenticated: true) denied by "
                        "rule 'test rule'.")
                   (:body response)))))
        (testing "access denied when cert CN is explicitly denied in the rule"
@@ -188,7 +188,7 @@
                                        testutils/test-denied-cert))]
            (is (= 403 (:status response)))
            (is (= (str "Forbidden request: bad.guy.com(127.0.0.1) access to "
-                       "/path/to/foo (method :get) (authentic: true) denied by "
+                       "/path/to/foo (method :get) (authenticated: true) denied by "
                        "rule 'test rule'.")
                   (:body response))))))
      (testing "access denied when deny all"
@@ -221,7 +221,7 @@
                                            "www.other.org")))]
            (is (= 403 (:status response)))
            (is (= (str "Forbidden request: www.other.org(127.0.0.1) access to "
-                       "/path/to/foo (method :get) (authentic: true) denied by "
+                       "/path/to/foo (method :get) (authenticated: true) denied by "
                        "rule 'test rule'.")
                   (:body response)))))
        (testing "access denied when cert CN is explicitly denied in the rule"
@@ -232,7 +232,7 @@
                                            "bad.guy.com")))]
            (is (= 403 (:status response)))
            (is (= (str "Forbidden request: bad.guy.com(127.0.0.1) access to "
-                       "/path/to/foo (method :get) (authentic: true) denied by "
+                       "/path/to/foo (method :get) (authenticated: true) denied by "
                        "rule 'test rule'.")
                   (:body response))))))
      (testing "access denied when deny all"
