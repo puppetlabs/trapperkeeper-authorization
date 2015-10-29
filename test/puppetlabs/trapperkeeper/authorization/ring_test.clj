@@ -9,17 +9,17 @@
 (deftest authorized-authentic?
   (is (true? (-> (testutils/request)
                  (assoc-in [:authorization :authenticated] true)
-                 (ring/authorized-authentic?))))
+                 (ring/authorized-authenticated))))
   (is (false? (-> (testutils/request)
                   (assoc-in [:authorization :authenticated] false)
-                  (ring/authorized-authentic?)))))
+                  (ring/authorized-authenticated)))))
 
 (deftest set-authorized-authentic?
   (is (true? (-> (testutils/request)
-                 (ring/set-authorized-authentic? true)
+                 (ring/set-authorized-authenticated true)
                  (get-in [:authorization :authenticated]))))
   (is (false? (-> (testutils/request)
-                  (ring/set-authorized-authentic? false)
+                  (ring/set-authorized-authenticated false)
                   (get-in [:authorization :authenticated])))))
 
 (deftest authorized-certificate

@@ -330,4 +330,4 @@
         (is (= "test.domain.org" (ring/authorized-name (:request result))))
         (is (= testutils/test-domain-cert
                (ring/authorized-certificate (:request result))))
-        (is (= true (ring/authorized-authentic? (:request result))))))))
+        (is (= true (ring/authorized-authenticated (:request result))))))))

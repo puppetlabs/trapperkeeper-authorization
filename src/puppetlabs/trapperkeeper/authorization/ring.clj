@@ -16,13 +16,13 @@
 
 ;; Functions
 
-(schema/defn authorized-authentic? :- schema/Bool
-  "Get whether the authorized client is considered authentic or not."
+(schema/defn authorized-authenticated :- schema/Bool
+  "Get whether the authorized client is considered authenticated or not."
   [request :- Request]
   (get-in request [:authorization :authenticated]))
 
-(schema/defn set-authorized-authentic? :- Request
-  "Set whether the authorized client is considered authentic or not."
+(schema/defn set-authorized-authenticated :- Request
+  "Set whether the authorized client is considered authenticated or not."
   [request :- Request
    authentic? :- schema/Bool]
   (assoc-in request [:authorization :authenticated] authentic?))
