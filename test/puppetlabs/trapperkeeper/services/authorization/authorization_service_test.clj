@@ -250,7 +250,7 @@
                   (assoc :uri "/puppet/v3/environments")
                   (assoc :body "Hello World!"))
           authorization (get-in (app req) [:request :authorization])]
-      (is (true? (:authentic? authorization)))
+      (is (true? (:authenticated authorization)))
       (is (= "test.domain.org" (:name authorization)))
       (is (= "test.domain.org" (ssl-utils/get-cn-from-x509-certificate
                                  (:certificate authorization))))))
@@ -271,7 +271,7 @@
           response (app req)
           authorization (get-in response [:request :authorization])]
       (is (= 200 (:status response)))
-      (is (true? (:authentic? authorization)))
+      (is (true? (:authenticated authorization)))
       (is (= "test.domain.org" (:name authorization)))
       (is (= "test.domain.org" (ssl-utils/get-cn-from-x509-certificate
                                  (:certificate authorization))))))

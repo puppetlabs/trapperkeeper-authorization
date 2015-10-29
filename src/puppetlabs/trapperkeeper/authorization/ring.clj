@@ -19,13 +19,13 @@
 (schema/defn authorized-authentic? :- schema/Bool
   "Get whether the authorized client is considered authentic or not."
   [request :- Request]
-  (get-in request [:authorization :authentic?]))
+  (get-in request [:authorization :authenticated]))
 
 (schema/defn set-authorized-authentic? :- Request
   "Set whether the authorized client is considered authentic or not."
   [request :- Request
    authentic? :- schema/Bool]
-  (assoc-in request [:authorization :authentic?] authentic?))
+  (assoc-in request [:authorization :authenticated] authentic?))
 
 (schema/defn authorized-certificate :- (schema/maybe X509Certificate)
   "Get the certificate of the authorized client."

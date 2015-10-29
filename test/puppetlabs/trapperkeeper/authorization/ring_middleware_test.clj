@@ -264,7 +264,7 @@
               authorization (get-in response [:body :authorization])]
           (is (identical? testutils/test-domain-cert (:certificate authorization))
               "SSL certificate not added to authorization map")
-          (is (true? (:authentic? authorization))
+          (is (true? (:authenticated authorization))
               "Unexpected authentic? value for authorization map")
           (is (= "test.domain.org" (:name authorization))
               "Unexpected name for authorization map")))
@@ -274,7 +274,7 @@
               authorization (get-in response [:body :authorization])]
           (is (nil? (:certificate authorization))
               "SSL certificate added to authorization map")
-          (is (false? (:authentic? authorization))
+          (is (false? (:authenticated authorization))
               "Unexpected authentic? value for authorization map")
           (is (= "" (:name authorization))
               "Unexpected name for authorization map")))
@@ -290,7 +290,7 @@
                  (ssl-utils/get-cn-from-x509-certificate
                   (:certificate authorization)))
               "x-client certificate not added to authorization map")
-          (is (true? (:authentic? authorization))
+          (is (true? (:authenticated authorization))
               "Unexpected authentic? value for authorization map")
           (is (= "test.domain.org" (:name authorization))
               "Unexpected name for authorization map")))
@@ -300,7 +300,7 @@
               authorization (get-in response [:body :authorization])]
           (is (nil? (:certificate authorization))
               "SSL certificate added to authorization map")
-          (is (false? (:authentic? authorization))
+          (is (false? (:authenticated authorization))
               "Unexpected authentic? value for authorization map")
           (is (= "" (:name authorization))
               "Unexpected name for authorization map"))))))
