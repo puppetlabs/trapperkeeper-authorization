@@ -127,10 +127,13 @@
   (str/replace in #"\$(\d+)" #(nth captures (- (read-string (second %)) 1))))
 
 (defn interpolate-backreference
-  "change all possible backreferences in ace patterns to values from the capture groups"
+  "change all possible backreferences in ace patterns to values from the
+  capture groups"
   [ace captures]
   (if (= (ace :type) :dynamic)
-    (new-domain (ace :auth-type) (str/join "." (map #(substitute-backreference % captures) (reverse (ace :pattern)))))
+    (new-domain (ace :auth-type)
+                (str/join "." (map #(substitute-backreference % captures)
+                                   (reverse (ace :pattern)))))
     ace))
 
 (schema/defn match? :- schema/Bool
