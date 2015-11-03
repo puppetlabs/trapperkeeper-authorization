@@ -126,7 +126,7 @@
   (logutils/with-test-logging
     (let [request (-> (testutils/request
                        "/stairway/to/heaven" :get "192.168.1.23")
-                      (ring/set-authorized-authentic? true))]
+                      (ring/set-authorized-authenticated true))]
       (testing "allowed request by name"
         (let [rules (build-rules ["/path/to/resource" "*.domain.org"]
                                  ["/stairway/to/heaven" "*.domain.org"])
@@ -146,7 +146,7 @@
           (is (not (rules/authorized? (rules/allowed? rules request))))
           (is (= (:message (rules/allowed? rules request))
                  (str "Forbidden request: www.test.org(192.168.1.23) access to "
-                      "/stairway/to/heaven (method :get) (authentic: true) "
+                      "/stairway/to/heaven (method :get) (authenticated: true) "
                       "denied by rule 'test rule'.")))))
       (testing "tagged rule not allowing "
         (let [rules (map #(rules/tag-rule %1 "file.txt" 23)
@@ -157,7 +157,7 @@
           (is (= (:message (rules/allowed? rules request))
                  (str "Forbidden request: www.test.org(192.168.1.23) access to "
                       "/stairway/to/heaven (method :get) at file.txt:23 "
-                      "(authentic: true) denied by rule 'test rule'."))))))))
+                      "(authenticated: true) denied by rule 'test rule'."))))))))
 
 (deftest test-rule-sorting
   (testing "rules checked in order of sort-order not order of appearance"
@@ -167,7 +167,7 @@
                   (-> (rules/new-rule :path "/foo" :any 1 "name")
                       (rules/allow "*"))])
           request (-> (testutils/request "/foo")
-                      (ring/set-authorized-authentic? true)
+                      (ring/set-authorized-authenticated true)
                       (ring/set-authorized-name "test.org"))]
       (is (rules/authorized? (rules/allowed? rules request)))))
   (testing "rules checked in order of name when sort-order is the same"
@@ -177,6 +177,6 @@
                   (-> (rules/new-rule :path "/foo" :any 1 "aaa")
                       (rules/allow "*"))])
           request (-> (testutils/request "/foo")
-                      (ring/set-authorized-authentic? true)
+                      (ring/set-authorized-authenticated true)
                       (ring/set-authorized-name "test.org"))]
       (is (rules/authorized? (rules/allowed? rules request))))))

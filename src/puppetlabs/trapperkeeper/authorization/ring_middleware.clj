@@ -208,11 +208,11 @@
     (->
       request
       (ring/set-authorized-name name)
-      (ring/set-authorized-authentic? (and
-                                       (verified? request
-                                                  name
-                                                  allow-header-cert-info)
-                                       (not (empty? name))))
+      (ring/set-authorized-authenticated (and
+                                           (verified? request
+                                                      name
+                                                      allow-header-cert-info)
+                                           (not (empty? name))))
       (ring/set-authorized-certificate (request->cert request
                                                       allow-header-cert-info)))))
 

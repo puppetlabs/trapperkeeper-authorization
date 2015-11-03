@@ -178,7 +178,7 @@
                                        testutils/test-other-cert))]
            (is (= 403 (:status response)))
            (is (= (str "Forbidden request: www.other.org(127.0.0.1) access to "
-                       "/path/to/foo (method :get) (authentic: true) denied by "
+                       "/path/to/foo (method :get) (authenticated: true) denied by "
                        "rule 'test rule'.")
                   (:body response)))))
        (testing "access denied when cert CN is explicitly denied in the rule"
@@ -188,7 +188,7 @@
                                        testutils/test-denied-cert))]
            (is (= 403 (:status response)))
            (is (= (str "Forbidden request: bad.guy.com(127.0.0.1) access to "
-                       "/path/to/foo (method :get) (authentic: true) denied by "
+                       "/path/to/foo (method :get) (authenticated: true) denied by "
                        "rule 'test rule'.")
                   (:body response))))))
      (testing "access denied when deny all"
@@ -221,7 +221,7 @@
                                            "www.other.org")))]
            (is (= 403 (:status response)))
            (is (= (str "Forbidden request: www.other.org(127.0.0.1) access to "
-                       "/path/to/foo (method :get) (authentic: true) denied by "
+                       "/path/to/foo (method :get) (authenticated: true) denied by "
                        "rule 'test rule'.")
                   (:body response)))))
        (testing "access denied when cert CN is explicitly denied in the rule"
@@ -232,7 +232,7 @@
                                            "bad.guy.com")))]
            (is (= 403 (:status response)))
            (is (= (str "Forbidden request: bad.guy.com(127.0.0.1) access to "
-                       "/path/to/foo (method :get) (authentic: true) denied by "
+                       "/path/to/foo (method :get) (authenticated: true) denied by "
                        "rule 'test rule'.")
                   (:body response))))))
      (testing "access denied when deny all"
@@ -264,7 +264,7 @@
               authorization (get-in response [:body :authorization])]
           (is (identical? testutils/test-domain-cert (:certificate authorization))
               "SSL certificate not added to authorization map")
-          (is (true? (:authentic? authorization))
+          (is (true? (:authenticated authorization))
               "Unexpected authentic? value for authorization map")
           (is (= "test.domain.org" (:name authorization))
               "Unexpected name for authorization map")))
@@ -274,7 +274,7 @@
               authorization (get-in response [:body :authorization])]
           (is (nil? (:certificate authorization))
               "SSL certificate added to authorization map")
-          (is (false? (:authentic? authorization))
+          (is (false? (:authenticated authorization))
               "Unexpected authentic? value for authorization map")
           (is (= "" (:name authorization))
               "Unexpected name for authorization map")))
@@ -290,7 +290,7 @@
                  (ssl-utils/get-cn-from-x509-certificate
                   (:certificate authorization)))
               "x-client certificate not added to authorization map")
-          (is (true? (:authentic? authorization))
+          (is (true? (:authenticated authorization))
               "Unexpected authentic? value for authorization map")
           (is (= "test.domain.org" (:name authorization))
               "Unexpected name for authorization map")))
@@ -300,7 +300,7 @@
               authorization (get-in response [:body :authorization])]
           (is (nil? (:certificate authorization))
               "SSL certificate added to authorization map")
-          (is (false? (:authentic? authorization))
+          (is (false? (:authenticated authorization))
               "Unexpected authentic? value for authorization map")
           (is (= "" (:name authorization))
               "Unexpected name for authorization map"))))))
@@ -330,4 +330,4 @@
         (is (= "test.domain.org" (ring/authorized-name (:request result))))
         (is (= testutils/test-domain-cert
                (ring/authorized-certificate (:request result))))
-        (is (= true (ring/authorized-authentic? (:request result))))))))
+        (is (= true (ring/authorized-authenticated (:request result))))))))

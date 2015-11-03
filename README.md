@@ -108,15 +108,15 @@ following key/value pairs:
   If no certificate is available or a CN value cannot be retrieved from the
   certificate, the `name` is set to an empty string.
 
-* `authentic?` - A boolean value representing whether or not the client
+* `authenticated` - A boolean value representing whether or not the client
   request included an authenticated user.  In any case where the `name` value
-  has an empty string, `authentic?` is `false`.  If the
+  has an empty string, `authenticated` is `false`.  If the
   `allow-header-cert-info` configuration setting is `false` and the `name` value
-  is non-empty, `authentic?` is `true`.  If the `allow-header-cert-info`
+  is non-empty, `authenticated` is `true`.  If the `allow-header-cert-info`
   configuration setting is `true`, the `name` value is non-empty, and an HTTP
   header named `X-Client-Cert` with a value of `SUCCESS` is provided,
-  `authentic?` is `true`; for a value other than `SUCCESS` for
-  `X-Client-Cert`, `authentic?` is `false`.
+  `authenticated` is `true`; for a value other than `SUCCESS` for
+  `X-Client-Cert`, `authenticated` is `false`.
 
 * `certificate` - An `java.security.cert.X509Certificate` object for the client's
   certificate, if available for the request, else a value of `nil`.  If the
