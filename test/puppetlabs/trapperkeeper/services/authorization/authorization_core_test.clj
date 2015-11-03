@@ -105,116 +105,153 @@
 
   (testing "Missing keys are not valid"
     (is (thrown-with-msg?
-         IllegalArgumentException
-         #"An authorization rule should be specified as a map."
-         (validate-auth-config-rule! 0)))
+          IllegalArgumentException
+          #"An authorization rule should be specified as a map."
+          (validate-auth-config-rule! 0)))
 
     (is (thrown-with-msg?
-         IllegalArgumentException
-         #"An authorization rule must contain a 'match-request' section."
-         (validate-auth-config-rule! (dissoc testrule :match-request))))
+          IllegalArgumentException
+          #"An authorization rule must contain a 'match-request' section."
+          (validate-auth-config-rule! (dissoc testrule :match-request))))
 
     (is (thrown-with-msg?
-         IllegalArgumentException
-         #".* does not contain a 'path' key."
-         (validate-auth-config-rule!
-          (dissoc-in testrule [:match-request :path]))))
+          IllegalArgumentException
+          #".* does not contain a 'path' key."
+          (validate-auth-config-rule!
+            (dissoc-in testrule [:match-request :path]))))
 
     (is (thrown-with-msg?
-         IllegalArgumentException
-         #".* does not contain a 'type' key."
-         (validate-auth-config-rule!
-          (dissoc-in testrule [:match-request :type]))))
+          IllegalArgumentException
+          #".* does not contain a 'type' key."
+          (validate-auth-config-rule!
+            (dissoc-in testrule [:match-request :type]))))
 
     (is (thrown-with-msg?
-         IllegalArgumentException
-         #".* does not contain a 'sort-order' key."
-         (validate-auth-config-rule! (dissoc testrule :sort-order))))
+          IllegalArgumentException
+          #".* does not contain a 'sort-order' key."
+          (validate-auth-config-rule! (dissoc testrule :sort-order))))
 
     (doseq [invalid ["notanumber" 0 1000]]
       (is (thrown-with-msg?
-           IllegalArgumentException
-           #".* It should be a number from 1 to 999."
-           (validate-auth-config-rule! (assoc testrule :sort-order invalid)))))
+            IllegalArgumentException
+            #".* It should be a number from 1 to 999."
+            (validate-auth-config-rule! (assoc testrule :sort-order invalid)))))
 
     (is (thrown-with-msg?
-         IllegalArgumentException
-         #".* does not contain a 'name' key."
-         (validate-auth-config-rule! (dissoc testrule :name))))
+          IllegalArgumentException
+          #".* does not contain a 'name' key."
+          (validate-auth-config-rule! (dissoc testrule :name))))
 
     (is (thrown-with-msg?
-         IllegalArgumentException
-         #".* must contain either a 'deny' or 'allow' rule."
-         (validate-auth-config-rule! (dissoc testrule :allow))))
+          IllegalArgumentException
+          #".* must contain either a 'deny' or 'allow' rule."
+          (validate-auth-config-rule! (dissoc testrule :allow))))
 
     (is (thrown-with-msg?
-         IllegalArgumentException
-         #".* It should be set to either 'path' or 'regex'."
-         (validate-auth-config-rule!
-          (assoc-in testrule [:match-request :type] "not-a-type"))))
+          IllegalArgumentException
+          #".* It should be set to either 'path' or 'regex'."
+          (validate-auth-config-rule!
+            (assoc-in testrule [:match-request :type] "not-a-type"))))
 
     (is (thrown-with-msg?
-         IllegalArgumentException
-         #".* It should be a string."
-         (validate-auth-config-rule!
-          (assoc-in testrule [:match-request :path] 42))))
+          IllegalArgumentException
+          #".* It should be a string."
+          (validate-auth-config-rule!
+            (assoc-in testrule [:match-request :path] 42))))
 
     (is (thrown-with-msg?
-         IllegalArgumentException
-         #".* It should be a string."
-         (validate-auth-config-rule! (assoc testrule :allow 23))))
+          IllegalArgumentException
+          #".* It should be a string."
+          (validate-auth-config-rule! (assoc testrule :allow 23))))
 
     (is (thrown-with-msg?
-         IllegalArgumentException
-         #".* contains one or more names that are not strings."
-         (validate-auth-config-rule! (assoc testrule :deny ["one.anem" 23]))))
+          IllegalArgumentException
+          #".* contains one or more names that are not strings."
+          (validate-auth-config-rule! (assoc testrule :deny ["one.anem" 23]))))
 
     (is (thrown-with-msg?
-         IllegalArgumentException
-         #".* Dangling meta character '\*' near index 0[.\s]*"
-         (validate-auth-config-rule!
-          (-> testrule
-              (assoc-in [:match-request :type] "regex")
-              (assoc-in [:match-request :path] "*.")))))
+          IllegalArgumentException
+          #".* Dangling meta character '\*' near index 0[.\s]*"
+          (validate-auth-config-rule!
+            (-> testrule
+                (assoc-in [:match-request :type] "regex")
+                (assoc-in [:match-request :path] "*.")))))
 
     (is (thrown-with-msg?
-         IllegalArgumentException
-         #"Rule query-params must be a map."
-         (validate-auth-config-rule!
-          (assoc-in testrule [:match-request :query-params] []))))
+          IllegalArgumentException
+          #"Rule query-params must be a map."
+          (validate-auth-config-rule!
+            (assoc-in testrule [:match-request :query-params] []))))
 
     (is (thrown-with-msg?
-         IllegalArgumentException
-         #".* It should be a string."
-         (validate-auth-config-rule!
-          (assoc-in testrule [:match-request :query-params]
-                    {0 []}))))
+          IllegalArgumentException
+          #".* It should be a string."
+          (validate-auth-config-rule!
+            (assoc-in testrule [:match-request :query-params]
+                      {0 []}))))
 
     (is (thrown-with-msg?
-         IllegalArgumentException
-         #".* It should be a string or list of strings."
-         (validate-auth-config-rule!
-          (assoc-in testrule [:match-request :query-params]
-                    {:env :notastringorlist}))))
+          IllegalArgumentException
+          #".* It should be a string or list of strings."
+          (validate-auth-config-rule!
+            (assoc-in testrule [:match-request :query-params]
+                      {:env :notastringorlist}))))
 
     (is (thrown-with-msg?
-         IllegalArgumentException
-         #".* contains one or more values that are not strings."
-         (validate-auth-config-rule!
-          (assoc-in testrule [:match-request :query-params]
-                    {:env [:notastring]}))))
+          IllegalArgumentException
+          #".* contains one or more values that are not strings."
+          (validate-auth-config-rule!
+            (assoc-in testrule [:match-request :query-params]
+                      {:env [:notastring]}))))
 
     (is (thrown-with-msg?
-         IllegalArgumentException
-         #".* 'delete', 'get', 'head', 'post', 'put'"
-         (validate-auth-config-rule!
-          (assoc-in testrule [:match-request :method] "gross"))))
+          IllegalArgumentException
+          #".* 'delete', 'get', 'head', 'post', 'put'"
+          (validate-auth-config-rule!
+            (assoc-in testrule [:match-request :method] "gross"))))
 
     (is (thrown-with-msg?
-         IllegalArgumentException
-         #".* 'delete', 'get', 'head', 'post', 'put'"
-         (validate-auth-config-rule!
-          (assoc-in testrule [:match-request :method] ["nasty" "gross"]))))))
+          IllegalArgumentException
+          #".* 'delete', 'get', 'head', 'post', 'put'"
+          (validate-auth-config-rule!
+            (assoc-in testrule [:match-request :method] ["nasty" "gross"]))))
+
+    (is (thrown-with-msg?
+          IllegalArgumentException
+          #"contains the back reference '\$1' which refers to a capture group in the regex that doesn't exist."
+          (validate-auth-config-rule!
+            {:match-request {:path "/some/thing" :type "regex"}
+             :allow "$1"
+             :sort-order 500
+             :name "base-regex-auth"})))
+
+    (is (thrown-with-msg?
+          IllegalArgumentException
+          #"contains the back reference '\$2' which refers to a capture group in the regex that doesn't exist."
+          (validate-auth-config-rule!
+            {:match-request {:path "/some/(thing)" :type "regex"}
+             :allow "$1$2"
+             :sort-order 500
+             :name "base-regex-auth"})))
+
+    (is (thrown-with-msg?
+          IllegalArgumentException
+          #"contains the back reference '\$1' which refers to a capture group in the regex that doesn't exist."
+          (validate-auth-config-rule!
+            {:match-request {:path "/some/thing" :type "regex"}
+             :deny "$1"
+             :sort-order 500
+             :name "base-regex-auth"})))
+
+    (is (thrown-with-msg?
+          IllegalArgumentException
+          #"contains the back reference '\$2' which refers to a capture group in the regex that doesn't exist."
+          (validate-auth-config-rule!
+            {:match-request {:path "/some/(thing)" :type "regex"}
+             :deny "$1$2"
+             :sort-order 500
+             :name "base-regex-auth"})))
+    ))
 
 (deftest config->rule-test
   (testing "Given a basic allow rule against a string path"
