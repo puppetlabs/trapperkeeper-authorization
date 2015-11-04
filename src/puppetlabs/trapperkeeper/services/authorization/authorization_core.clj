@@ -1,6 +1,5 @@
 (ns puppetlabs.trapperkeeper.services.authorization.authorization-core
   (:require [clojure.string :as str]
-            [clojure.tools.logging :as log]
             [puppetlabs.kitchensink.core :as ks]
             [schema.core :as schema]
             [puppetlabs.trapperkeeper.authorization.rules :as rules])
@@ -234,15 +233,8 @@
 (schema/defn transform-config :- [rules/Rule]
   "Transforms the (validated) authorization service config into a list of Rules
    that work with the authorization code. Assumes config has been validated via
-   `validate-auth-config!`. A warning is logged if the rules in the config are
-   not in ascending sort order."
+   `validate-auth-config!`."
   [config]
-  (let [sorted (rules/sort-rules (map config->rule config))
-        trim-fn #(select-keys % [:sort-order :name])]
-    (when-let [mismatch (some #(when-not (= (first %) (second %)) %)
-                              (partition 2 (interleave (map trim-fn config)
-                                                       (map trim-fn sorted))))]
-      (log/warnf (str "Found rule '%s' out of order; expected '%s'. Rules in "
-                      "configuration file not in ascending sort order.")
-                 (:name (first mismatch)) (:name (second mismatch))))
-    sorted))
+  (->> config
+       (map config->rule)
+       rules/sort-rules))
