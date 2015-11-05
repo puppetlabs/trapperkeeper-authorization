@@ -92,6 +92,42 @@
       :else
       false)))
 
+(defn validate-regex-backreferences!
+  "Validates that allow and deny back-references actually exist as capture
+   groups in the path regex. Throws an exception if a back-reference refers
+   to a capture group that doesn't exist."
+  [rule]
+  (let [group-count (try
+                      (-> rule
+                          :match-request
+                          :path
+                          re-pattern
+                          (.matcher "")
+                          .groupCount)
+                      (catch PatternSyntaxException e
+                        (throw (IllegalArgumentException.
+                                (str "The path regex provided in the rule"
+                                     " defined as " (pprint-rule rule)
+                                     " is invalid: " (.getMessage e))))))
+        get-br-list (fn [match-str]
+                      (map #(Integer/parseInt (second %))
+                           (re-seq #"\$(\d+)" match-str)))
+        largest-br (fn [match]
+                     (let [br-list (mapcat get-br-list
+                                           (flatten [(or match "")]))]
+                       (when (> (count br-list) 0)
+                         (apply max br-list))))
+        largest-allow-br (or (largest-br (:allow rule)) 0)
+        largest-deny-br (or (largest-br (:deny rule)) 0)]
+    (doseq [[largest field] [[largest-allow-br "allow"]
+                             [largest-deny-br "deny"]]
+            :when (> largest group-count)]
+      (throw (IllegalArgumentException.
+              (str "The " field " field provided in the rule specified as "
+                   (pprint-rule rule) " contains the back reference '$"
+                   largest "' which refers to a capture group in "
+                   "the regex that doesn't exist."))))))
+
 (defn validate-auth-config-rule!
   "Tests to see if the given map contains the proper data to define an auth
   rule. Returns the provided rule if successful, otherwise throws an exception
@@ -153,32 +189,7 @@
                  "equal to one of the following methods: '"
                  (str/join "', '" (sort valid-methods)) "'"))))
   (when (= "regex" (-> rule :match-request :type name str/lower-case))
-    (try
-      (let [pattern (re-pattern (:path (:match-request rule)))
-            group-count (-> pattern (.matcher "") .groupCount)
-            get-br-list (fn [match-str]
-                          (map #(Integer/parseInt (nth % 1))
-                               (re-seq #"\$(\d+)" match-str)))
-            largest-br (fn [match]
-                         (let [br-list (flatten (map get-br-list
-                                                     (flatten [(or match "")])))]
-                           (when (> (count br-list) 0)
-                             (apply max br-list))))
-            largest-allow-br (or (largest-br (:allow rule)) 0)
-            largest-deny-br (or (largest-br (:deny rule)) 0)]
-        (doseq [[largest field] [[largest-allow-br "allow"]
-                                 [largest-deny-br "deny"]]]
-          (if (> largest group-count)
-            (throw (IllegalArgumentException.
-                     (str "The " field " field provided in the rule specified as "
-                          (pprint-rule rule) " contains the back reference '$"
-                          largest "' which refers to a capture group in "
-                          "the regex that doesn't exist."))))))
-      (catch PatternSyntaxException e
-        (throw (IllegalArgumentException.
-                 (str "The path regex provided in the rule defined as "
-                      (pprint-rule rule) " is invalid: "
-                      (.getMessage e)))))))
+    (validate-regex-backreferences! rule))
   (doseq [[type names] (select-keys rule [:allow :deny])]
     (if (vector? names)
       (when-not (every? string? names)
