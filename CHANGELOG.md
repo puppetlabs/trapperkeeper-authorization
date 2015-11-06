@@ -1,3 +1,12 @@
+### 0.5.0
+
+ * [TK-286](https://tickets.puppetlabs.com/browse/TK-286) Rename API term
+   `authentic?` to `authenticated` for clarity.
+ * [TK-289](https://tickets.puppetlabs.com/browse/TK-289) No longer log warning
+   message when rules are out of sort order in configuration file.
+ * [TK-285](https://tickets.puppetlabs.com/browse/TK-285) Add validation for
+   rule regex paths with capture groups and allow/deny back-references.
+
 ### 0.1.5
 
  * Added API function `authorization-check` to the AuthorizationService
@@ -8,6 +17,7 @@
    simplify behavior.
 
 ### 0.1.4
+
  * [TK-282](https://tickets.puppetlabs.com/browse/TK-282) Added support for an
    `allow-header-cert-info` field to the `authorization` config.
 
@@ -33,6 +43,7 @@
    trapperkeeper-authorization.
 
 ### 0.1.2
+
  * [TK-259](https://tickets.puppetlabs.com/browse/TK-259) Added support for
    matching rules on `query-params` from the request.
  * [TK-260](https://tickets.puppetlabs.com/browse/TK-260) Added optional
@@ -46,6 +57,7 @@
    into a `match-request` section.
 
 ### 0.1.1
+
  * [TK-258](https://tickets.puppetlabs.com/browse/TK-258) Created a Trapperkeeper
    service, AuthorizationService, with a `wrap-with-authorization-check`
    function for accessing the authorization middleware from another service.
@@ -57,5 +69,6 @@
  * Authorization failures returned as HTTP 403 instead of 401.
 
 ### 0.0.1
+
  * Not released by PuppetLabs.  Code imported from the 0.0.1 tag on
    https://github.com/masterzen/trapperkeeper-authorization.
