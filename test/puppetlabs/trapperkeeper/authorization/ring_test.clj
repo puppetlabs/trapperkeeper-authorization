@@ -6,7 +6,7 @@
 
 (use-fixtures :once schema-test/validate-schemas)
 
-(deftest authorized-authentic?
+(deftest authorized-authenticated
   (is (true? (-> (testutils/request)
                  (assoc-in [:authorization :authenticated] true)
                  (ring/authorized-authenticated))))
@@ -14,7 +14,7 @@
                   (assoc-in [:authorization :authenticated] false)
                   (ring/authorized-authenticated)))))
 
-(deftest set-authorized-authentic?
+(deftest set-authorized-authenticated
   (is (true? (-> (testutils/request)
                  (ring/set-authorized-authenticated true)
                  (get-in [:authorization :authenticated]))))

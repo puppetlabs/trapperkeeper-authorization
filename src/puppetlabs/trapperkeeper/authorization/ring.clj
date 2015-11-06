@@ -24,8 +24,8 @@
 (schema/defn set-authorized-authenticated :- Request
   "Set whether the authorized client is considered authenticated or not."
   [request :- Request
-   authentic? :- schema/Bool]
-  (assoc-in request [:authorization :authenticated] authentic?))
+   authenticated :- schema/Bool]
+  (assoc-in request [:authorization :authenticated] authenticated))
 
 (schema/defn authorized-certificate :- (schema/maybe X509Certificate)
   "Get the certificate of the authorized client."
