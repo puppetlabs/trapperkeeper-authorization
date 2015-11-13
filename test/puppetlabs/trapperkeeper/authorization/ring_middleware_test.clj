@@ -265,7 +265,7 @@
           (is (identical? testutils/test-domain-cert (:certificate authorization))
               "SSL certificate not added to authorization map")
           (is (true? (:authenticated authorization))
-              "Unexpected authentic? value for authorization map")
+              "Unexpected authenticated value for authorization map")
           (is (= "test.domain.org" (:name authorization))
               "Unexpected name for authorization map")))
       (testing "no SSL certificate provided and allow-header-cert-info false"
@@ -275,7 +275,7 @@
           (is (nil? (:certificate authorization))
               "SSL certificate added to authorization map")
           (is (false? (:authenticated authorization))
-              "Unexpected authentic? value for authorization map")
+              "Unexpected authenticated value for authorization map")
           (is (= "" (:name authorization))
               "Unexpected name for authorization map")))
       (testing "header credentials provided and allow-header-cert-info true"
@@ -291,7 +291,7 @@
                   (:certificate authorization)))
               "x-client certificate not added to authorization map")
           (is (true? (:authenticated authorization))
-              "Unexpected authentic? value for authorization map")
+              "Unexpected authenticated value for authorization map")
           (is (= "test.domain.org" (:name authorization))
               "Unexpected name for authorization map")))
       (testing "no header credentials provided and allow-header-cert-info true"
@@ -301,7 +301,7 @@
           (is (nil? (:certificate authorization))
               "SSL certificate added to authorization map")
           (is (false? (:authenticated authorization))
-              "Unexpected authentic? value for authorization map")
+              "Unexpected authenticated value for authorization map")
           (is (= "" (:name authorization))
               "Unexpected name for authorization map"))))))
 
