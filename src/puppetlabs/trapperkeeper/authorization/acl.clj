@@ -11,7 +11,6 @@
   {:auth-type auth-type
   :type (schema/enum :domain :opaque :regex :dynamic)
   :qualifier (schema/enum :exact :inexact)
-  :length (schema/maybe schema/Int)
   :pattern schema/Any})
 
 (def ACL
@@ -59,7 +58,6 @@
     {:auth-type type
      :type :regex
      :qualifier :exact
-     :length nil
      :pattern #"^*$"}
 
     ; exact domain
@@ -67,7 +65,6 @@
     {:auth-type type
      :type :domain
      :qualifier :exact
-     :length nil
      :pattern (munge-name pattern)}
 
     ; *.domain.com
@@ -76,7 +73,6 @@
       {:auth-type type
        :type :domain
        :qualifier :inexact
-       :length (count host_sans_star)
        :pattern host_sans_star})
 
     ; backreference
@@ -84,7 +80,6 @@
     {:auth-type type
      :type :dynamic
      :qualifier :exact
-     :length nil
      :pattern (munge-name pattern)}
 
     ; opaque string
@@ -92,7 +87,6 @@
     {:auth-type type
      :type :opaque
      :qualifier :exact
-     :length nil
      :pattern [pattern]}
 
     ; regex
@@ -100,7 +94,6 @@
     {:auth-type type
      :type :regex
      :qualifier :inexact
-     :length nil
      :pattern (str/replace pattern #"^/(.*)/$" "$1")}
 
     :else

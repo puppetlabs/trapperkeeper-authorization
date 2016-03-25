@@ -29,14 +29,12 @@
    Pass the ACL through the vec function when asserting against this
    definition."
   [{:auth-type :deny
-    :length    nil
     :pattern   ["com"
                 "guy"
                 "bald"]
     :qualifier :exact
     :type      :domain}
    {:auth-type :allow
-    :length    nil
     :pattern   ["org"
                 "domain"
                 "www"]
