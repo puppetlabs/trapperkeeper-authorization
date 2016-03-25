@@ -9,13 +9,19 @@
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
             [puppetlabs.ssl-utils.core :as ssl-utils]
             [clojure.tools.logging :as log]
-            [clojure.string :as str])
+            [clojure.string :as str]
+            [puppetlabs.trapperkeeper.authorization.acl :as acl])
   (:import (clojure.lang IFn)
            (java.security.cert X509Certificate)
            (java.io StringReader)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private
+
+(def OIDMap
+  "Mapping of string OIDs to shortname keywords. Used to update an incoming
+  request with a shortname -> value extensions map."
+  {String schema/Keyword})
 
 (def header-cert-name
   "Name of the HTTP header through which a client certificate can be passed
@@ -200,14 +206,36 @@
         (warn-if-header-value-non-nil header-cert-name header-cert-val)
         (:ssl-client-cert request)))))
 
+(schema/defn request->extensions :- acl/Extensions
+  "Given a request, return a map of shortname -> value for all of the extensions
+  in the request's certificate. Uses the passed oid map to translate from OIDs
+  to short names."
+  [request :- ring/Request
+   allow-header-cert-info :- schema/Bool
+   oid-map :- OIDMap]
+  (if-let [cert (request->cert request allow-header-cert-info)]
+    (let [extensions (ssl-utils/get-extensions cert)
+          translate-oids (fn [out extension]
+                           (let [oid-key (get oid-map (:oid extension)
+                                              (keyword (:oid extension)))
+                                 value (str (:value extension))]
+                             (assoc out oid-key value)))]
+      (reduce translate-oids {} extensions))
+    {}))
+
 (schema/defn add-authinfo :- ring/Request
   "Add authentication information to the ring request."
   [allow-header-cert-info :- schema/Bool
+   oid-map :- OIDMap
    request :- ring/Request]
-  (let [name (request->name request allow-header-cert-info)]
+  (let [name (request->name request allow-header-cert-info)
+        extensions (request->extensions request
+                                        allow-header-cert-info
+                                        oid-map)]
     (->
       request
       (ring/set-authorized-name name)
+      (ring/set-authorized-extensions extensions)
       (ring/set-authorized-authenticated (and
                                            (verified? request
                                                       name
@@ -246,26 +274,36 @@
   "Checks that the request is allowed by the provided rules and returns an
    authorization result map containing the request with authorization info
    added, whether the request is authorized, and a message."
-  [request :- ring/Request
-   rules :- [rules/Rule]
-   allow-header-cert-info :- schema/Bool]
-  (->> (assoc-query-params request)
-       (add-authinfo allow-header-cert-info)
-       (rules/allowed? rules)))
+  ([request :- ring/Request
+    rules :- [rules/Rule]
+    allow-header-cert-info :- schema/Bool]
+   (authorization-check request rules {} allow-header-cert-info))
+  ([request :- ring/Request
+    rules :- [rules/Rule]
+    oid-map :- OIDMap
+    allow-header-cert-info :- schema/Bool]
+   (->> (assoc-query-params request)
+        (add-authinfo allow-header-cert-info oid-map)
+        (rules/allowed? rules))))
 
 (schema/defn wrap-authorization-check :- IFn
   "Middleware that checks if the request is allowed by the provided rules,
    and if not returns a 403 response with a user-friendly message."
-  [handler :- IFn
-   rules :- [rules/Rule]
-   allow-header-cert-info :- schema/Bool]
-  (fn [req]
-    (let [{:keys [authorized message request]}
-          (authorization-check req rules allow-header-cert-info)]
-      (if (true? authorized)
-        (handler request)
-        (-> (ring-response/response message)
-            (ring-response/status 403))))))
+  ([handler :- IFn
+    rules :- [rules/Rule]
+    allow-header-cert-info :- schema/Bool]
+   (wrap-authorization-check handler rules {} allow-header-cert-info))
+  ([handler :- IFn
+    rules :- [rules/Rule]
+    oid-map :- OIDMap
+    allow-header-cert-info :- schema/Bool]
+   (fn [req]
+     (let [{:keys [authorized message request]}
+           (authorization-check req rules oid-map allow-header-cert-info)]
+       (if (true? authorized)
+         (handler request)
+         (-> (ring-response/response message)
+             (ring-response/status 403)))))))
 
 (schema/defn wrap-with-error-handling :- IFn
   "Middleware that wraps an authorization request with some error handling to

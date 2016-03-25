@@ -1,5 +1,6 @@
 (ns puppetlabs.trapperkeeper.authorization.ring
-  (:require [schema.core :as schema])
+  (:require [schema.core :as schema]
+            [puppetlabs.trapperkeeper.authorization.acl :as acl])
   (:import (java.security.cert X509Certificate)))
 
 ;; schema
@@ -48,3 +49,15 @@
   [request :- Request
    name :- (schema/maybe schema/Str)]
   (assoc-in request [:authorization :name] (str name)))
+
+(schema/defn set-authorized-extensions :- Request
+  "Set the authorized extensions onto the request."
+  [request :- Request
+   extensions :- acl/Extensions]
+  (assoc-in request [:authorization :extensions] extensions))
+
+(schema/defn authorized-extensions :- acl/Extensions
+  "Get the authorized extensions from the request."
+  [request :- Request]
+  (get-in request [:authorization :extensions] {}))
+

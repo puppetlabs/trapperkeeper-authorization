@@ -8,8 +8,8 @@
             [puppetlabs.trapperkeeper.services :refer [service-context]]))
 
 (defprotocol AuthorizationService
-  (wrap-with-authorization-check [this handler])
-  (authorization-check [this request]))
+  (wrap-with-authorization-check [this handler] [this handler options])
+  (authorization-check [this request] [this handler options]))
 
 (defservice authorization-service
   AuthorizationService
@@ -26,12 +26,19 @@
                                                   false)))))
 
   (authorization-check [this request]
+   (authorization-check this request {:oid-map {}}))
+
+  (authorization-check [this request {:keys [oid-map]}]
    (let [{:keys [rules allow-header-cert-info]} (service-context this)]
-    (ring-middleware/authorization-check request rules allow-header-cert-info)))
+    (ring-middleware/authorization-check request rules oid-map allow-header-cert-info)))
 
   (wrap-with-authorization-check
    [this handler]
+   (wrap-with-authorization-check this handler {:oid-map {}}))
+
+  (wrap-with-authorization-check
+   [this handler {:keys [oid-map]}]
    (let [{:keys [allow-header-cert-info rules]} (service-context this)]
      (-> handler
-         (ring-middleware/wrap-authorization-check rules allow-header-cert-info)
+         (ring-middleware/wrap-authorization-check rules oid-map allow-header-cert-info)
          ring-middleware/wrap-with-error-handling))))

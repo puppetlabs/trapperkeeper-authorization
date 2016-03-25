@@ -1,5 +1,6 @@
 (ns puppetlabs.trapperkeeper.authorization.rules
   (:require [clojure.tools.logging :as log]
+            [puppetlabs.ssl-utils.core :refer [get-extensions]]
             [puppetlabs.trapperkeeper.authorization.acl :as acl]
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
             [schema.core :as schema])
@@ -77,14 +78,14 @@
    value :- (schema/either schema/Str [schema/Str])]
   (update-in rule [:query-params param] (comp set into) (flatten [value])))
 
-(schema/defn allow :- Rule
+(schema/defn ^:always-validate allow :- Rule
   [rule :- Rule
-   pattern :- schema/Str]
+   pattern :- acl/ACEConfig]
   (assoc rule :acl (acl/allow (:acl rule) pattern)))
 
-(schema/defn deny :- Rule
+(schema/defn ^:always-validate deny :- Rule
   [rule :- Rule
-   pattern :- schema/Str]
+   pattern :- acl/ACEConfig]
   (assoc rule :acl (acl/deny (:acl rule) pattern)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -199,7 +200,10 @@
     (if (true? (:allow-unauthenticated rule))
       (allow-request request rule "allow-unauthenticated is true - allowed")
       (if (and (true? (ring/authorized-authenticated request))
-               (acl/allowed? (:acl rule) (ring/authorized-name request) matches))
+               (acl/allowed? (:acl rule)
+                             {:certname (ring/authorized-name request)
+                              :extensions (ring/authorized-extensions request)}
+                             matches))
         (allow-request request rule "")
         (deny-request request rule (request->description request rule))))
     (deny-request request nil "global deny all - no rules matched")))

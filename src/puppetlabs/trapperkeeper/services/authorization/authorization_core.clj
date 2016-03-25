@@ -2,7 +2,8 @@
   (:require [clojure.string :as str]
             [puppetlabs.kitchensink.core :as ks]
             [schema.core :as schema]
-            [puppetlabs.trapperkeeper.authorization.rules :as rules])
+            [puppetlabs.trapperkeeper.authorization.rules :as rules]
+            [puppetlabs.trapperkeeper.authorization.acl :as acl])
   (:import (java.util.regex PatternSyntaxException)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -20,31 +21,33 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private
 
-;; TODO should these IllegalArgumentExceptions be schema errors?
 (defn ^:private reject! [& strings]
   (throw (IllegalArgumentException. (apply str strings))))
 
 (schema/defn validate-ace-config-map!
   [config-value :- (schema/pred map? "map?")]
-  (when (:attrs config-value)
-    (schema/validate acl/CSRAttributes (:attrs config-value)))
+  (when (:extensions config-value)
+    (when-not (nil? (schema/check acl/ExtensionRule (:extensions config-value)))
+      (reject! "extensions key should map an extension to a value or list of values; got "
+               (:extensions config-value))))
 
   (when (:certname config-value)
-    (schema/validate String config-value))
+    (when-not (nil? (schema/check String config-value))
+      (reject! (format "certname key should map to a string; got '%s'" (:certname config-value)))))
 
-  (when (or (not (or (:attrs config-value) (:certname config-value)))
-            (and (:attrs config-value) (:certname config-value)))
-    (throw IllegalArgumentException "ACL Definition must contain exactly one of 'certname' or 'attrs' keys.")))
+  (when (or (not (or (:extensions config-value) (:certname config-value)))
+            (and (:extensions config-value) (:certname config-value)))
+    (reject! "ACL Definition must contain exactly one of 'certname' or 'extensions' keys;"
+             (format " got '%s'" config-value))))
 
 (schema/defn canonicalize-acl :- acl/ACEConfig
   [config-value]
   (cond
     (string? config-value) {:certname config-value}
     (map? config-value) (do (validate-ace-config-map! config-value)
-                            ;; TODO need to turn attr keys into keywords?
-                            ;; TODO should certname and attrs be XOR or OR?
                             config-value)
-    :else (throw IllegalArgumentException (format "Unable to parse ACL: '%s'" config-value))))
+    :else (reject! (format "Unable to parse ACL; expected string or map but got: '%s'"
+                           config-value))))
 
 (defn pprint-rule
   [rule]
@@ -77,8 +80,10 @@
     (add-individual-acl :allow \"*.domain.org\" rule)
   "
   [acl-type value rule]
-  (let [v (vec (flatten [value]))]
-    (reduce #((get acl-func-map acl-type) %1 %2) rule v)))
+  (let [values (->> [value]
+               flatten
+               (mapv canonicalize-acl))]
+    (reduce #((get acl-func-map acl-type) %1 %2) rule values)))
 
 (defn add-acl
   "Add various ACL to the incoming rule, based on content of the config-map"
@@ -203,16 +208,16 @@
              (str/join "', '" (sort valid-methods)) "'"))
   (when (= "regex" (-> rule :match-request :type name str/lower-case))
     (validate-regex-backreferences! rule))
-  (doseq [[type names] (select-keys rule [:allow :deny])]
-    (if (vector? names)
-      (when-not (every? string? names)
+  (doseq [[type aces] (select-keys rule [:allow :deny])]
+    (if (vector? aces)
+      (when-not (every? #(or (string? %) (map? %)) aces)
         (reject! "The " (name type) " list in the rule specified as "
                  (pprint-rule rule)
-                 " contains one or more names that are not strings."))
-      (when-not (string? names)
-        (reject! "The name '" names "' in the '" (name type) "' field of "
+                 " contains one or more aces that are not maps or strings."))
+      (when-not (or (map? aces) (string? aces))
+        (reject! "The ACE '" aces "' in the '" (name type) "' field of "
                  "the rule specified as " (pprint-rule rule) " is invalid. "
-                 "It should be a string."))))
+                 "It should be a string or a map with keys :extensions or :certname."))))
   (when-let [query-params (:query-params (:match-request rule))]
     (when-not (map? query-params)
       (reject! "Rule query-params must be a map."))

@@ -16,9 +16,9 @@
 (use-fixtures :once schema-test/validate-schemas)
 
 (def test-rule [(-> (testutils/new-rule :path "/path/to/foo")
-                    (rules/deny "bad.guy.com")
-                    (rules/allow "*.domain.org")
-                    (rules/allow "*.test.com"))])
+                    (rules/deny {:certname "bad.guy.com"})
+                    (rules/allow {:certname "*.domain.org"})
+                    (rules/allow {:certname "*.test.com"}))])
 
 (defn wrap-x-client-dn
   [request name]
@@ -193,7 +193,7 @@
                   (:body response))))))
      (testing "access denied when deny all"
        (let [app (build-ring-handler [(-> (testutils/new-rule :path "/")
-                                          (rules/deny "*"))]
+                                          (rules/deny {:certname "*"}))]
                                      false)]
          (doseq [path ["a" "/" "/hip/hop/" "/a/hippie/to/the/hippi-dee/beat"]]
            (let [req (testutils/request path
@@ -237,7 +237,7 @@
                   (:body response))))))
      (testing "access denied when deny all"
        (let [app (build-ring-handler [(-> (testutils/new-rule :path "/")
-                                          (rules/deny "*"))]
+                                          (rules/deny {:certname "*"}))]
                                      true)]
          (doseq [path ["a" "/" "/hip/hop/" "/a/hippie/to/the/hippi-dee/beat"]]
            (let [req (-> (testutils/request path
@@ -308,7 +308,7 @@
 (deftest authorization-check-test
   (let [rules [(-> (testutils/new-rule :path "/foo/bar")
                    (rules/query-param :baz "qux")
-                   (rules/allow "test.domain.org"))]
+                   (rules/allow {:certname "test.domain.org"}))]
         request (testutils/request
                  "/foo/bar" :get "127.0.0.1" testutils/test-domain-cert)]
     (testing "allows and rejects appropriately"
@@ -331,3 +331,87 @@
         (is (= testutils/test-domain-cert
                (ring/authorized-certificate (:request result))))
         (is (= true (ring/authorized-authenticated (:request result))))))))
+
+(deftest authorization-extensions-test
+  (testing "when working with ssl extensions"
+    (let [;; intentionally leaving out puppet node image name to have a raw oid
+          oid-map {"1.3.6.1.4.1.34380.1.1.12" :pp_environment
+                   "1.3.6.1.4.1.34380.1.1.13" :pp_role
+                   "1.3.6.1.4.1.34380.1.1.1"  :puppet-node-uid
+                   "2.5.29.20"               :crl-num}
+          exts [;; puppet-node-uid
+                {:oid "1.3.6.1.4.1.34380.1.1.1"
+                 :critical false
+                 :value "ED803750-E3C7-44F5-BB08-41A04433FE2E"}
+                ;; pp_environment
+                {:oid "1.3.6.1.4.1.34380.1.1.12"
+                 :critical false
+                 :value "test"}
+                ;; pp_role
+                {:oid "1.3.6.1.4.1.34380.1.1.13"
+                 :critical false
+                 :value "com"}
+                ;; puppet node image name
+                {:oid "1.3.6.1.4.1.34380.1.1.3"
+                 :critical false
+                 :value "sweet_ami_image"}
+                ;; crl num
+                {:oid      "2.5.29.20"
+                 :critical false
+                 :value    (biginteger 23)}]
+          expected-exts {:crl-num "23"
+                         :1.3.6.1.4.1.34380.1.1.3 "sweet_ami_image"
+                         :puppet-node-uid "ED803750-E3C7-44F5-BB08-41A04433FE2E"
+                         :pp_environment "test"
+                         :pp_role "com"}
+          cert (testutils/create-certificate "tea.leaves.thwart.net" exts)
+
+          req (testutils/request "/foo/bar" :get "127.0.0.1" cert)
+          auth-check (fn [rules] (ring-middleware/authorization-check req rules oid-map false))]
+
+
+      (testing "extensions are set properly"
+        (let [;; set up auth rules
+              rules [(-> (testutils/new-rule :path "/foo/bar")
+                         (rules/allow {:certname "tea.leaves.thwart.net"}))]
+              auth-result (auth-check rules)
+              extensions (get-in auth-result [:request :authorization :extensions])]
+
+          (is (= expected-exts extensions))
+          (is (:authorized auth-result))))
+
+      (testing "authorization works as expected"
+        (logutils/with-test-logging
+
+          (let [rules [(-> (testutils/new-rule :path "/foo/bar")
+                           (rules/allow {:extensions {:pp_role ["com" "mom"]
+                                                      :pp_environment "production"
+                                                      :1.3.6.1.4.1.34380.1.1.3 "sweet_ami_image"}}))]]
+
+            (is (not (:authorized (auth-check rules)))))
+
+          (let [rules [(-> (testutils/new-rule :path "/foo/bar")
+                           (rules/allow {:certname "tea.leaves.thwart.net"})
+                           (rules/allow {:extensions {:pp_role ["foo" "bar"]}})
+                           (rules/deny {:extensions {:1.3.6.1.4.1.34380.1.1.3 "sweet_ami_image"}}))]]
+            (is (not (:authorized (auth-check rules)))))
+
+          (let [rules [(-> (testutils/new-rule :path "/foo/bar")
+                           (rules/allow {:certname "tea.leaves.thwart.net"})
+                           (rules/allow {:extensions {:pp_environment "test"}})
+                           (rules/deny {:extensions {:1.3.6.1.4.1.34380.1.1.3 "bad_ami_image"}}))]]
+            (is (:authorized (auth-check rules))))
+
+          (let [rules [(-> (testutils/new-rule :path "/foo/bar")
+                           (rules/allow {:certname "tea.leaves.thwart.net"})
+                           (rules/allow {:extensions {:pp_environment "test"}})
+                           (rules/deny {:extensions {:1.3.6.1.4.1.34380.1.1.3 "bad_ami_image"
+                                                     :pp_environment "production"}}))]]
+            (is (:authorized (auth-check rules))))
+
+          (let [rules [(-> (testutils/new-rule :path "/foo/bar")
+                           (rules/allow {:certname "tea.leaves.thwart.net"})
+                           (rules/allow {:extensions {:pp_environment "test"}})
+                           (rules/deny {:extensions {:1.3.6.1.4.1.34380.1.1.3 "sweet_ami_image"
+                                                     :pp_environment "test"}}))]]
+            (is (not (:authorized (auth-check rules))))))))))

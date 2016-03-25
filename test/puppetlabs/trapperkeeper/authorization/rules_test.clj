@@ -101,24 +101,24 @@
 (deftest test-rule-acl-creation
   (let [rule (testutils/new-rule :path "/highway/to/hell" :any)]
     (testing "allowing a host"
-      (is (acl/allowed? (:acl (rules/allow rule "*.domain.com")) "www.domain.com")))
+      (is (acl/allowed? (:acl (rules/allow rule {:certname "*.domain.com"})) {:certname "www.domain.com" :extensions {}})))
     (testing "several allow in a row"
-      (let [new-rule (-> rule (rules/allow "*.domain.com") (rules/allow "*.test.org"))]
-        (is (acl/allowed? (:acl new-rule) "www.domain.com"))
-        (is (acl/allowed? (:acl new-rule) "www.test.org"))
-        (is (not (acl/allowed? (:acl new-rule) "www.different.tld")))))
+      (let [new-rule (-> rule (rules/allow {:certname "*.domain.com"}) (rules/allow {:certname "*.test.org"}))]
+        (is (acl/allowed? (:acl new-rule) {:certname "www.domain.com" :extensions {}}))
+        (is (acl/allowed? (:acl new-rule) {:certname "www.test.org" :extensions {}}))
+        (is (not (acl/allowed? (:acl new-rule) {:certname "www.different.tld" :extensions {}})))))
     (testing "deny overrides allow"
       (let [new-rule (-> rule
-                         (rules/allow "*.domain.org")
-                         (rules/deny "deny.domain.org"))]
-        (is (acl/allowed? (:acl new-rule) "allow.domain.org"))
-        (is (not (acl/allowed? (:acl new-rule) "deny.domain.org")))))))
+                         (rules/allow {:certname "*.domain.org"})
+                         (rules/deny {:certname "deny.domain.org"}))]
+        (is (acl/allowed? (:acl new-rule) {:certname "allow.domain.org" :extensions {}}))
+        (is (not (acl/allowed? (:acl new-rule) {:certname "deny.domain.org" :extensions {}})))))))
 
 (defn- build-rules
   "Build a list of rules from individual vectors of [path allow]"
   [& rules]
   (reduce #(conj %1 (-> (testutils/new-rule :path (first %2))
-                        (rules/allow (second %2))))
+                        (rules/allow {:certname (second %2)})))
           []
           rules))
 
@@ -163,9 +163,9 @@
   (testing "rules checked in order of sort-order not order of appearance"
     (let [rules (rules/sort-rules
                  [(-> (rules/new-rule :path "/foo" :any 2 "name")
-                      (rules/deny "*"))
+                      (rules/deny {:certname "*"}))
                   (-> (rules/new-rule :path "/foo" :any 1 "name")
-                      (rules/allow "*"))])
+                      (rules/allow {:certname "*"}))])
           request (-> (testutils/request "/foo")
                       (ring/set-authorized-authenticated true)
                       (ring/set-authorized-name "test.org"))]
@@ -173,9 +173,9 @@
   (testing "rules checked in order of name when sort-order is the same"
     (let [rules (rules/sort-rules
                  [(-> (rules/new-rule :path "/foo" :any 1 "bbb")
-                      (rules/deny "*"))
+                      (rules/deny {:certname "*"}))
                   (-> (rules/new-rule :path "/foo" :any 1 "aaa")
-                      (rules/allow "*"))])
+                      (rules/allow {:certname "*"}))])
           request (-> (testutils/request "/foo")
                       (ring/set-authorized-authenticated true)
                       (ring/set-authorized-name "test.org"))]
