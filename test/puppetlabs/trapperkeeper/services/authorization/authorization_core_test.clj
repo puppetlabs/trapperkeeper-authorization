@@ -32,14 +32,12 @@
     :pattern   ["com"
                 "guy"
                 "bald"]
-    :qualifier :exact
-    :type      :domain}
+    :match      :string}
    {:auth-type :allow
     :pattern   ["org"
                 "domain"
                 "www"]
-    :qualifier :exact
-    :type      :domain}])
+    :match      :string}])
 
 (deftest valid-configs-pass
   (testing "Valid forms of a auth config pass"
@@ -296,13 +294,9 @@
       (let [m (merge base-path-auth allow-list)
             {:keys [acl]} (config->rule m)]
         (is (= ["org" "domain"] (:pattern (first acl))))
-        (is (= :inexact (:qualifier (first acl))))
-        (is (= ["com" "test"] (:pattern (second acl))))
-        (is (= :inexact (:qualifier (second acl))))))
+        (is (= ["com" "test"] (:pattern (second acl))))))
     (testing "Deny rules with no allow are returned in order"
       (let [m (merge base-path-auth deny-list)
             {:keys [acl]} (config->rule m)]
         (is (= ["com" "eagle" "bald"] (:pattern (first acl))))
-        (is (= :exact (:qualifier (first acl))))
-        (is (= ["com" "bull" "bald"] (:pattern (second acl))))
-        (is (= :exact (:qualifier (first acl))))))))
+        (is (= ["com" "bull" "bald"] (:pattern (second acl))))))))
