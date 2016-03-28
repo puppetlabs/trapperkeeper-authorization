@@ -48,14 +48,13 @@
 
 (schema/defn ^:private split-domain :- [String]
   "Given a domain string, split it on '.' and reverse it. For examples,
-  'sylvia.plath.net' becomes ['net' 'plath' 'sylvia']. This is used for domain
+  'sylvia.plath.net' becomes ('net' 'plath' 'sylvia'). This is used for domain
   matching."
-  [pattern :- String]
-  (-> pattern
+  [domain :- String]
+  (-> domain
       (clojure.string/lower-case)
       (clojure.string/split #"\.")
-      reverse
-      vec))
+      reverse))
 
 (schema/defn new-domain :- Entry
   "Creates a new ACE for a domain"
@@ -125,7 +124,7 @@
   (if (= (:match ace) :backreference)
     (new-domain (ace :auth-type)
                 (clojure.string/join "." (map #(substitute-backreference % captures)
-                                   (reverse (ace :pattern)))))
+                                              (reverse (ace :pattern)))))
     ace))
 
 (schema/defn match? :- schema/Bool
