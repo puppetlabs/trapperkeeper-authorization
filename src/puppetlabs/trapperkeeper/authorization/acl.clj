@@ -4,10 +4,10 @@
 ;; Schemas
 
 (def AuthType (schema/enum :allow :deny))
-(def EntryPattern (schema/pred #(some nil? [(schema/check String %)
-                                            (schema/check [String] %)
-                                            (schema/check schema/Regex %)])
-                               "Entry Pattern must be a string, list of strings, or Regex"))
+(def EntryPattern (schema/conditional
+                   string? String
+                   sequential? [String]
+                   :else schema/Regex))
 
 (def Entry
   "An authorization entry matching a network or a domain"
