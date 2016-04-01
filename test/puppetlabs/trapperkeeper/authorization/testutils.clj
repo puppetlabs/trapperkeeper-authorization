@@ -20,9 +20,13 @@
    (assoc (request path method ip) :ssl-client-cert certificate)))
 
 (defn create-certificate
-  [cn]
-  (let [cacert (ssl/gen-self-signed-cert "my ca" 41 {:keylength 512})]
-    (:cert (ssl/gen-cert cn cacert 42 {:keylength 512}))))
+  [cn & [extensions]]
+  (let [cacert (ssl/gen-self-signed-cert "my ca" 41 {:keylength 512})
+        opts {:keylength 512}
+        opts (if (nil? extensions)
+               opts
+               (assoc opts :extensions extensions))]
+    (:cert (ssl/gen-cert cn cacert 42 opts))))
 
 (def test-domain-cert (create-certificate "test.domain.org"))
 (def test-other-cert (create-certificate "www.other.org"))
