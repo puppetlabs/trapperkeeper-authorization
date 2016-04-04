@@ -1,18 +1,19 @@
 (ns puppetlabs.trapperkeeper.authorization.acl
-  (:require [schema.core :as schema]
-            [clojure.string :as str]))
+  (:require [schema.core :as schema]))
 
 ;; Schemas
 
-(def auth-type (schema/enum :allow :deny))
+(def AuthType (schema/enum :allow :deny))
+(def EntryPattern (schema/conditional
+                   string? String
+                   sequential? [String]
+                   :else schema/Regex))
 
 (def Entry
   "An authorization entry matching a network or a domain"
-  {:auth-type auth-type
-  :type (schema/enum :domain :opaque :regex :dynamic)
-  :qualifier (schema/enum :exact :inexact)
-  :length (schema/maybe schema/Int)
-  :pattern schema/Any})
+  {:auth-type AuthType
+   :match (schema/enum :string :regex :backreference)
+   :pattern EntryPattern})
 
 (def ACL
   "An ordered list of authorization Entry"
@@ -45,63 +46,57 @@
 
 ;; ACE creation
 
-(defn munge-name
-  [pattern]
-  (-> pattern (str/lower-case) (str/split #"\.") reverse vec))
+(schema/defn ^:private split-domain :- [String]
+  "Given a domain string, split it on '.' and reverse it. For examples,
+  'sylvia.plath.net' becomes ('net' 'plath' 'sylvia'). This is used for domain
+  matching."
+  [domain :- String]
+  (-> domain
+      (clojure.string/lower-case)
+      (clojure.string/split #"\.")
+      reverse))
 
 (schema/defn new-domain :- Entry
   "Creates a new ACE for a domain"
-  [type :- auth-type
+  [type :- AuthType
    pattern :- schema/Str]
   (cond
     ; global
     (= "*" pattern)
     {:auth-type type
-     :type :regex
-     :qualifier :exact
-     :length nil
+     :match :regex
      :pattern #"^*$"}
 
     ; exact domain
     (re-matches #"^(\w[-\w]*\.)+[-\w]+$" pattern)
     {:auth-type type
-     :type :domain
-     :qualifier :exact
-     :length nil
-     :pattern (munge-name pattern)}
+     :match :string
+     :pattern (split-domain pattern)}
 
     ; *.domain.com
     (re-matches #"^\*(\.(\w[-\w]*)){1,}$" pattern)
-    (let [host_sans_star (vec (drop-last (munge-name pattern)))]
+    (let [host_sans_star (vec (drop-last (split-domain pattern)))]
       {:auth-type type
-       :type :domain
-       :qualifier :inexact
-       :length (count host_sans_star)
+       :match :string
        :pattern host_sans_star})
 
     ; backreference
     (re-find #"\$\d+" pattern)
     {:auth-type type
-     :type :dynamic
-     :qualifier :exact
-     :length nil
-     :pattern (munge-name pattern)}
+     :match :backreference
+     :pattern (split-domain pattern)}
 
     ; opaque string
     (re-matches #"^\w[-.@\w]*$" pattern)
     {:auth-type type
-     :type :opaque
-     :qualifier :exact
-     :length nil
+     :match :string
      :pattern [pattern]}
 
     ; regex
     (re-matches #"^/.*/$" pattern)
     {:auth-type type
-     :type :regex
-     :qualifier :inexact
-     :length nil
-     :pattern (str/replace pattern #"^/(.*)/$" "$1")}
+     :match :regex
+     :pattern (clojure.string/replace pattern #"^/(.*)/$" "$1")}
 
     :else
     (throw (Exception. (str "invalid domain pattern: " pattern)))))
@@ -110,30 +105,26 @@
 
 (schema/defn match-name? :- schema/Bool
   "Checks that name matches the given ace"
-  [ace :- Entry
-   name :- schema/Str]
-  (if (= (ace :type) :regex)
-    (boolean (re-find (re-pattern (ace :pattern)) name))
-    (let [name (munge-name name)
-          pattern (ace :pattern)
-          exact (= (ace :qualifier) :exact)]
-      (or (= pattern name)
-          (and (not exact)
-               (every? (fn [[a b]] (= a b)) (map vector pattern name)))))))
+  [{:keys [pattern match]} :- Entry
+   to-match :- schema/Str]
+  (let [match-split-domain (split-domain to-match)]
+    (if (= :regex match)
+      (boolean (re-find (re-pattern pattern) to-match))
+      (every? (fn [[a b]] (= a b)) (map vector pattern match-split-domain)))))
 
 (defn- substitute-backreference
   "substiture $1, $2... by the same index in the captures vector"
   [in captures]
-  (str/replace in #"\$(\d+)" #(nth captures (- (read-string (second %)) 1))))
+  (clojure.string/replace in #"\$(\d+)" #(nth captures (- (read-string (second %)) 1))))
 
 (defn interpolate-backreference
   "change all possible backreferences in ace patterns to values from the
   capture groups"
   [ace captures]
-  (if (= (ace :type) :dynamic)
+  (if (= (:match ace) :backreference)
     (new-domain (ace :auth-type)
-                (str/join "." (map #(substitute-backreference % captures)
-                                   (reverse (ace :pattern)))))
+                (clojure.string/join "." (map #(substitute-backreference % captures)
+                                              (reverse (ace :pattern)))))
     ace))
 
 (schema/defn match? :- schema/Bool
@@ -146,11 +137,11 @@
 
 (schema/defn add-name :- ACL
   "Add a new host ACE to this acl"
-  ([type :- auth-type
+  ([type :- AuthType
     pattern :- schema/Str]
     (add-name empty-acl type pattern))
   ([acl :- ACL
-    type :- auth-type
+    type :- AuthType
     pattern :- schema/Str]
     (conj acl (new-domain type pattern))))
 
