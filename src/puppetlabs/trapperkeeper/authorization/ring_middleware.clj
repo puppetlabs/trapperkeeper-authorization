@@ -21,7 +21,7 @@
 (def OIDMap
   "Mapping of string OIDs to shortname keywords. Used to update an incoming
   request with a shortname -> value extensions map."
-  {String schema/Keyword})
+  {schema/Str schema/Keyword})
 
 (def header-cert-name
   "Name of the HTTP header through which a client certificate can be passed

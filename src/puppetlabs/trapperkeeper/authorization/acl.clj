@@ -11,18 +11,18 @@
 (def ExtensionRule
   "Schema for defining an SSL Extension auth rule."
   {schema/Keyword (schema/conditional
-                   sequential? [String]
-                   :else String)})
+                   sequential? [schema/Str]
+                   :else schema/Str)})
 
 (def ACEChallenge
   "Pertinent authorization information extracted from a request used during
   authz rule enforcement."
-  {:certname String
+  {:certname schema/Str
    :extensions Extensions})
 
 (def ACEConfig
   "Schema for representing the configuration of an ACE."
-  (schema/pred #(or (nil? (schema/check String (:certname %)))
+  (schema/pred #(or (nil? (schema/check schema/Str (:certname %)))
                     (nil? (schema/check ExtensionRule (:extensions %))))
                "ACE Config Value"))
 
@@ -31,8 +31,8 @@
 (def ACEValue
   (schema/conditional
    map? ExtensionRule
-   string? String
-   sequential? [String]
+   string? schema/Str
+   sequential? [schema/Str]
    :else schema/Regex))
 
 (def ACE
@@ -72,11 +72,11 @@
 
 ;; ACE creation
 
-(schema/defn ^:private split-domain :- [String]
+(schema/defn ^:private split-domain :- [schema/Str]
   "Given a domain string, split it on '.' and reverse it. For examples,
   'sylvia.plath.net' becomes ('net' 'plath' 'sylvia'). This is used for domain
   matching."
-  [domain :- String]
+  [domain :- schema/Str]
   (-> domain
       (clojure.string/lower-case)
       (clojure.string/split #"\.")
@@ -144,17 +144,17 @@
       (boolean (re-find (re-pattern value) to-match))
       (every? (fn [[a b]] (= a b)) (map vector value match-split-domain)))))
 
-(schema/defn ^:private substitute-backreference :- String
+(schema/defn ^:private substitute-backreference :- schema/Str
   "substiture $1, $2... by the same index in the captures vector"
-  [in :- String
-   captures :- [String]]
+  [in :- schema/Str
+   captures :- [schema/Str]]
   (clojure.string/replace in #"\$(\d+)" #(nth captures (- (read-string (second %)) 1))))
 
 (schema/defn interpolate-backreference :- ACE
   "change all possible backreferences in ace patterns to values from the
   capture groups"
   [{:keys [match auth-type] :as ace} :- ACE
-   captures :- [String]]
+   captures :- [schema/Str]]
   (if (= match :backreference)
     (new-domain auth-type
                 {:certname (clojure.string/join "." (map #(substitute-backreference % captures)
