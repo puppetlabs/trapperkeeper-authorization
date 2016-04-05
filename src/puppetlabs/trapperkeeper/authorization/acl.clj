@@ -87,7 +87,7 @@
   [auth-type :- AuthType
    {:keys [certname extensions]} :- ACEConfig]
   (cond
-    ;; CSR Attributes
+    ;; SSL Extensions
     (map? extensions)
     {:auth-type auth-type
      :match :extensions
