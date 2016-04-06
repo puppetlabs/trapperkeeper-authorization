@@ -5,7 +5,7 @@
     [puppetlabs.ssl-utils.core :as ssl-utils]
     [puppetlabs.trapperkeeper.app :refer [get-service]]
     [puppetlabs.trapperkeeper.authorization.rules :as rules]
-    [puppetlabs.trapperkeeper.authorization.testutils :as testutils :refer :all]
+    [puppetlabs.trapperkeeper.authorization.testutils :as testutils]
     [puppetlabs.trapperkeeper.services :refer [defservice]]
     [puppetlabs.trapperkeeper.services.authorization.authorization-service
      :refer [authorization-service]]
@@ -120,11 +120,11 @@
 
 (def base-request
   "A basic request to feed into the tests"
-  (request "/" :get "127.0.0.1" (create-certificate "test.domain.org") ))
+  (testutils/request "/" :get "127.0.0.1" (testutils/create-certificate "test.domain.org") ))
 
 (def unauthenticated-request
   "A basic unauthenticated request to feed into the tests"
-  (request "/" :get "127.0.0.1"))
+  (testutils/request "/" :get "127.0.0.1"))
 
 (defprotocol EchoReverseService
   (echo-reverse [this msg]))
@@ -217,7 +217,7 @@
         (is (= status 403) "Unauthentic requests are denied with allow-unauthenticated false"))))
   (testing "With a minimal config of an empty list of rules"
     (let [app (build-ring-handler [])
-          req (request "/path/to/foo" :get "127.0.0.1" test-domain-cert)
+          req (testutils/request "/path/to/foo" :get "127.0.0.1" testutils/test-domain-cert)
           {:keys [status body]} (app req)]
       (is (= status 403))
       (is (= body "global deny all - no rules matched"))))
@@ -232,17 +232,17 @@
                        "denied by rule 'puppetlabs catalog'.")))))
   (testing "Evaluation against rule with 'method' restrictions"
     (let [app (build-ring-handler default-rules)]
-      (let [req (request "/puppet-ca/v1/certificate_request/ca"
-                         :head "127.0.0.1" test-domain-cert)
+      (let [req (testutils/request "/puppet-ca/v1/certificate_request/ca"
+                         :head "127.0.0.1" testutils/test-domain-cert)
             {:keys [status body]} (app req)]
         (is (= status 403))
         (is (= body "global deny all - no rules matched")))
-      (let [req (request "/puppet-ca/v1/certificate_request/ca"
-                         :get "127.0.0.1" test-domain-cert)
+      (let [req (testutils/request "/puppet-ca/v1/certificate_request/ca"
+                         :get "127.0.0.1" testutils/test-domain-cert)
             {:keys [status]} (app req)]
         (is (= status 200)))
-      (let [req (request "/puppet-ca/v1/certificate_request/ca"
-                         :put "127.0.0.1" test-domain-cert)
+      (let [req (testutils/request "/puppet-ca/v1/certificate_request/ca"
+                         :put "127.0.0.1" testutils/test-domain-cert)
             {:keys [status]} (app req)]
         (is (= status 200))))))
 
@@ -269,8 +269,8 @@
                   (update-in [:headers] merge
                              {"x-client-dn" "CN=test.domain.org"
                               "x-client-verify" "SUCCESS"
-                              "x-client-cert" (url-encoded-cert
-                                                test-domain-cert)}))
+                              "x-client-cert" (testutils/url-encoded-cert
+                                                testutils/test-domain-cert)}))
           response (app req)
           authorization (get-in response [:request :authorization])]
       (is (= 200 (:status response)))
@@ -433,12 +433,12 @@
           [plumbing-service authorization-service]
           (assoc-in minimal-config [:authorization :rules] rules-w-exts)
           (testing "allowed request via extensions"
-            (let [req (request "/puppet/v4/catalog" :get "127.0.0.1" allowable-cert)]
+            (let [req (testutils/request "/puppet/v4/catalog" :get "127.0.0.1" allowable-cert)]
               (is (-> (get-service app :PlumbingService)
                       (call-authorization-check req {:oid-map oid-map})
                       rules/authorized?))))
           (testing "denied request via extensions"
-            (let [req (request "/puppet/v4/catalog" :get "127.0.0.1" deniable-cert)]
+            (let [req (testutils/request "/puppet/v4/catalog" :get "127.0.0.1" deniable-cert)]
               (is (not (-> (get-service app :PlumbingService)
                            (call-authorization-check req {:oid-map oid-map})
                            rules/authorized?)))))
