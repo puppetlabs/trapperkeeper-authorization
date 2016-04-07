@@ -126,17 +126,17 @@
 (deftest test-acl-certname-matching-with-captures
   (testing "matching backreference of simple name"
     (let [acl (acl/allow {:certname "$1.google.com"})]
-      (is (acl/allowed? acl {:certname "www.google.com" :extensions {}} ["www"]))))
+      (is (acl/allowed? acl {:certname "www.google.com" :extensions {}} {:captures ["www"]}))))
   (testing "matching backreference of opaque name"
     (let [acl (acl/allow {:certname "$1"})]
       (is (acl/allowed? acl {:certname "c216f41a-f902-4bfb-a222-850dd957bebb"
                              :extensions {}}
-                        ["c216f41a-f902-4bfb-a222-850dd957bebb"]))))
+                        {:captures ["c216f41a-f902-4bfb-a222-850dd957bebb"]}))))
   (testing "matching backreference of name"
     (let [acl (acl/allow {:certname "$1"})]
       (is (acl/allowed? acl {:certname "admin.mgmt.nym1"
                              :extensions {}}
-                        ["admin.mgmt.nym1"])))))
+                        {:captures ["admin.mgmt.nym1"]})))))
 
 (defn challenge
   ([extensions]
@@ -170,6 +170,24 @@
         (is (allowed? (challenge {:style "sonnet" :author "olds"})))
         (is (!allowed? (challenge {:style "haiku" :author "olds"})))
         (is (!allowed? (challenge {:style "sestina" :author "burroughs"})))))
+
+    (testing "with raw OIDs in the rules"
+      (let [oid-map {"1.2.3.4.5.6.7" :gnarly
+                     "7.6.5.4.3.2.1" :times}
+            allowed? #(acl/allowed? (-> (acl/allow {:extensions {:author "olds"
+                                                                 :1.2.3.4.5.6.7 "foo"}})
+                                        (acl/deny {:extensions {:7.6.5.4.3.2.1 "bar"}}))
+                                    %
+                                    {:oid-map oid-map})
+            !allowed? (comp not allowed?)]
+
+        (is (allowed? (challenge {:gnarly "foo"
+                                  :author "olds"})))
+        (is (!allowed? (challenge {:gnarly "bar"})))
+        (is (!allowed? (challenge {:times "bar"})))
+        (is (!allowed? (challenge {:times "bar"
+                                   :author "olds"
+                                   :gnarly "foo"})))))
     (testing "with a varied ACL"
       (let [allowed? (partial acl/allowed?
                               (-> (acl/allow {:extensions {:style ["sonnet" "prose" "sestina"]}})

@@ -194,19 +194,24 @@
 (schema/defn allowed? :- AuthorizationResult
   "Checks if a request is allowed access given the list of rules. Rules
    will be checked in the given order; use `sort-rules` to first sort them."
-  [rules :- [Rule]
-   request :- ring/Request]
-  (if-let [{:keys [rule matches]} (some #(match? % request) rules)]
-    (if (true? (:allow-unauthenticated rule))
-      (allow-request request rule "allow-unauthenticated is true - allowed")
-      (if (and (true? (ring/authorized-authenticated request))
-               (acl/allowed? (:acl rule)
-                             {:certname (ring/authorized-name request)
-                              :extensions (ring/authorized-extensions request)}
-                             matches))
-        (allow-request request rule "")
-        (deny-request request rule (request->description request rule))))
-    (deny-request request nil "global deny all - no rules matched")))
+  ([rules :- [Rule]
+    request :- ring/Request]
+   (allowed? rules {} request))
+  ([rules :- [Rule]
+    oid-map :- acl/OIDMap
+    request :- ring/Request]
+   (if-let [{:keys [rule matches]} (some #(match? % request) rules)]
+     (if (true? (:allow-unauthenticated rule))
+       (allow-request request rule "allow-unauthenticated is true - allowed")
+       (if (and (true? (ring/authorized-authenticated request))
+                (acl/allowed? (:acl rule)
+                              {:certname (ring/authorized-name request)
+                               :extensions (ring/authorized-extensions request)}
+                              {:oid-map oid-map
+                               :captures matches}))
+         (allow-request request rule "")
+         (deny-request request rule (request->description request rule))))
+     (deny-request request nil "global deny all - no rules matched"))))
 
 (schema/defn authorized? :- schema/Bool
   [result :- AuthorizationResult]

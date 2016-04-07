@@ -3,6 +3,11 @@
 
 ;; Schemas
 
+(def OIDMap
+  "Mapping of string OIDs to shortname keywords. Used to update an incoming
+  request with a shortname -> value extensions map."
+  {schema/Str schema/Keyword})
+
 (def Extensions
   "Schema for representing SSL Extensions. Maps from a keyword shortname to a
   string value."
@@ -174,11 +179,14 @@
   *ONLY* a request with both :pp_env set to 'test' and :pp_image set to 'bad
   image' would be denied. If *any* request with :pp_env set to 'test' is to be
   denied, it needs a standalone deny rule."
-  [ace :- ACE
+  [oid-map :- OIDMap
+   ace :- ACE
    extensions :- Extensions]
   (let [match-key (fn [k]
                     (let [ace-value (get (:value ace) k)
-                          ext-value (get extensions k false)]
+                          ;; potentially translate from oid -> shortname
+                          k' (get oid-map (name k) k)
+                          ext-value (get extensions k' false)]
                       (if ext-value
                         (if (sequential? ace-value)
                           (some (partial = ext-value) ace-value)
@@ -188,18 +196,22 @@
 
 (schema/defn match? :- schema/Bool
   "Returns true if the given value matches the given ace"
-  [{:keys [match] :as acl-ace} :- ACE
-   {:keys [certname extensions]} :- ACEChallenge]
-  (cond
-    (= :extensions match)
-    (if (nil? extensions)
-      false
-      (match-extensions? acl-ace extensions))
+  ([acl-ace :- ACE
+    incoming-ace :- ACEChallenge]
+   (match? acl-ace incoming-ace {}))
+  ([{:keys [match] :as acl-ace} :- ACE
+    {:keys [certname extensions]} :- ACEChallenge
+    oid-map :- OIDMap]
+   (cond
+     (= :extensions match)
+     (if (nil? extensions)
+       false
+       (match-extensions? oid-map acl-ace extensions))
 
-    :else
-    (if (nil? certname)
-      false
-      (match-domain? acl-ace certname))))
+     :else
+     (if (nil? certname)
+       false
+       (match-domain? acl-ace certname)))))
 
 ;; ACL creation
 
@@ -235,12 +247,15 @@
   "Returns true if the name is allowed by acl, otherwise returns false"
   ([acl :- ACL
     incoming-ace :- ACEChallenge]
-    (allowed? acl incoming-ace []))
+    (allowed? acl incoming-ace {}))
   ([acl :- ACL
     incoming-ace :- ACEChallenge
-    captures :- [schema/Str]]
-   (let [interpolated-acl (map #(interpolate-backreference % captures) acl)
-         match (some #(if (match? % incoming-ace) % false) interpolated-acl)]
+    options :- {(schema/optional-key :captures) [schema/Str]
+                (schema/optional-key :oid-map) OIDMap}]
+   (let [captures (get options :captures [])
+         oid-map (get options :oid-map {})
+         interpolated-acl (map #(interpolate-backreference % captures) acl)
+         match (some #(if (match? % incoming-ace oid-map) % false) interpolated-acl)]
       (if match
         (allow? match)
         false))))

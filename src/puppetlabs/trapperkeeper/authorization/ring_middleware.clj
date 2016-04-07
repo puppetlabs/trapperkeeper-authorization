@@ -18,11 +18,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private
 
-(def OIDMap
-  "Mapping of string OIDs to shortname keywords. Used to update an incoming
-  request with a shortname -> value extensions map."
-  {schema/Str schema/Keyword})
-
 (def header-cert-name
   "Name of the HTTP header through which a client certificate can be passed
   for a request."
@@ -212,7 +207,7 @@
   to short names."
   [request :- ring/Request
    allow-header-cert-info :- schema/Bool
-   oid-map :- OIDMap]
+   oid-map :- acl/OIDMap]
   (if-let [cert (request->cert request allow-header-cert-info)]
     (let [extensions (ssl-utils/get-extensions cert)
           translate-oids (fn [out extension]
@@ -226,7 +221,7 @@
 (schema/defn add-authinfo :- ring/Request
   "Add authentication information to the ring request."
   [allow-header-cert-info :- schema/Bool
-   oid-map :- OIDMap
+   oid-map :- acl/OIDMap
    request :- ring/Request]
   (let [name (request->name request allow-header-cert-info)
         extensions (request->extensions request
@@ -280,11 +275,11 @@
    (authorization-check request rules {} allow-header-cert-info))
   ([request :- ring/Request
     rules :- [rules/Rule]
-    oid-map :- OIDMap
+    oid-map :- acl/OIDMap
     allow-header-cert-info :- schema/Bool]
    (->> (assoc-query-params request)
         (add-authinfo allow-header-cert-info oid-map)
-        (rules/allowed? rules))))
+        (rules/allowed? rules oid-map))))
 
 (schema/defn wrap-authorization-check :- IFn
   "Middleware that checks if the request is allowed by the provided rules,
@@ -295,7 +290,7 @@
    (wrap-authorization-check handler rules {} allow-header-cert-info))
   ([handler :- IFn
     rules :- [rules/Rule]
-    oid-map :- OIDMap
+    oid-map :- acl/OIDMap
     allow-header-cert-info :- schema/Bool]
    (fn [req]
      (let [{:keys [authorized message request]}
