@@ -2,7 +2,8 @@
   (:require [clojure.string :as str]
             [puppetlabs.kitchensink.core :as ks]
             [schema.core :as schema]
-            [puppetlabs.trapperkeeper.authorization.rules :as rules])
+            [puppetlabs.trapperkeeper.authorization.rules :as rules]
+            [puppetlabs.trapperkeeper.authorization.acl :as acl])
   (:import (java.util.regex PatternSyntaxException)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -19,6 +20,34 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private
+
+(defn ^:private reject! [& strings]
+  (throw (IllegalArgumentException. (apply str strings))))
+
+(schema/defn validate-ace-config-map!
+  [config-value :- (schema/pred map? "map?")]
+  (when (:extensions config-value)
+    (when-not (nil? (schema/check acl/ExtensionRule (:extensions config-value)))
+      (reject! "extensions key should map an extension to a value or list of values; got "
+               (:extensions config-value))))
+
+  (when (:certname config-value)
+    (when-not (nil? (schema/check schema/Str config-value))
+      (reject! (format "certname key should map to a string; got '%s'" (:certname config-value)))))
+
+  (when (or (not (or (:extensions config-value) (:certname config-value)))
+            (and (:extensions config-value) (:certname config-value)))
+    (reject! "ACL Definition must contain exactly one of 'certname' or 'extensions' keys;"
+             (format " got '%s'" config-value))))
+
+(schema/defn canonicalize-acl :- acl/ACEConfig
+  [config-value]
+  (cond
+    (string? config-value) {:certname config-value}
+    (map? config-value) (do (validate-ace-config-map! config-value)
+                            config-value)
+    :else (reject! (format "Unable to parse ACL; expected string or map but got: '%s'"
+                           config-value))))
 
 (defn pprint-rule
   [rule]
@@ -51,8 +80,10 @@
     (add-individual-acl :allow \"*.domain.org\" rule)
   "
   [acl-type value rule]
-  (let [v (vec (flatten [value]))]
-    (reduce #((get acl-func-map acl-type) %1 %2) rule v)))
+  (let [values (->> [value]
+               flatten
+               (mapv canonicalize-acl))]
+    (reduce #((get acl-func-map acl-type) %1 %2) rule values)))
 
 (defn add-acl
   "Add various ACL to the incoming rule, based on content of the config-map"
@@ -105,10 +136,9 @@
                           (.matcher "")
                           .groupCount)
                       (catch PatternSyntaxException e
-                        (throw (IllegalArgumentException.
-                                (str "The path regex provided in the rule"
-                                     " defined as " (pprint-rule rule)
-                                     " is invalid: " (.getMessage e))))))
+                        (reject! "The path regex provided in the rule"
+                                 " defined as " (pprint-rule rule)
+                                 " is invalid: " (.getMessage e))))
         get-br-list (fn [match-str]
                       (map #(Integer/parseInt (second %))
                            (re-seq #"\$(\d+)" match-str)))
@@ -122,11 +152,10 @@
     (doseq [[largest field] [[largest-allow-br "allow"]
                              [largest-deny-br "deny"]]
             :when (> largest group-count)]
-      (throw (IllegalArgumentException.
-              (str "The " field " field provided in the rule specified as "
-                   (pprint-rule rule) " contains the back reference '$"
-                   largest "' which refers to a capture group in "
-                   "the regex that doesn't exist."))))))
+      (reject! "The " field " field provided in the rule specified as "
+               (pprint-rule rule) " contains the back reference '$"
+               largest "' which refers to a capture group in "
+               "the regex that doesn't exist."))))
 
 (defn validate-auth-config-rule!
   "Tests to see if the given map contains the proper data to define an auth
@@ -134,95 +163,79 @@
   with a useful error message."
   [rule]
   (when-not (map? rule)
-    (throw (IllegalArgumentException.
-            "An authorization rule should be specified as a map.")))
+    (reject! "An authorization rule should be specified as a map."))
   (when-not (:match-request rule)
-    (throw (IllegalArgumentException.
-            "An authorization rule must contain a 'match-request' section.")))
+    (reject! "An authorization rule must contain a 'match-request' section."))
   (doseq [k [:path :type]]
     (when-not (contains? (:match-request rule) k)
-      (throw (IllegalArgumentException.
-              (str "The authorization rule specified as " (pprint-rule rule)
-                   " does not contain a '" (name k) "' key.")))))
+      (reject! "The authorization rule specified as " (pprint-rule rule)
+               " does not contain a '" (name k) "' key.")))
   (doseq [k [:sort-order :name]]
     (when-not (get rule k)
-      (throw (IllegalArgumentException.
-              (str "The authorization rule specified as " (pprint-rule rule)
-                   " does not contain a '" (name k) "' key.")))))
+      (reject! "The authorization rule specified as " (pprint-rule rule)
+               " does not contain a '" (name k) "' key.")))
   (when (or (not (integer? (:sort-order rule)))
             (< (:sort-order rule) 1)
             (> (:sort-order rule) 999))
-    (throw (IllegalArgumentException.
-            (str "The sort-order set in the authorization rule specified as "
-                 (pprint-rule rule) " is invalid. It should be a number "
-                 "from 1 to 999."))))
+    (reject! "The sort-order set in the authorization rule specified as "
+             (pprint-rule rule) " is invalid. It should be a number "
+             "from 1 to 999."))
   (if (:allow-unauthenticated rule)
     (if (some #{:deny :allow} (keys rule))
-      (throw (IllegalArgumentException.
-              (str "Authorization rule specified as  " (pprint-rule rule)
-                   " cannot have allow or deny if allow-unauthenticated."))))
+      (reject! "Authorization rule specified as  " (pprint-rule rule)
+               " cannot have allow or deny if allow-unauthenticated."))
     (when-not (some #{:deny :allow} (keys rule))
-      (throw (IllegalArgumentException.
-              (str "Authorization rule specified as " (pprint-rule rule)
-                   " must contain either a 'deny' or 'allow' rule.")))))
+      (reject! "Authorization rule specified as " (pprint-rule rule)
+               " must contain either a 'deny' or 'allow' rule.")))
   (when-not (string? (:type (:match-request rule)))
-    (throw (IllegalArgumentException.
-            (str "The type set in the authorization rule specified "
-                 "as " (pprint-rule rule) " should be a "
-                 "string that is either 'path' or 'regex'."))))
+    (reject! "The type set in the authorization rule specified "
+             "as " (pprint-rule rule) " should be a "
+             "string that is either 'path' or 'regex'."))
   (let [type (-> rule :match-request :type name str/lower-case)]
     (when-not (or (= type "path") (= type "regex"))
-      (throw (IllegalArgumentException.
-              (str "The type set in the authorization rule specified "
-                   "as " (pprint-rule rule) " is invalid. "
-                   "It should be set to either 'path' or 'regex'.")))))
+      (reject! "The type set in the authorization rule specified "
+               "as " (pprint-rule rule) " is invalid. "
+               "It should be set to either 'path' or 'regex'.")))
   (when-not (string? (:path (:match-request rule)))
-    (throw (IllegalArgumentException.
-            (str "The path set in the authorization rule specified as "
-                 (pprint-rule rule) " is invalid. "
-                 "It should be a string."))))
+    (reject! "The path set in the authorization rule specified as "
+             (pprint-rule rule) " is invalid. "
+             "It should be a string."))
   (when-not (valid-method? rule)
-    (throw (IllegalArgumentException.
-            (str "The method specified in the authorization rule specified as "
-                 (pprint-rule rule) " is invalid. "
-                 "It should be either a string or list of strings that is "
-                 "equal to one of the following methods: '"
-                 (str/join "', '" (sort valid-methods)) "'"))))
+    (reject! "The method specified in the authorization rule specified as "
+             (pprint-rule rule) " is invalid. "
+             "It should be either a string or list of strings that is "
+             "equal to one of the following methods: '"
+             (str/join "', '" (sort valid-methods)) "'"))
   (when (= "regex" (-> rule :match-request :type name str/lower-case))
     (validate-regex-backreferences! rule))
-  (doseq [[type names] (select-keys rule [:allow :deny])]
-    (if (vector? names)
-      (when-not (every? string? names)
-        (throw (IllegalArgumentException.
-                (str "The " (name type) " list in the rule specified as "
-                     (pprint-rule rule)
-                     " contains one or more names that are not strings."))))
-      (when-not (string? names)
-        (throw (IllegalArgumentException.
-                (str "The name '" names "' in the '" (name type) "' field of "
-                     "the rule specified as " (pprint-rule rule) " is invalid. "
-                     "It should be a string."))))))
+  (doseq [[type aces] (select-keys rule [:allow :deny])]
+    (if (vector? aces)
+      (when-not (every? #(or (string? %) (map? %)) aces)
+        (reject! "The " (name type) " list in the rule specified as "
+                 (pprint-rule rule)
+                 " contains one or more aces that are not maps or strings."))
+      (when-not (or (map? aces) (string? aces))
+        (reject! "The ACE '" aces "' in the '" (name type) "' field of "
+                 "the rule specified as " (pprint-rule rule) " is invalid. "
+                 "It should be a string or a map with keys :extensions or :certname."))))
   (when-let [query-params (:query-params (:match-request rule))]
     (when-not (map? query-params)
-      (throw (IllegalArgumentException. "Rule query-params must be a map.")))
+      (reject! "Rule query-params must be a map."))
     (doseq [param (keys query-params)
             :let [value (get query-params param)]]
       (when-not (keyword? param)
-        (throw (IllegalArgumentException.
-                (str "The query-param '" param "' in the rule specified as "
-                     (pprint-rule rule) " is invalid. It should be a string."))))
+        (reject! "The query-param '" param "' in the rule specified as "
+                 (pprint-rule rule) " is invalid. It should be a string."))
       (when-not (or (string? value)
                     (vector? value))
-        (throw (IllegalArgumentException.
-                (str "The query-param value for '" param "' in the rule "
-                     "specified as " (pprint-rule rule) " is invalid. "
-                     "It should be a string or list of strings."))))
+        (reject! "The query-param value for '" param "' in the rule "
+                 "specified as " (pprint-rule rule) " is invalid. "
+                 "It should be a string or list of strings."))
       (when (vector? value)
         (when-not (every? string? value)
-          (throw (IllegalArgumentException.
-                  (str "The '" param "' query-param in the rule specified as "
-                       (pprint-rule rule) " contains one or more values that "
-                       "are not strings.")))))))
+          (reject! "The '" param "' query-param in the rule specified as "
+                   (pprint-rule rule) " contains one or more values that "
+                   "are not strings.")))))
   rule)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -234,30 +247,24 @@
   the input config will be returned."
   [config]
   (when-not config
-    (throw (IllegalArgumentException.
-            "Missing authorization service configuration.")))
+    (reject! "Missing authorization service configuration."))
   (when-not (map? config)
-    (throw (IllegalArgumentException.
-            "The authorization service configuration is not a map.")))
+    (reject! "The authorization service configuration is not a map."))
   (let [allow-header-cert-info (:allow-header-cert-info config)]
     (when (and (not (nil? allow-header-cert-info))
                (not (ks/boolean? allow-header-cert-info)))
-      (throw (IllegalArgumentException.
-              "allow-header-cert-info is not a boolean."))))
+      (reject! "allow-header-cert-info is not a boolean.")))
   (when-not (= 1 (:version config))
-    (throw (IllegalArgumentException.
-            (str "Unsupported or missing version in configuration file. "
-                 "Supported versions are: 1"))))
+    (reject! "Unsupported or missing version in configuration file. "
+             "Supported versions are: 1"))
   (when-not (vector? (:rules config))
-    (throw (IllegalArgumentException.
-            "The authorization service configuration rules is not a list.")))
+    (reject! "The authorization service configuration rules is not a list."))
   (doseq [rule (:rules config)]
     (validate-auth-config-rule! rule))
   (doseq [[name rules] (group-by :name (:rules config))]
     (when-not (= 1 (count rules))
-      (throw (IllegalArgumentException.
-              (str "Duplicate rules named '" name "'. "
-                   "Rules must be uniquely named.")))))
+      (reject! "Duplicate rules named '" name "'. "
+               "Rules must be uniquely named.")))
   config)
 
 (schema/defn transform-config :- [rules/Rule]

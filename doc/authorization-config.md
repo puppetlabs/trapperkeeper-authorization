@@ -443,6 +443,44 @@ authorization: {
 }
 ~~~~
 
+... or a single map value with an extension key ...
+
+~~~~hocon
+authorization: {
+    version: 1
+    rules: [
+            {
+                match-request: {...}
+                allow: {
+                    extensions: {
+                        my_ssl_extension: some_value
+                    }
+                }
+                sort-order: 1
+                name: "my path"
+            }
+    ]
+}
+~~~~
+
+... or a single map value with a certname key (equivalent to a bare string) ...
+
+~~~~hocon
+authorization: {
+    version: 1
+    rules: [
+            {
+                match-request: {...}
+                allow: {
+                    certname: node1
+                }
+                sort-order: 1
+                name: "my path"
+            }
+    ]
+}
+~~~~
+
 ... or as an array of values ...
 
 ~~~~hocon
@@ -451,7 +489,7 @@ authorization: {
     rules: [
             {
                 match-request: {...}
-                allow: [ node1, node2, node3 ]
+                allow: [ node1, node2, node3, {extensions:{ext_shortname1: value1, ext_shortname2: value2}} ]
                 sort-order: 1
                 name: "my path"
             }
@@ -494,6 +532,101 @@ One of the following forms may be used as the value for an `allow` entry:
  of `xyz.domain.org` and a request URL of
  `"http://my-host:8080/the/path/xyz"`, however, would not be considered a 
  match for the entry.
+ 
+ * A map with either a `certname` or `extensions` key. The former behaves
+   exactly as a standalone string. The latter is used to specify a set of X.509
+   extensions to match. Each key specified in the extensions map must appear in
+   the request and the values are matched exactly (no wildcarding). Extensions
+   in the request not explicitly listed here are ignored. Note that a given
+   extension map won't match if not **all** keys match. If you want an "or"
+   relationship between extensions, split them into different extension maps.
+   You may also use a list of values when writing an extension map. A request
+   will match as long as it has an extension value that appears in the list for
+   a given key.
+ 
+   For example, given the rules:
+ 
+   ~~~~hocon
+   allow: [{extensions: {role: "compilemaster"
+                         env: "prod1"}}
+           {extensions: {role: console"
+                         env: ["appgroup1", "prod1"]}}],
+   deny: [{extensions: {env: ["test", "dev"]}}
+          {extensions: {role: "puppetdb"}}
+          {extensions: {role: "console", pp_env: "demo"}}]
+   ~~~~
+ 
+   Requests with the following extension maps would be **denied**:
+
+   ~~~~clojure
+   ;; Denied by env: test rule
+   {:role "compilemaster"
+    :env "test"
+     ;; irrelevant keys elided
+   }
+   ~~~~
+ 
+   ~~~~clojure
+   ;; Denied since this combo of role and env does not appear in an allow rule
+   {:role "compilemaster"
+    :env "appgroup2"
+    ;; irrelevant keys elided
+   }
+   ~~~~
+
+   ~~~~clojure
+   ;; Denied by role: puppetdb rule
+   {:role "puppetdb"
+    :env "prod1"
+    ;; irrelevant keys elided
+   }
+   ~~~~
+
+   ~~~~clojure
+   ;; Denied since role nor env keys are never matched by an auth rule
+   {:role "mco"
+    :env "prod1"
+    ;; irrelevant keys elided
+   }
+   ~~~~
+
+   ~~~~clojure
+   ;; Denied since experimental is neither appgroup1 nor prod1
+   {:role "console"
+    :env "experimental"
+    ;; irrelevant keys elided
+   }
+   ~~~~
+
+   The following request extension maps would be **allowed**:
+
+   ~~~~clojure
+   {:role "compilemaster"
+    :env "prod1"
+    ;; irrelevant keys elided
+   }
+   ~~~~
+
+   ~~~~clojure
+   {:role "console"
+    :env "prod1"
+    ;; irrelevant keys elided
+   }
+   ~~~~
+
+   ~~~~clojure
+   {:role "console"
+    :env "appgroup1"
+    ;; irrelevant keys elided
+   }
+   ~~~~
+
+   ~~~~clojure
+   {:role "console"
+    :env "appgroup1"
+    ;; irrelevant keys elided
+   }
+   ~~~~
 
 #### `deny`
 
@@ -518,6 +651,44 @@ authorization: {
 }
 ~~~~
 
+... or a single map value with an extension key ...
+
+~~~~hocon
+authorization: {
+    version: 1
+    rules: [
+            {
+                match-request: {...}
+                deny: {
+                    extensions: {
+                        my_ssl_extension: some_value
+                    }
+                }
+                sort-order: 1
+                name: "my path"
+            }
+    ]
+}
+~~~~
+
+... or a single map value with a certname key (equivalent to a bare string) ...
+
+~~~~hocon
+authorization: {
+    version: 1
+    rules: [
+            {
+                match-request: {...}
+                deny: {
+                    certname: node1
+                }
+                sort-order: 1
+                name: "my path"
+            }
+    ]
+}
+~~~~
+
 ... or as an array of values ...
 
 ~~~~hocon
@@ -526,7 +697,7 @@ authorization: {
     rules: [
             {
                 match-request: {...}
-                deny: [ node1, node2, node3 ]
+                deny: [ node1, node2, node3, {extensions:{ext_name:value}} ]
                 sort-order: 1
                 name: "my path"
             }

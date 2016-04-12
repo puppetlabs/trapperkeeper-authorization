@@ -29,12 +29,12 @@
    Pass the ACL through the vec function when asserting against this
    definition."
   [{:auth-type :deny
-    :pattern   ["com"
+    :value   ["com"
                 "guy"
                 "bald"]
     :match      :string}
    {:auth-type :allow
-    :pattern   ["org"
+    :value   ["org"
                 "domain"
                 "www"]
     :match      :string}])
@@ -162,7 +162,7 @@
 
     (is (thrown-with-msg?
           IllegalArgumentException
-          #".* contains one or more names that are not strings."
+          #".* contains one or more aces that are not maps or strings."
           (validate-auth-config-rule! (assoc testrule :deny ["one.anem" 23]))))
 
     (is (thrown-with-msg?
@@ -293,10 +293,10 @@
     (testing "Allow rules with no deny are returned in order"
       (let [m (merge base-path-auth allow-list)
             {:keys [acl]} (config->rule m)]
-        (is (= ["org" "domain"] (:pattern (first acl))))
-        (is (= ["com" "test"] (:pattern (second acl))))))
+        (is (= ["org" "domain"] (:value (first acl))))
+        (is (= ["com" "test"] (:value (second acl))))))
     (testing "Deny rules with no allow are returned in order"
       (let [m (merge base-path-auth deny-list)
             {:keys [acl]} (config->rule m)]
-        (is (= ["com" "eagle" "bald"] (:pattern (first acl))))
-        (is (= ["com" "bull" "bald"] (:pattern (second acl))))))))
+        (is (= ["com" "eagle" "bald"] (:value (first acl))))
+        (is (= ["com" "bull" "bald"] (:value (second acl))))))))
