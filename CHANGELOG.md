@@ -1,3 +1,8 @@
+### 0.6.0
+
+ * [TK-293](https://tickets.puppetlabs.com/browse/TK-293) Allow authorization
+   rules that match on CSR Attributes instead of just certname
+
 ### 0.5.0
 
  * [TK-286](https://tickets.puppetlabs.com/browse/TK-286) Rename API term
