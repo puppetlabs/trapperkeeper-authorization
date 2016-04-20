@@ -226,6 +226,15 @@
              :name "base-regex-auth"})))
 
     (is (thrown-with-msg?
+         IllegalArgumentException
+         #"contains the back reference '\$1' which refers to a capture group in the regex that doesn't exist."
+         (validate-auth-config-rule!
+          {:match-request {:path "/some/thing" :type "regex"}
+           :allow {:certname "$1"}
+           :sort-order 500
+           :name "base-regex-auth"})))
+
+    (is (thrown-with-msg?
           IllegalArgumentException
           #"contains the back reference '\$2' which refers to a capture group in the regex that doesn't exist."
           (validate-auth-config-rule!
@@ -233,6 +242,15 @@
              :allow "$1$2"
              :sort-order 500
              :name "base-regex-auth"})))
+
+    (is (thrown-with-msg?
+         IllegalArgumentException
+         #"contains the back reference '\$2' which refers to a capture group in the regex that doesn't exist."
+         (validate-auth-config-rule!
+          {:match-request {:path "/some/(thing)" :type "regex"}
+           :allow ["foo" {:certname "$1$2"}]
+           :sort-order 500
+           :name "base-regex-auth"})))
 
     (is (thrown-with-msg?
           IllegalArgumentException
