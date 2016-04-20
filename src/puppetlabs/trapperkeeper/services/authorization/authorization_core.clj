@@ -142,9 +142,16 @@
         get-br-list (fn [match-str]
                       (map #(Integer/parseInt (second %))
                            (re-seq #"\$(\d+)" match-str)))
+        get-certname-list (fn [rule]
+                            (cond
+                              (string? rule) (list rule)
+                              (map? rule) (list (get rule :certname ""))
+                              (seq? rule) (for [x rule]
+                                                 (if (map? x) (get x :certname "") x))
+                              :else (list "")))
         largest-br (fn [match]
                      (let [br-list (mapcat get-br-list
-                                           (flatten [(or match "")]))]
+                                           (get-certname-list match))]
                        (when (> (count br-list) 0)
                          (apply max br-list))))
         largest-allow-br (or (largest-br (:allow rule)) 0)

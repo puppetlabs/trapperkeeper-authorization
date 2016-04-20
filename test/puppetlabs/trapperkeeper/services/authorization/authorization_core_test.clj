@@ -13,8 +13,12 @@
                       :sort-order 500 :name "base-regex-auth"})
 (def allow-single {:allow "www.domain.org"})
 (def allow-list {:allow ["*.domain.org" "*.test.com"]})
+(def allow-list-of-maps {:allow ["foo.bar.com", {:extensions {:foo "bar"}}]})
+(def allow-map {:allow {:certname "bald.fish.com"}})
 (def deny-single {:deny "bald.guy.com"})
 (def deny-list {:deny ["bald.eagle.com" "bald.bull.com"]})
+(def deny-map {:deny {:extensions {:thing "bald.wolf.com"}}})
+(def deny-list-of-maps {:deny ["foo.bar.com", {:certname "bar.nate.wolfe"}]})
 (def single-query-param {:match-request {:query-params {:environment "production"}}})
 (def multi-query-param {:match-request {:query-params {:env ["prod" "staging"]}}})
 (def allow-unauthenticated {:allow-unauthenticated true})
@@ -42,8 +46,8 @@
 (deftest valid-configs-pass
   (testing "Valid forms of a auth config pass"
     (doseq [base [base-path-auth base-regex-auth]
-            allow [allow-list allow-single nil]
-            deny [deny-list deny-single nil]
+            allow [allow-list allow-single allow-map allow-list-of-maps nil]
+            deny [deny-list deny-single deny-map deny-list-of-maps nil]
             methods [{} method-get method-put multiple-methods]
             params [single-query-param multi-query-param]]
       (let [rule (merge-with merge base allow deny params methods)]
