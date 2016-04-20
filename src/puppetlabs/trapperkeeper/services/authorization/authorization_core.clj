@@ -32,7 +32,7 @@
                (:extensions config-value))))
 
   (when (:certname config-value)
-    (when-not (nil? (schema/check schema/Str config-value))
+    (when-not (nil? (schema/check schema/Str (:certname config-value)))
       (reject! (format "certname key should map to a string; got '%s'" (:certname config-value)))))
 
   (when (or (not (or (:extensions config-value) (:certname config-value)))
