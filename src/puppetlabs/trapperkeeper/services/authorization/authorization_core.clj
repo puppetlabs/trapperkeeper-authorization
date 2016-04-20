@@ -146,7 +146,7 @@
                             (cond
                               (string? rule) (list rule)
                               (map? rule) (list (get rule :certname ""))
-                              (seq? rule) (for [x rule]
+                              (sequential? rule) (for [x rule]
                                                  (if (map? x) (get x :certname "") x))
                               :else (list "")))
         largest-br (fn [match]
