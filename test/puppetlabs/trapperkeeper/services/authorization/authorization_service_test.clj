@@ -449,3 +449,108 @@
             (is (not (-> (get-service app :PlumbingService)
                          (call-authorization-check catalog-request-nocert)
                          (rules/authorized?))))))))))
+
+(deftest ^:integration subject-alt-names
+  (testing "Matching subject-alt-name"
+    (let [allowable-alt-names ["testing.domain.org" "foo.domain.org" "domain.foo.org"
+                               "test.domain.com" "truly.good.net"]
+          deniable-alt-names ["testing.bad.org" "foo.bad.org" "bad.foo.org"
+                              "test.bad.com" "lol.naw.edu"]
+          allowable-ext (ssl-utils/subject-dns-alt-names allowable-alt-names false)
+          deniable-ext (ssl-utils/subject-dns-alt-names deniable-alt-names false)
+          allowable-cert (testutils/create-certificate "test.domain.org"
+                                                       [allowable-ext])
+          deniable-cert (testutils/create-certificate "test.bad.org"
+                                                      [deniable-ext])
+          ext-rules (conj basic-rules
+                          {:match-request
+                           {:path "/puppet/v4/catalog"
+                            :type "path"
+                            :method "get"}
+                           :deny {:extensions {:subject-alt-name {:dns-name ["testing.bad.org" "bad.foo.org"]}}}
+                           :allow {:extensions {:subject-alt-name {:dns-name ["foo.domain.org" "test.domain.com"]}}}
+                           :sort-order 100
+                           :name "puppetlabs v4 catalog"})
+          certname-rules (conj basic-rules
+                               {:match-request
+                                {:path "/puppet/v4/catalog"
+                                 :type "path"
+                                 :method "get"}
+                                :deny {:certname "foo.bad.org"}
+                                :allow {:certname "testing.domain.org"}
+                                :sort-order 100
+                                :name "puppetlabs v4 catalog"}
+                               {:match-request
+                                {:path "/puppet/v6/catalog"
+                                 :type "path"
+                                 :method "get"}
+                                :allow "/good/"
+                                :deny "/naw/"
+                                :sort-order 100
+                                :name "puppetlabs v6 catalog"}
+                               {:match-request
+                                {:path "/puppet/v5/catalog"
+                                 :type "path"
+                                 :method "get"}
+                                :allow "*.good.net"
+                                :deny "*.naw.edu"
+                                :sort-order 100
+                                :name "puppetlabs v5 catalog"})
+          auth-opts {:oid-map {}}]
+      (testing "as an extension"
+        (with-test-logging
+          (with-app-with-config
+            app
+            [plumbing-service authorization-service]
+            (assoc-in minimal-config [:authorization :rules] ext-rules)
+            (testing "with allow rule"
+              (let [req (testutils/request "/puppet/v4/catalog" :get "127.0.0.1" allowable-cert)]
+                (is (-> (get-service app :PlumbingService)
+                        (call-authorization-check req auth-opts)
+                        rules/authorized?))))
+            (testing "with deny rule"
+              (let [req (testutils/request "/puppet/v4/catalog" :get "127.0.0.1" deniable-cert)]
+                (is (not (-> (get-service app :PlumbingService)
+                             (call-authorization-check req auth-opts)
+                             rules/authorized?))))))))
+
+      (testing "as a certname match"
+        (with-test-logging
+          (with-app-with-config
+            app
+            [plumbing-service authorization-service]
+            (assoc-in minimal-config [:authorization :rules] certname-rules)
+            (testing "using allowed glob"
+              (let [req (testutils/request "/puppet/v5/catalog" :get "127.0.0.1" allowable-cert)]
+                (is (-> (get-service app :PlumbingService)
+                        (call-authorization-check req auth-opts)
+                        rules/authorized?))))
+
+            (testing "using deniable glob"
+              (let [req (testutils/request "/puppet/v5/catalog" :get "127.0.0.1" deniable-cert)]
+                (is (not (-> (get-service app :PlumbingService)
+                             (call-authorization-check req auth-opts)
+                             rules/authorized?)))))
+
+            (testing "using allowed regex"
+              (let [req (testutils/request "/puppet/v6/catalog" :get "127.0.0.1" allowable-cert)]
+                (is (-> (get-service app :PlumbingService)
+                        (call-authorization-check req auth-opts)
+                        rules/authorized?))))
+
+            (testing "using deniable regex"
+              (let [req (testutils/request "/puppet/v6/catalog" :get "127.0.0.1" deniable-cert)]
+                (is (not (-> (get-service app :PlumbingService)
+                             (call-authorization-check req auth-opts)
+                             rules/authorized?)))))
+
+            (testing "with allow rule"
+              (let [req (testutils/request "/puppet/v4/catalog" :get "127.0.0.1" allowable-cert)]
+                (is (-> (get-service app :PlumbingService)
+                        (call-authorization-check req auth-opts)
+                        rules/authorized?))))
+            (testing "with deny rule"
+              (let [req (testutils/request "/puppet/v4/catalog" :get "127.0.0.1" deniable-cert)]
+                (is (not (-> (get-service app :PlumbingService)
+                             (call-authorization-check req auth-opts)
+                             rules/authorized?)))))))))))

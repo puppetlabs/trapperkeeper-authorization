@@ -1,5 +1,7 @@
 (ns puppetlabs.trapperkeeper.authorization.acl
-  (:require [schema.core :as schema]))
+  (:require [clojure.set :refer [intersection]]
+            [schema.core :as schema]
+            [puppetlabs.ssl-utils.core :refer [subject-alt-name-oid]]))
 
 ;; Schemas
 
@@ -9,15 +11,41 @@
   {schema/Str schema/Keyword})
 
 (def Extensions
-  "Schema for representing SSL Extensions. Maps from a keyword shortname to a
-  string value."
-  {schema/Keyword schema/Str})
+  "Schema for representing SSL Extensions as they come in on a request's
+  certificate. Maps from a keyword shortname to a string value by default with
+  special casing for more complex keys. The only special key supported now is
+  :subject-alt-name which contains a map of keyword to lists of strings (if
+  present at all)."
+  {schema/Keyword schema/Str
+   (schema/optional-key :subject-alt-name)
+   {(schema/optional-key :dns-name) [schema/Str]
+    (schema/optional-key :ip) [schema/Str]
+    (schema/optional-key :other-name) [schema/Str]
+    (schema/optional-key :rfc822-name) [schema/Str]
+    (schema/optional-key :x400-address) [schema/Str]
+    (schema/optional-key :directory-name) [schema/Str]
+    (schema/optional-key :edi-party-name) [schema/Str]
+    (schema/optional-key :uri) [schema/Str]
+    (schema/optional-key :registered-id) [schema/Str]}})
+
+(defn ^:private one-or-many [schema]
+  (schema/conditional
+   sequential? [schema]
+   :else schema))
 
 (def ExtensionRule
   "Schema for defining an SSL Extension auth rule."
-  {schema/Keyword (schema/conditional
-                   sequential? [schema/Str]
-                   :else schema/Str)})
+  {schema/Keyword (one-or-many schema/Str)
+   (schema/optional-key :subject-alt-name)
+   {(schema/optional-key :dns-name) (one-or-many schema/Str)
+    (schema/optional-key :ip) (one-or-many schema/Str)
+    (schema/optional-key :other-name) (one-or-many schema/Str)
+    (schema/optional-key :rfc822-name) (one-or-many schema/Str)
+    (schema/optional-key :x400-address) (one-or-many schema/Str)
+    (schema/optional-key :directory-name) (one-or-many schema/Str)
+    (schema/optional-key :edi-party-name) (one-or-many schema/Str)
+    (schema/optional-key :uri) (one-or-many schema/Str)
+    (schema/optional-key :registered-id) (one-or-many schema/Str)}})
 
 (def ACEChallenge
   "Pertinent authorization information extracted from a request used during
@@ -49,6 +77,12 @@
 (def ACL
   "An ordered list of authorization Entry"
   #{ACE})
+
+(def default-oid-map
+  "A default map of string OIDs to keyword names. These should be standard OIDs
+  that any user of tk-auth might be interested in using. This map should be
+  respected anywhere oid-maps are consulted."
+  {subject-alt-name-oid :subject-alt-name})
 
 (schema/defn deny? :- schema/Bool
   [ace :- ACE]
@@ -178,19 +212,50 @@
 
   *ONLY* a request with both :pp_env set to 'test' and :pp_image set to 'bad
   image' would be denied. If *any* request with :pp_env set to 'test' is to be
-  denied, it needs a standalone deny rule."
+  denied, it needs a standalone deny rule.
+
+  If the :subject-alt-name key is present in the extension map, a match is done
+  for each givenName key in the incoming request. For example, given a rule like
+  this:
+
+  {:extensions {:subject-alt-name {:dns-name [\"foobar.org\" \"barbaz.net\"]
+                                   :ip \"192.168.0.1\"}}}
+
+  these requests would match:
+
+  {:extensions {:subject-alt-name {:dns-name [\"foobar.org\" \"slimjim.net\"]}}}
+
+  {:extensions {:subject-alt-name {:dns-name [\"snapinto.org\" \"slimjim.net\"]
+                                   :ip       [\"192.168.0.1\"]}}}
+
+  and these would not match:
+
+  {:extensions {:subject-alt-name {:dns-name [\"snapinto.org\" \"slimjim.net\"]
+                                   :ip       [\"192.168.0.0\"]}}}
+
+  {:extensions {:subject-alt-name {:ip       [\"192.168.0.0\"]}}}"
   [oid-map :- OIDMap
    ace :- ACE
    extensions :- Extensions]
-  (let [match-key (fn [k]
+  (let [oid-map' (merge default-oid-map oid-map)
+        wrap-scalar (fn [x] (if (sequential? x) x [x]))
+        match-key (fn [k]
                     (let [ace-value (get (:value ace) k)
                           ;; potentially translate from oid -> shortname
-                          k' (get oid-map (name k) k)
-                          ext-value (get extensions k' false)]
+                          k' (get oid-map' (name k) k)
+                          ext-value (get extensions k' false)
+                          given-names-match? (fn [k] (not
+                                                      (empty?
+                                                       (intersection (set (get ext-value k))
+                                                                     (set (wrap-scalar
+                                                                           (get ace-value k)))))))]
                       (if ext-value
-                        (if (sequential? ace-value)
-                          (some (partial = ext-value) ace-value)
-                          (= ace-value ext-value))
+                        (if (= :subject-alt-name k')
+                          (reduce (fn [acc key] (or acc (given-names-match? key)))
+                                  false
+                                  (keys ext-value))
+                          (not (nil? (some (partial = ext-value)
+                                           (wrap-scalar ace-value)))))
                         false)))]
     (every? match-key (keys (:value ace)))))
 
@@ -211,7 +276,11 @@
      :else
      (if (nil? certname)
        false
-       (match-domain? acl-ace certname)))))
+       (if-let [alt-names (some-> extensions :subject-alt-name :dns-name)]
+         (reduce (fn [acc domain] (or acc (match-domain? acl-ace domain)))
+                 false
+                 (conj alt-names certname))
+         (match-domain? acl-ace certname))))))
 
 ;; ACL creation
 
@@ -253,9 +322,9 @@
     options :- {(schema/optional-key :captures) [schema/Str]
                 (schema/optional-key :oid-map) OIDMap}]
    (let [captures (get options :captures [])
-         oid-map (get options :oid-map {})
+         oid-map' (get options :oid-map {})
          interpolated-acl (map #(interpolate-backreference % captures) acl)
-         match (some #(if (match? % incoming-ace oid-map) % false) interpolated-acl)]
+         match (some #(if (match? % incoming-ace oid-map') % false) interpolated-acl)]
       (if match
         (allow? match)
         false))))

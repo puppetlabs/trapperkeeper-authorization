@@ -205,11 +205,14 @@
    allow-header-cert-info :- schema/Bool
    oid-map :- acl/OIDMap]
   (if-let [cert (request->cert request allow-header-cert-info)]
-    (let [extensions (ssl-utils/get-extensions cert)
+    (let [oid-map (merge acl/default-oid-map oid-map)
+          extensions (ssl-utils/get-extensions cert)
           translate-oids (fn [out extension]
                            (let [oid-key (get oid-map (:oid extension)
                                               (keyword (:oid extension)))
-                                 value (str (:value extension))]
+                                 value (condp = oid-key
+                                         :subject-alt-name (:value extension)
+                                         (str (:value extension)))]
                              (assoc out oid-key value)))]
       (reduce translate-oids {} extensions))
     {}))
