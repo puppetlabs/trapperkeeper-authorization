@@ -144,7 +144,7 @@
        "Request to '%s' from '%s' did not match rule '%s' - continuing matching"
        (:uri request) (requestor request) (:name rule)))))
 
-(defn- request->description
+(defn- request->log-description
   [request rule]
   (let [from (requestor request)
         path (:uri request)
@@ -154,6 +154,13 @@
          (if-let [file (:file rule)] (str " at " file ":" (:line rule)))
          (format " (authenticated: %s) " authenticated?)
          (format "denied by rule '%s'." (:name rule)))))
+
+(defn- request->resp-description
+  [request rule]
+  (let [path (:uri request)
+        method (:request-method request)]
+    (str "Forbidden request: " path " (method " method "). "
+         "Please see the server logs for details.")))
 
 (schema/defn allow-request :- AuthorizationResult
   "Logs debugging information about the request and rule at the TRACE level
@@ -172,20 +179,25 @@
   "Logs debugging information about the request and rule at the TRACE level
    as well as the reason for denial at the ERROR level, and returns an
    unauthorized authorization result with the provided reason message."
-  [request :- ring/Request
-   rule :- (schema/maybe Rule)
-   reason :- schema/Str]
-  (if rule
-    (log/tracef
-     "Request to '%s' from '%s' handled by rule '%s' - request denied"
-     (:uri request) (requestor request) (:name rule))
-    (log/tracef
-     "Request to '%s' from '%s' did not match any rules - request denied"
-     (:uri request) (requestor request)))
-  (log/error reason)
-  {:authorized false
-   :message reason
-   :request request})
+  ([request
+    rule
+    reason]
+   (deny-request request rule reason reason))
+  ([request :- ring/Request
+    rule :- (schema/maybe Rule)
+    log-reason :- schema/Str
+    resp-reason :- schema/Str]
+   (if rule
+     (log/tracef
+      "Request to '%s' from '%s' handled by rule '%s' - request denied"
+      (:uri request) (requestor request) (:name rule))
+     (log/tracef
+      "Request to '%s' from '%s' did not match any rules - request denied"
+      (:uri request) (requestor request)))
+   (log/error log-reason)
+   {:authorized false
+    :message resp-reason
+    :request request}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Rules checking
@@ -201,7 +213,8 @@
       (if (and (true? (ring/authorized-authenticated request))
                (acl/allowed? (:acl rule) (ring/authorized-name request) matches))
         (allow-request request rule "")
-        (deny-request request rule (request->description request rule))))
+        (deny-request request rule (request->log-description request rule)
+                      (request->resp-description request rule))))
     (deny-request request nil "global deny all - no rules matched")))
 
 (schema/defn authorized? :- schema/Bool
