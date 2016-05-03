@@ -1,5 +1,5 @@
-(def ks-version "1.0.0")
-(def tk-version "1.1.1")
+(def ks-version "1.3.0")
+(def tk-version "1.4.0")
 (def tk-jetty-version "1.4.1")
 
 (defproject puppetlabs/trapperkeeper-authorization "0.5.1-SNAPSHOT"
@@ -13,21 +13,28 @@
   ;; requires lein 2.2.0+.
   :pedantic? :abort
 
+  :exclusions [org.clojure/clojure]
   :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.clojure/tools.logging "0.2.6"]
-                 [org.clojure/tools.cli "0.3.0"]
-                 [me.raynes/fs "1.4.5"]
-                 [prismatic/schema "0.4.0"]
+                 [org.clojure/tools.logging "0.3.1"]
+                 [org.clojure/tools.cli "0.3.4"]
+                 [me.raynes/fs "1.4.6"]
+                 [prismatic/schema "1.1.1"]
                  [ring/ring-core "1.4.0"]
-                 [ring/ring-mock "0.2.0"]
+                 [ring/ring-mock "0.3.0"]
 
                  ;; begin version conflict resolution dependencies
-                 [clj-time "0.10.0"]
+                 [clj-time "0.11.0"]
+                 [ring/ring-servlet "1.4.0"]
+                 [slingshot "0.12.2"]
+                 [cheshire "5.6.1"]
+                 [org.slf4j/slf4j-api "1.7.13"]
+                 [org.clojure/tools.reader "1.0.0-alpha1"]
                  ;; end version conflict resolution dependencies
 
                  [puppetlabs/kitchensink ~ks-version]
                  [puppetlabs/trapperkeeper ~tk-version]
-                 [puppetlabs/typesafe-config "0.1.4"]
+                 [puppetlabs/ring-middleware "0.3.0"]
+                 [puppetlabs/typesafe-config "0.1.5"]
                  [puppetlabs/ssl-utils "0.8.1"]]
 
   ;; By declaring a classifier here and a corresponding profile below we'll get an additional jar

@@ -1,5 +1,6 @@
 (ns puppetlabs.trapperkeeper.services.authorization.authorization-service
   (:require [clojure.tools.logging :as log]
+            [puppetlabs.ring-middleware.core :as mw]
             [puppetlabs.trapperkeeper.authorization.ring-middleware :as
              ring-middleware]
             [puppetlabs.trapperkeeper.core :refer [defservice]]
@@ -41,4 +42,4 @@
    (let [{:keys [allow-header-cert-info rules]} (service-context this)]
      (-> handler
          (ring-middleware/wrap-authorization-check rules oid-map allow-header-cert-info)
-         ring-middleware/wrap-with-error-handling))))
+         (mw/wrap-bad-request :plain)))))

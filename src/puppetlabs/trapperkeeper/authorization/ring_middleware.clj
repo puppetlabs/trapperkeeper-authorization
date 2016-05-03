@@ -5,6 +5,7 @@
             [ring.util.request :as ring-request]
             [ring.util.response :as ring-response]
             [slingshot.slingshot :as sling]
+            [puppetlabs.ring-middleware.core :as mw]
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
             [puppetlabs.ssl-utils.core :as ssl-utils]
@@ -40,11 +41,6 @@
     (log/warn "The HTTP header" header-name "was specified with" header-val
               "but the allow-header-cert-info was either not set, or was set"
               "to false.  This header will be ignored.")))
-
-(defn throw-bad-request!
-  "Throw a ::bad-request type slingshot error with the supplied message."
-  [message]
-  (sling/throw+ {:type ::bad-request :message message}))
 
 (defn legacy-openssl-dn->cn
   "Attempt to parse the supplied 'dn' string as a legacy OpenSSL-style DN,
@@ -148,7 +144,7 @@
   (try
     (ring-codec/url-decode header-cert)
     (catch Exception e
-      (throw-bad-request!
+      (mw/throw-bad-request!
        (str "Unable to URL decode the "
             header-cert-name
             " header: "
@@ -161,7 +157,7 @@
     (try
       (ssl-utils/pem->certs reader)
       (catch Exception e
-        (throw-bad-request!
+        (mw/throw-bad-request!
          (str "Unable to parse "
               header-cert-name
               " into certificate: "
@@ -176,10 +172,10 @@
           certs      (pem->certs pem)
           cert-count (count certs)]
       (condp = cert-count
-        0 (throw-bad-request!
+        0 (mw/throw-bad-request!
            (str "No certs found in PEM read from " header-cert-name))
         1 (first certs)
-        (throw-bad-request!
+        (mw/throw-bad-request!
          (str "Only 1 PEM should be supplied for "
               header-cert-name
               " but "
@@ -248,20 +244,6 @@
       request
       (ring-params/assoc-query-params request encoding))))
 
-(defn bad-request?
-  "Determine if the supplied slingshot message is for a 'bad request'"
-  [x]
-  (when (map? x) (= (:type x) ::bad-request)))
-
-(defn output-error
-  "Convert the supplied ring request, slingshot exception, and http status
-  code into a Ring response with appropriate content."
-  [{:keys [uri]} {:keys [message]} http-status]
-  (log/errorf "Error %d on SERVER at %s: %s" http-status uri message)
-  (-> (ring-response/response message)
-      (ring-response/status http-status)
-      (ring-response/content-type "text/plain")))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
 
@@ -300,12 +282,3 @@
          (-> (ring-response/response message)
              (ring-response/status 403)))))))
 
-(schema/defn wrap-with-error-handling :- IFn
-  "Middleware that wraps an authorization request with some error handling to
-   return the appropriate http status codes, etc."
-  [handler :- IFn]
-  (fn [request]
-    (sling/try+
-     (handler request)
-     (catch bad-request? e
-       (output-error request e 400)))))
