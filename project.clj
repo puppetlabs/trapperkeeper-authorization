@@ -13,8 +13,7 @@
   ;; requires lein 2.2.0+.
   :pedantic? :abort
 
-  :exclusions [org.clojure/clojure]
-  :dependencies [[org.clojure/clojure "1.6.0"]
+  :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/tools.logging "0.3.1"]
                  [org.clojure/tools.cli "0.3.4"]
                  [me.raynes/fs "1.4.6"]

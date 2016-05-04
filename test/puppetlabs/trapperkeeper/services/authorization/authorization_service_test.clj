@@ -288,9 +288,10 @@
                   (assoc :uri "/puppet/v3/environments")
                   (assoc :body "Hello World!")
                   (update-in [:headers] assoc "x-client-cert" "NOCERTS"))
-          {:keys [status body]} (app req)]
+          {:keys [status body headers]} (app req)]
       (is (= status 400))
-      (is (re-matches #".*No certs found in PEM read from x-client-cert.*" body)))))
+      (is (re-matches #".*No certs found in PEM read from x-client-cert.*" body))
+      (is (re-matches #"text/plain.*" (headers "Content-Type"))))))
 
 (deftest ^:integration query-params-test
   (let [app (build-ring-handler
