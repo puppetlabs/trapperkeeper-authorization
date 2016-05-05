@@ -32,6 +32,10 @@ to one of your Trapperkeeper configuration files, and setting various
 properties therein.  For more info, see
 [Configuring the Authorization Service](doc/authorization-config.md).
 
+## Documentation
+
+Trapperkeeper-authorization's docs are housed [in this repository](doc/index.md).
+
 ## Example code
 
 One example, a Trapperkeeper service which wraps the authorization service
