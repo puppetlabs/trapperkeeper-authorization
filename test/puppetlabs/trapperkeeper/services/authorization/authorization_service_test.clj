@@ -290,8 +290,7 @@
                   (update-in [:headers] assoc "x-client-cert" "NOCERTS"))
           {:keys [status body headers]} (app req)]
       (is (= status 400))
-      (is (re-matches #".*No certs found in PEM read from x-client-cert.*" body))
-      (is (re-matches #"text/plain.*" (headers "Content-Type"))))))
+      (is (= "No certs found in PEM read from x-client-cert" body)))))
 
 (deftest ^:integration query-params-test
   (let [app (build-ring-handler
