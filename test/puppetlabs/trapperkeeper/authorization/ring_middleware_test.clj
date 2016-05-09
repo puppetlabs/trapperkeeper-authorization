@@ -177,9 +177,8 @@
                                        :get "127.0.0.1"
                                        testutils/test-other-cert))]
            (is (= 403 (:status response)))
-           (is (= (str "Forbidden request: www.other.org(127.0.0.1) access to "
-                       "/path/to/foo (method :get) (authenticated: true) denied by "
-                       "rule 'test rule'.")
+           (is (= (str "Forbidden request: /path/to/foo (method :get)."
+                       " Please see the server logs for details.")
                   (:body response)))))
        (testing "access denied when cert CN is explicitly denied in the rule"
          (let [response (ring-handler (testutils/request
@@ -187,10 +186,8 @@
                                        :get "127.0.0.1"
                                        testutils/test-denied-cert))]
            (is (= 403 (:status response)))
-           (is (= (str "Forbidden request: bad.guy.com(127.0.0.1) access to "
-                       "/path/to/foo (method :get) (authenticated: true) denied by "
-                       "rule 'test rule'.")
-                  (:body response))))))
+            (is  = (str "Forbidden request: /path/to/foo (method :get)."
+                       " Please see the server logs for details.")))))
      (testing "access denied when deny all"
        (let [app (build-ring-handler [(-> (testutils/new-rule :path "/")
                                           (rules/deny "*"))]
@@ -220,9 +217,8 @@
                                           (wrap-successful-x-client-cn
                                            "www.other.org")))]
            (is (= 403 (:status response)))
-           (is (= (str "Forbidden request: www.other.org(127.0.0.1) access to "
-                       "/path/to/foo (method :get) (authenticated: true) denied by "
-                       "rule 'test rule'.")
+           (is (= (str "Forbidden request: /path/to/foo (method :get)."
+                       " Please see the server logs for details.")
                   (:body response)))))
        (testing "access denied when cert CN is explicitly denied in the rule"
          (let [response (ring-handler (-> (testutils/request
@@ -231,9 +227,8 @@
                                           (wrap-successful-x-client-cn
                                            "bad.guy.com")))]
            (is (= 403 (:status response)))
-           (is (= (str "Forbidden request: bad.guy.com(127.0.0.1) access to "
-                       "/path/to/foo (method :get) (authenticated: true) denied by "
-                       "rule 'test rule'.")
+           (is (= (str "Forbidden request: /path/to/foo (method :get)."
+                       " Please see the server logs for details.")
                   (:body response))))))
      (testing "access denied when deny all"
        (let [app (build-ring-handler [(-> (testutils/new-rule :path "/")
