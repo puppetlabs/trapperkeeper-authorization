@@ -226,10 +226,8 @@
           req (assoc catalog-request-nocert :body "Hello World!")
           {:keys [status body]} (app req)]
       (is (= status 403))
-      (is (= body (str "Forbidden request: 127.0.0.1 "
-                       "access to /puppet/v3/catalog/localhost "
-                       "(method :get) (authenticated: false) "
-                       "denied by rule 'puppetlabs catalog'.")))))
+      (is (= body (str "Forbidden request: /puppet/v3/catalog/localhost (method :get)."
+                       " Please see the server logs for details.")))))
   (testing "Evaluation against rule with 'method' restrictions"
     (let [app (build-ring-handler default-rules)]
       (let [req (testutils/request "/puppet-ca/v1/certificate_request/ca"
