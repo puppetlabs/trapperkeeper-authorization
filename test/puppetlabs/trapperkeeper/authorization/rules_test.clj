@@ -148,11 +148,11 @@
           (is (= (:message rules-allowed)
                  (str "Forbidden request: /stairway/to/heaven (method :get)."
                       " Please see the server logs for details.")))
-          ;; TODO: this and the test below are ridiculously long.
-          ;; Unfortunately, there does not seem to be a good way to improve
-          ;; these until we can upgrade TK versions and use a newer version of
-          ;; the logging testutils.
-          (is (logged? #"Forbidden request: www.test.org\(192.168.1.23\) access to /stairway/to/heaven \(method :get\) \(authenticated: true\) denied by rule 'test rule'." :error))))
+          (is (logged?
+               (re-pattern (str "Forbidden request: www.test.org\\(192.168.1.23\\)"
+                                " access to /stairway/to/heaven \\(method :get\\)"
+                                " \\(authenticated: true\\) denied by rule 'test rule'."))
+               :error))))
       (testing "tagged rule not allowing "
         (let [rules (map #(rules/tag-rule %1 "file.txt" 23)
                          (build-rules ["/path/to/resource" "*.domain.org"]
@@ -163,7 +163,11 @@
           (is (= (:message rules-allowed)
                  (str "Forbidden request: /stairway/to/heaven (method :get)."
                       " Please see the server logs for details.")))
-          (is (logged? #"Forbidden request: www.test.org\(192.168.1.23\) access to /stairway/to/heaven \(method :get\) at file.txt:23 \(authenticated: true\) denied by rule 'test rule'.")))))))
+          (is (logged?
+               (re-pattern (str "Forbidden request: www.test.org\\(192.168.1.23\\)"
+                                " access to /stairway/to/heaven \\(method :get\\)"
+                                " at file.txt:23 \\(authenticated: true\\)"
+                                " denied by rule 'test rule'.")))))))))
 
 (deftest test-rule-sorting
   (testing "rules checked in order of sort-order not order of appearance"
