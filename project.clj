@@ -32,7 +32,7 @@
 
                  [puppetlabs/kitchensink ~ks-version]
                  [puppetlabs/trapperkeeper ~tk-version]
-                 [puppetlabs/ring-middleware "0.3.0"]
+                 [puppetlabs/ring-middleware "0.3.1"]
                  [puppetlabs/typesafe-config "0.1.5"]
                  [puppetlabs/ssl-utils "0.8.1"]]
 
