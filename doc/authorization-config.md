@@ -443,7 +443,8 @@ authorization: {
 }
 ~~~~
 
-... or a single map value with an extension key ...
+... or a single map value with an extensions key (see
+[the extensions doc](./extensions.md) for more on working with extensions)...
 
 ~~~~hocon
 authorization: {
@@ -454,6 +455,7 @@ authorization: {
                 allow: {
                     extensions: {
                         my_ssl_extension: some_value
+                        my_other_extension: a_value
                     }
                 }
                 sort-order: 1
@@ -651,7 +653,8 @@ authorization: {
 }
 ~~~~
 
-... or a single map value with an extension key ...
+... or a single map value with an extensions key (see
+[the extensions doc](./extensions.md) for more on working with extensions)...
 
 ~~~~hocon
 authorization: {
@@ -662,6 +665,7 @@ authorization: {
                 deny: {
                     extensions: {
                         my_ssl_extension: some_value
+                        my_other_extension: a_value
                     }
                 }
                 sort-order: 1
