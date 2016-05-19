@@ -127,27 +127,27 @@
                 (cert-from-request (testutils/url-encoded-cert
                                     testutils/test-domain-cert))))))
       (testing "fails as expected when cert not properly URL encoded"
-        (is (thrown+? [:type :bad-request
-                       :message (str "Unable to URL decode the x-client-cert header: "
+        (is (thrown+? [:kind :bad-request
+                       :msg (str "Unable to URL decode the x-client-cert header: "
                                      "For input string: \"1%\"")]
                       (cert-from-request "%1%2"))))
       (testing "fails as expected when URL encoded properly but base64 content malformed"
-        (is (thrown+? [:type :bad-request
-                       :message (str "Unable to parse x-client-cert into "
+        (is (thrown+? [:kind :bad-request
+                       :msg (str "Unable to parse x-client-cert into "
                                      "certificate: -----END CERTIFICATE not found")]
                       (cert-from-request
                        "-----BEGIN%20CERTIFICATE-----%0AM"))))
       (testing "fails when cert not in the payload"
-        (is (thrown+? [:type :bad-request
-                       :message "No certs found in PEM read from x-client-cert"]
+        (is (thrown+? [:kind :bad-request
+                       :msg "No certs found in PEM read from x-client-cert"]
                       (cert-from-request "NOCERTSHERE"))))
       (testing "fails when more than one cert is in the payload"
         (let [cert-writer (StringWriter.)
               _ (ssl-utils/cert->pem! testutils/test-domain-cert cert-writer)
               _ (ssl-utils/cert->pem! testutils/test-domain-cert cert-writer)
               certs-encoded (ring-codec/url-encode cert-writer)]
-          (is (thrown+? [:type :bad-request
-                         :message (str "Only 1 PEM should be supplied for "
+          (is (thrown+? [:kind :bad-request
+                         :msg (str "Only 1 PEM should be supplied for "
                                        "x-client-cert but 2 found")]
                         (cert-from-request certs-encoded))))))))
 
