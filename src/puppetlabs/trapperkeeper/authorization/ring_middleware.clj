@@ -5,7 +5,7 @@
             [ring.util.request :as ring-request]
             [ring.util.response :as ring-response]
             [slingshot.slingshot :as sling]
-            [puppetlabs.ring-middleware.core :as mw]
+            [puppetlabs.ring-middleware.utils :as ringutils]
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
             [puppetlabs.ssl-utils.core :as ssl-utils]
@@ -144,7 +144,7 @@
   (try
     (ring-codec/url-decode header-cert)
     (catch Exception e
-      (mw/throw-bad-request!
+      (ringutils/throw-bad-request!
        (str "Unable to URL decode the "
             header-cert-name
             " header: "
@@ -157,7 +157,7 @@
     (try
       (ssl-utils/pem->certs reader)
       (catch Exception e
-        (mw/throw-bad-request!
+        (ringutils/throw-bad-request!
          (str "Unable to parse "
               header-cert-name
               " into certificate: "
@@ -172,10 +172,10 @@
           certs      (pem->certs pem)
           cert-count (count certs)]
       (condp = cert-count
-        0 (mw/throw-bad-request!
+        0 (ringutils/throw-bad-request!
            (str "No certs found in PEM read from " header-cert-name))
         1 (first certs)
-        (mw/throw-bad-request!
+        (ringutils/throw-bad-request!
          (str "Only 1 PEM should be supplied for "
               header-cert-name
               " but "
