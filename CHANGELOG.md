@@ -1,3 +1,12 @@
+### 0.7.0
+
+ * [TK-352](https://tickets.puppetlabs.com/browse/TK-352) Support
+   subject-alt-names.
+ * [SERVER-1310](https://tickets.puppetlabs.com/browse/SERVER-1310) Use
+   standard error formats in API responses.
+ * [SERVER-1300](https://tickets.puppetlabs.com/browse/SERVER-1300) Identify
+   maintainers and update contact information.
+
 ### 0.6.1
 
  * [TK-360](https://tickets.puppetlabs.com/browse/TK-360) Remove IP address,
