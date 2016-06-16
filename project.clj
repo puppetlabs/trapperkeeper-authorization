@@ -1,4 +1,4 @@
-(def ks-version "1.3.0")
+(def ks-version "1.3.1")
 (def tk-version "1.4.0")
 (def tk-jetty-version "1.4.1")
 
@@ -14,13 +14,6 @@
   :pedantic? :abort
 
   :dependencies [[org.clojure/clojure "1.7.0"]
-                 [org.clojure/tools.logging "0.3.1"]
-                 [org.clojure/tools.cli "0.3.4"]
-                 [me.raynes/fs "1.4.6"]
-                 [prismatic/schema "1.1.1"]
-                 [ring/ring-core "1.4.0"]
-                 [ring/ring-mock "0.3.0"]
-
                  ;; begin version conflict resolution dependencies
                  [clj-time "0.11.0"]
                  [ring/ring-servlet "1.4.0"]
@@ -30,10 +23,14 @@
                  [org.clojure/tools.reader "1.0.0-alpha1"]
                  ;; end version conflict resolution dependencies
 
+                 [org.clojure/tools.logging "0.3.1"]
+                 [prismatic/schema "1.1.1"]
+                 [ring/ring-core "1.4.0"]
+                 [ring/ring-mock "0.3.0"]
+
                  [puppetlabs/kitchensink ~ks-version]
                  [puppetlabs/trapperkeeper ~tk-version]
                  [puppetlabs/ring-middleware "1.0.0"]
-                 [puppetlabs/typesafe-config "0.1.5"]
                  [puppetlabs/ssl-utils "0.8.1"]]
 
   ;; By declaring a classifier here and a corresponding profile below we'll get an additional jar
