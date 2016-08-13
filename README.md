@@ -168,7 +168,7 @@ tickets on the Trapperkeeper Authorization Service, although Github issues
 are welcome too.  Please note that the best method to get our attention on an
 issue is via JIRA.
 
-## Maintainence
+## Maintenance
 
 Maintainers: Jeremy Barlow <jeremy.barlow@puppet.com>, Justin Stoller <justin@@puppet.com>
 
