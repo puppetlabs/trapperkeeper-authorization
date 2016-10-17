@@ -20,7 +20,7 @@
    [this context]
    (let [config (get-in-config [:authorization])
          rules (-> config validate-auth-config! :rules transform-config)]
-     (log/debug (trs "Transformed auth.conf rules:") "\n" (ks/pprint-to-string rules))
+     (log/debug (trs "Transformed auth.conf rules:\n{0}") (ks/pprint-to-string rules))
      (-> context
          (assoc-in [:rules] rules)
          (assoc-in [:allow-header-cert-info] (get config

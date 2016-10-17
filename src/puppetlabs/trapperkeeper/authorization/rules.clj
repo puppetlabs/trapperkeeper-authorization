@@ -142,7 +142,7 @@
            (query-params-match? (:query-params request) (:query-params rule)))
     (if-let [matches (re-find* (:path rule) (:uri request))]
       {:rule rule :matches (into [] (rest matches))}
-      (log/tracef
+      (log/trace
        (trs "Request to ''{0}'' from ''{1}'' did not match rule ''{2}'' - continuing matching"
             (:uri request) (requestor request) (:name rule))))))
 
@@ -153,9 +153,9 @@
         method (:request-method request)
         authenticated? (true? (ring/authorized-authenticated request))]
     (if-let [file (:file rule)]
-      (tru "Forbidden request: {0} access to {1} (method {2}) at {3}:{4} (authenticated: {5}) denied by rule ''{6}''."
+      (trs "Forbidden request: {0} access to {1} (method {2}) at {3}:{4} (authenticated: {5}) denied by rule ''{6}''."
            from path method file (:line rule) authenticated? (:name rule))
-      (tru "Forbidden request: {0} access to {1} (method {2}) (authenticated: {3}) denied by rule ''{4}''."
+      (trs "Forbidden request: {0} access to {1} (method {2}) (authenticated: {3}) denied by rule ''{4}''."
            from path method authenticated? (:name rule)))))
 
 (defn- request->resp-description
@@ -171,7 +171,7 @@
   [request :- ring/Request
    rule :- Rule
    message :- schema/Str]
-  (log/tracef
+  (log/trace
    (trs "Request to ''{0}'' from ''{1}'' handled by rule ''{2}'' - request allowed"
         (:uri request) (requestor request) (:name rule)))
   {:authorized true
@@ -191,10 +191,10 @@
     log-reason :- schema/Str
     resp-reason :- schema/Str]
    (if rule
-     (log/tracef
+     (log/trace
       (trs "Request to ''{0}'' from ''{1}'' handled by rule ''{2}'' - request denied"
            (:uri request) (requestor request) (:name rule)))
-     (log/tracef
+     (log/trace
       (trs "Request to ''{0}'' from ''{1}'' did not match any rules - request denied"
            (:uri request) (requestor request))))
    (log/error log-reason)
