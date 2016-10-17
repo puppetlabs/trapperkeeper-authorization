@@ -203,9 +203,9 @@
                   (pprint-rule rule))
              (trs "It should be a string.")))
   (when-not (valid-method? rule)
-    (reject! (trs "The method specified in the authorization rule specified as {0} is invalid. "
+    (reject! (trs "Invalid method in the authorization rule specified as {0}. "
                   (pprint-rule rule))
-             (trs "It should be either a string or list of strings that is equal to one of the following methods: ")
+             (trs "The method should be a string or list of strings equal to one of the following: ")
              (format "'%s'" (str/join "', '" (sort valid-methods)))))
   (when (= "regex" (-> rule :match-request :type name str/lower-case))
     (validate-regex-backreferences! rule))
