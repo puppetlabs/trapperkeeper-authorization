@@ -1,7 +1,8 @@
 (ns puppetlabs.trapperkeeper.authorization.acl
   (:require [clojure.set :refer [intersection]]
             [schema.core :as schema]
-            [puppetlabs.ssl-utils.core :refer [subject-alt-name-oid]]))
+            [puppetlabs.ssl-utils.core :refer [subject-alt-name-oid]]
+            [puppetlabs.i18n.core :refer [trs]]))
 
 ;; Schemas
 
@@ -170,7 +171,7 @@
      :value (clojure.string/replace certname #"^/(.*)/$" "$1")}
 
     :else
-    (throw (Exception. (str "invalid domain value: " certname)))))
+    (throw (Exception. (trs "invalid domain value: {0}" certname)))))
 
 ;; ACE matching
 

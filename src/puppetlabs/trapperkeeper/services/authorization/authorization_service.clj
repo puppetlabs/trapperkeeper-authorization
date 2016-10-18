@@ -6,7 +6,8 @@
             [puppetlabs.trapperkeeper.core :refer [defservice]]
             [puppetlabs.kitchensink.core :as ks]
             [puppetlabs.trapperkeeper.services.authorization.authorization-core :refer :all]
-            [puppetlabs.trapperkeeper.services :refer [service-context]]))
+            [puppetlabs.trapperkeeper.services :refer [service-context]]
+            [puppetlabs.i18n.core :refer [trs]]))
 
 (defprotocol AuthorizationService
   (wrap-with-authorization-check [this handler] [this handler options])
@@ -19,7 +20,7 @@
    [this context]
    (let [config (get-in-config [:authorization])
          rules (-> config validate-auth-config! :rules transform-config)]
-     (log/debug "Transformed auth.conf rules:\n" (ks/pprint-to-string rules))
+     (log/debug (trs "Transformed auth.conf rules:\n{0}") (ks/pprint-to-string rules))
      (-> context
          (assoc-in [:rules] rules)
          (assoc-in [:allow-header-cert-info] (get config

@@ -31,7 +31,8 @@
                  [puppetlabs/kitchensink ~ks-version]
                  [puppetlabs/trapperkeeper ~tk-version]
                  [puppetlabs/ring-middleware "1.0.0"]
-                 [puppetlabs/ssl-utils "0.8.1"]]
+                 [puppetlabs/ssl-utils "0.8.1"]
+                 [puppetlabs/i18n "0.4.3"]]
 
   ;; By declaring a classifier here and a corresponding profile below we'll get an additional jar
   ;; during `lein jar` that has all the code in the test/ directory. Downstream projects can then
@@ -52,7 +53,8 @@
 
   ;; this plugin is used by jenkins jobs to interrogate the project version
   :plugins [[lein-project-version "0.1.0"]
-            [lein-release "1.0.5"]]
+            [lein-release "1.0.5" :exclusions [org.clojure/clojure]]
+            [puppetlabs/i18n "0.4.3"]]
 
   :lein-release        {:scm          :git
                         :deploy-via   :lein-deploy}

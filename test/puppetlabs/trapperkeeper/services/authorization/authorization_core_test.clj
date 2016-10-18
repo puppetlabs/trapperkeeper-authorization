@@ -166,7 +166,7 @@
 
     (is (thrown-with-msg?
           IllegalArgumentException
-          #".* contains one or more aces that are not maps or strings."
+          #".* contains one or more ACEs that are not maps or strings."
           (validate-auth-config-rule! (assoc testrule :deny ["one.anem" 23]))))
 
     (is (thrown-with-msg?

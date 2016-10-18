@@ -11,7 +11,8 @@
             [puppetlabs.ssl-utils.core :as ssl-utils]
             [clojure.tools.logging :as log]
             [clojure.string :as str]
-            [puppetlabs.trapperkeeper.authorization.acl :as acl])
+            [puppetlabs.trapperkeeper.authorization.acl :as acl]
+            [puppetlabs.i18n.core :refer [trs tru]])
   (:import (clojure.lang IFn)
            (java.security.cert X509Certificate)
            (java.io StringReader)))
@@ -38,9 +39,7 @@
   "Log a warning message if the supplied header-val is non-empty."
   [header-name header-val]
   (if header-val
-    (log/warn "The HTTP header" header-name "was specified with" header-val
-              "but the allow-header-cert-info was either not set, or was set"
-              "to false.  This header will be ignored.")))
+    (log/warn (trs "The HTTP header {0} was specified with {1} but the allow-header-cert-info was either not set, or was set to false. This header will be ignored." header-name header-val))))
 
 (defn legacy-openssl-dn->cn
   "Attempt to parse the supplied 'dn' string as a legacy OpenSSL-style DN,
@@ -59,18 +58,10 @@
 (defn warn-for-empty-common-name
   "Log a warning message if the supplied common-name is empty (nil or empty
   string."
-  ([common-name empty-message-format empty-message-arg1]
-   (warn-for-empty-common-name common-name
-                               empty-message-format
-                               empty-message-arg1
-                               ""))
-  ([common-name empty-message-format empty-message-arg1 empty-message-arg2]
-   (if (empty? common-name)
-     (log/warnf (str empty-message-format
-                     "  Treating client as 'unauthenticated'.")
-                empty-message-arg1
-                empty-message-arg2))
-   common-name))
+  [common-name empty-message]
+  (if (empty? common-name)
+    (log/warnf (format "%s  %s" empty-message (trs "Treating client as ''unauthenticated''."))))
+  common-name)
 
 (defn request->name*
   "Pull the common name from the request, considering whether or not the
@@ -83,22 +74,27 @@
       (do
         (warn-if-header-value-non-nil header-dn-name header-dn-val)
         (if-let [certificate (:ssl-client-cert request)]
-          (warn-for-empty-common-name
-           (ssl-utils/get-cn-from-x509-certificate certificate)
-           "CN could not be found in certificate DN: %s."
-           (-> certificate (.getSubjectDN) (.getName)))))
+          (let [error-message (trs "CN could not be found in certificate DN")
+                cert-dn (-> certificate (.getSubjectDN) (.getName))]
+            (warn-for-empty-common-name
+             (ssl-utils/get-cn-from-x509-certificate certificate)
+             (format "%s: %s." error-message cert-dn)))))
     (empty? header-dn-val)
       nil
     (ssl-utils/valid-x500-name? header-dn-val)
-      (warn-for-empty-common-name (ssl-utils/x500-name->CN header-dn-val)
-                                  (str "CN could not be found in RFC 2253 DN "
-                                       "provided by HTTP header '%s': %s.")
-                                  header-dn-name header-dn-val)
+      (let [error-message (trs "CN could not be found in RFC 2253 DN provided by HTTP header")]
+        (warn-for-empty-common-name (ssl-utils/x500-name->CN header-dn-val)
+                                    (format "%s '%s': %s."
+                                            error-message
+                                            header-dn-name
+                                            header-dn-val)))
     :else
-      (warn-for-empty-common-name (legacy-openssl-dn->cn header-dn-val)
-                                  (str "CN could not be found in DN provided "
-                                       "by HTTP header '%s': %s.")
-                                  header-dn-name header-dn-val)))
+      (let [error-message (trs "CN could not be found in DN provided by HTTP header")]
+        (warn-for-empty-common-name (legacy-openssl-dn->cn header-dn-val)
+                                    (format "%s '%s': %s."
+                                            error-message
+                                            header-dn-name
+                                            header-dn-val)))))
 
 (defn request->name
   "Pull the common name from the request, considering whether or not the
@@ -132,10 +128,11 @@
       :else
         (do
           (if (not (empty? name))
-            (log/errorf "Client with CN '%s' was not verified by '%s' header: '%s'"
-                        name
-                        header-client-verify-name
-                        header-client-verify-val))
+            ; Translator note: {1} is the header name, {2} is the header value
+            (log/errorf (trs "Client with CN ''{0}'' was not verified by ''{1}'' header: ''{2}''"
+                             name
+                             header-client-verify-name
+                             header-client-verify-val)))
           false))))
 
 (defn header-cert->pem
@@ -145,10 +142,7 @@
     (ring-codec/url-decode header-cert)
     (catch Exception e
       (ringutils/throw-bad-request!
-       (str "Unable to URL decode the "
-            header-cert-name
-            " header: "
-            (.getMessage e))))))
+       (tru "Unable to URL decode the {0} header: {1}" header-cert-name (.getMessage e))))))
 
 (defn pem->certs
   "Convert a pem string into certificate objects."
@@ -158,10 +152,7 @@
       (ssl-utils/pem->certs reader)
       (catch Exception e
         (ringutils/throw-bad-request!
-         (str "Unable to parse "
-              header-cert-name
-              " into certificate: "
-              (.getMessage e)))))))
+         (tru "Unable to parse {0} into certificate: {1}" header-cert-name (.getMessage e)))))))
 
 (defn header->cert
   "Return an X509Certificate or nil from a string encoded for transmission
@@ -173,14 +164,10 @@
           cert-count (count certs)]
       (condp = cert-count
         0 (ringutils/throw-bad-request!
-           (str "No certs found in PEM read from " header-cert-name))
+           (tru "No certs found in PEM read from {0}" header-cert-name))
         1 (first certs)
         (ringutils/throw-bad-request!
-         (str "Only 1 PEM should be supplied for "
-              header-cert-name
-              " but "
-              cert-count
-              " found"))))))
+         (tru "Only 1 PEM should be supplied for {0} but {1} found" header-cert-name cert-count))))))
 
 (schema/defn request->cert :- (schema/maybe X509Certificate)
   "Pull the client certificate from the request.  Response includes the

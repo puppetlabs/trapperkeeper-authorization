@@ -10,3 +10,5 @@ pom.xml.asc
 .lein-plugins/
 .lein-failures
 .nrepl-port
+/resources/locales.clj
+/resources/**/Messages*.class
