@@ -12,3 +12,4 @@ pom.xml.asc
 .nrepl-port
 /resources/locales.clj
 /resources/**/Messages*.class
+/dev-resources/i18n/bin
