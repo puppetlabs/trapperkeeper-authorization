@@ -1,12 +1,13 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR Puppet <docs@puppet.com>
-# This file is distributed under the same license as the puppetlabs.trapperkeeper_authorization package.
+# This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: puppetlabs.trapperkeeper_authorization \n"
+"X-Git-Ref: 5a13d0d908ecfc38ea7cbd3c328f4c32df0b265d\n"
 "Report-Msgid-Bugs-To: docs@puppet.com\n"
 "POT-Creation-Date: \n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -141,6 +142,7 @@ msgid "An authorization rule must contain a ''match-request'' section."
 msgstr ""
 
 #: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
 msgid "The authorization rule specified as {0} does not contain a ''{1}'' key."
 msgstr ""
 
@@ -184,18 +186,18 @@ msgid "The path set in the authorization rule specified as {0} is invalid. "
 msgstr ""
 
 #: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
 msgid "It should be a string."
 msgstr ""
 
 #: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
-msgid ""
-"The method specified in the authorization rule specified as {0} is invalid. "
+msgid "Invalid method in the authorization rule specified as {0}. "
 msgstr ""
 
 #: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
 msgid ""
-"It should be either a string or list of strings that is equal to one of the "
-"following methods: "
+"The method should be a string or list of strings equal to one of the "
+"following: "
 msgstr ""
 
 #: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
@@ -257,4 +259,8 @@ msgstr ""
 
 #: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
 msgid "Duplicate rules named ''{0}''. Rules must be uniquely named."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_service.clj
+msgid "Transformed auth.conf rules:n{0}"
 msgstr ""
