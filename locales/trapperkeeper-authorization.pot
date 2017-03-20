@@ -1,13 +1,12 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR Puppet <docs@puppet.com>
-# This file is distributed under the same license as the PACKAGE package.
+# This file is distributed under the same license as the puppetlabs.trapperkeeper_authorization package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: puppetlabs.trapperkeeper_authorization \n"
-"X-Git-Ref: 5a13d0d908ecfc38ea7cbd3c328f4c32df0b265d\n"
 "Report-Msgid-Bugs-To: docs@puppet.com\n"
 "POT-Creation-Date: \n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -142,7 +141,6 @@ msgid "An authorization rule must contain a ''match-request'' section."
 msgstr ""
 
 #: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
-#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
 msgid "The authorization rule specified as {0} does not contain a ''{1}'' key."
 msgstr ""
 
@@ -185,7 +183,6 @@ msgstr ""
 msgid "The path set in the authorization rule specified as {0} is invalid. "
 msgstr ""
 
-#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
 #: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
 msgid "It should be a string."
 msgstr ""

@@ -1,0 +1,263 @@
+# Esperanto translations for puppetlabs.trapperkeeper_authorization package.
+# Copyright (C) 2017 Puppet <docs@puppet.com>
+# This file is distributed under the same license as the puppetlabs.trapperkeeper_authorization package.
+# Automatically generated, 2017.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: puppetlabs.trapperkeeper_authorization \n"
+"Report-Msgid-Bugs-To: docs@puppet.com\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: eo\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: src/puppetlabs/trapperkeeper/authorization/acl.clj
+msgid "invalid domain value: {0}"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
+msgid ""
+"The HTTP header {0} was specified with {1} but the allow-header-cert-info "
+"was either not set, or was set to false. This header will be ignored."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
+msgid "Treating client as ''unauthenticated''."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
+msgid "CN could not be found in certificate DN"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
+msgid "CN could not be found in RFC 2253 DN provided by HTTP header"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
+msgid "CN could not be found in DN provided by HTTP header"
+msgstr ""
+
+#. Translator note: {1} is the header name, {2} is the header value
+#: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
+msgid "Client with CN ''{0}'' was not verified by ''{1}'' header: ''{2}''"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
+msgid "Unable to URL decode the {0} header: {1}"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
+msgid "Unable to parse {0} into certificate: {1}"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
+msgid "No certs found in PEM read from {0}"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
+msgid "Only 1 PEM should be supplied for {0} but {1} found"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/rules.clj
+msgid ""
+"Request to ''{0}'' from ''{1}'' did not match rule ''{2}'' - continuing "
+"matching"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/rules.clj
+msgid ""
+"Forbidden request: {0} access to {1} (method {2}) at {3}:{4} (authenticated: "
+"{5}) denied by rule ''{6}''."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/rules.clj
+msgid ""
+"Forbidden request: {0} access to {1} (method {2}) (authenticated: {3}) "
+"denied by rule ''{4}''."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/rules.clj
+msgid ""
+"Forbidden request: {0} (method {1}). Please see the server logs for details."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/rules.clj
+msgid ""
+"Request to ''{0}'' from ''{1}'' handled by rule ''{2}'' - request allowed"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/rules.clj
+msgid ""
+"Request to ''{0}'' from ''{1}'' handled by rule ''{2}'' - request denied"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/rules.clj
+msgid ""
+"Request to ''{0}'' from ''{1}'' did not match any rules - request denied"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid ""
+"extensions key should map an extension to a value or list of values; got {0}"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "certname key should map to a string; got ''{0}''"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid ""
+"ACL Definition must contain exactly one of ''certname'' or ''extensions'' "
+"keys; got ''{0}''"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "Unable to parse ACL; expected string or map but got: ''{0}''"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "The path regex provided in the rule defined as {0} is invalid: {1}"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid ""
+"The {0} field provided in the rule specified as {1} contains the back "
+"reference ''${2}'' which refers to a capture group in the regex that "
+"doesn''t exist."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "An authorization rule should be specified as a map."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "An authorization rule must contain a ''match-request'' section."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "The authorization rule specified as {0} does not contain a ''{1}'' key."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid ""
+"The sort-order set in the authorization rule specified as {0} is invalid. "
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "It should be a number from 1 to 999."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid ""
+"Authorization rule specified as {0} cannot have allow or deny if allow-"
+"unauthenticated."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid ""
+"Authorization rule specified as {0} must contain either a ''deny'' or "
+"''allow'' rule."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid ""
+"The type set in the authorization rule specified as {0} should be a string "
+"that is either ''path'' or ''regex''."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "The type set in the authorization rule specified as {0} is invalid. "
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "It should be set to either ''path'' or ''regex''."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "The path set in the authorization rule specified as {0} is invalid. "
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "It should be a string."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "Invalid method in the authorization rule specified as {0}. "
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid ""
+"The method should be a string or list of strings equal to one of the "
+"following: "
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid ""
+"The {0} list in the rule specified as {1} contains one or more ACEs that are "
+"not maps or strings."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid ""
+"The ACE ''{0}'' in the ''{1}'' field of the rule specified as {2} is "
+"invalid. "
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "It should be a string or a map with keys :extensions or :certname."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "The query-param ''{0}'' in the rule specified as {1} is invalid. "
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid ""
+"The query-param value for ''{0}'' in the rule specified as {1} is invalid. "
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "It should be a string or list of strings."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid ""
+"The ''{0}'' query-param in the rule specified as {1} contains one or more "
+"values that are not strings."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "Missing authorization service configuration."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "The authorization service configuration is not a map."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "allow-header-cert-info is not a boolean."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid ""
+"Unsupported or missing version in configuration file. Supported versions "
+"are: 1"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "The authorization service configuration rules is not a list."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid "Duplicate rules named ''{0}''. Rules must be uniquely named."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_service.clj
+msgid "Transformed auth.conf rules:n{0}"
+msgstr ""
