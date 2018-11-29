@@ -28,6 +28,7 @@
                  [puppetlabs/trapperkeeper]
                  [puppetlabs/ring-middleware]
                  [puppetlabs/ssl-utils]
+                 [puppetlabs/rbac-client]
                  [puppetlabs/i18n]]
 
   ;; By declaring a classifier here and a corresponding profile below we'll get an additional jar
