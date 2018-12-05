@@ -9,10 +9,12 @@
     [puppetlabs.trapperkeeper.services :refer [defservice]]
     [puppetlabs.trapperkeeper.services.authorization.authorization-service
      :refer [authorization-service]]
+    [puppetlabs.rbac-client.protocols.rbac :refer [RbacConsumerService]]
     [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
     [puppetlabs.trapperkeeper.testutils.logging :refer [with-test-logging]]
     [ring.mock.request :as mock]
     [ring.util.response :refer [response]]
+    [slingshot.slingshot :refer [throw+]]
     [schema.test :as schema-test])
   (:import (java.io ByteArrayInputStream)
            (java.nio.charset Charset)))
@@ -110,7 +112,15 @@
      :type   "path"}
     :allow-unauthenticated true
     :sort-order 500
-    :name "puppetlabs csr"}])
+    :name "puppetlabs csr"}
+   {:match-request
+    {:path "/puppet/v3/rbac_test"
+     :method "get"
+     :type "path"}
+    :allow
+      { :rbac "get:test:*" }
+    :sort-order 500
+    :name "rbac-test"}])
 
 (def catalog-request-nocert
   "A basic request for a catalog without a valid SSL cert"
@@ -145,6 +155,39 @@
                        (assoc :request req)))]
      (wrap-with-authorization-check handler))))
 
+(defservice dummy-rbac-service
+  RbacConsumerService
+  []
+  (is-permitted? [this subject perm-str] true)
+  (are-permitted? [this subject perm-strs]
+                  (vec (repeat (count perm-strs) true)))
+  (cert-whitelisted? [this ssl-client-cn] true)
+  (cert->subject [this ssl-client-cn]
+    {:id #uuid "af94921f-bd76-4b58-b5ce-e17c029a2790"
+     :login "api_user"})
+  (valid-token->subject [this jwt-str]
+  (if (or (not jwt-str) (= "invalid-token" jwt-str))
+    (throw+ {:kind :puppetlabs.rbac/invalid-token
+             :msg (format "Token: %s" jwt-str)})
+    {:login     "test_user"
+    :id        #uuid "751a8f7e-b53a-4ccd-9f4f-e93db6aa38ec"
+    :group_ids [#uuid "aaaaaaaa-b53a-4ccd-9f4f-e93db6aa38ec"
+                #uuid "bbbbbbbb-b53a-4ccd-9f4f-e93db6aa38ec"]}))
+  (status [this level]
+    {:service_version "1.2.12",
+    :service_status_version 1,
+    :detail_level "info",
+    :state :running,
+    :status {:db_up true,
+             :activity_up true}})
+  (list-permitted [this token object-type action]
+                  ["one", "two", "three"])
+  (list-permitted-for [this subject object-type action]
+                      ["four" "five" "six"])
+(subject [this user-id]
+         {:id user-id
+          :login "anImaginaryUserForTesting"}))
+
 (defn build-ring-handler
   "Build a ring handler around the echo reverse service"
   ([rules]
@@ -154,7 +197,7 @@
      (with-test-logging
       (with-app-with-config
        app
-       [echo-reverse-service authorization-service]
+       [echo-reverse-service authorization-service dummy-rbac-service]
        (assoc-in config [:authorization :rules] rules)
        (let [svc (get-service app :EchoReverseService)
              echo-handler (echo-reverse svc "Prefix: ")]
@@ -428,7 +471,7 @@
       (with-test-logging
         (with-app-with-config
           app
-          [plumbing-service authorization-service]
+          [plumbing-service authorization-service dummy-rbac-service]
           (assoc-in minimal-config [:authorization :rules] rules-w-exts)
           (testing "allowed request via extensions"
             (let [req (testutils/request "/puppet/v4/catalog" :get "127.0.0.1" allowable-cert)]
@@ -501,7 +544,7 @@
         (with-test-logging
           (with-app-with-config
             app
-            [plumbing-service authorization-service]
+            [plumbing-service authorization-service dummy-rbac-service]
             (assoc-in minimal-config [:authorization :rules] ext-rules)
             (testing "with allow rule"
               (let [req (testutils/request "/puppet/v4/catalog" :get "127.0.0.1" allowable-cert)]
@@ -518,7 +561,7 @@
         (with-test-logging
           (with-app-with-config
             app
-            [plumbing-service authorization-service]
+            [plumbing-service authorization-service dummy-rbac-service]
             (assoc-in minimal-config [:authorization :rules] certname-rules)
             (testing "using allowed glob"
               (let [req (testutils/request "/puppet/v5/catalog" :get "127.0.0.1" allowable-cert)]

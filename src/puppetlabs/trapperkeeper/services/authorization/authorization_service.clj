@@ -7,6 +7,7 @@
             [puppetlabs.kitchensink.core :as ks]
             [puppetlabs.trapperkeeper.services.authorization.authorization-core :refer :all]
             [puppetlabs.trapperkeeper.services :refer [service-context]]
+            [puppetlabs.rbac-client.protocols.rbac :refer [RbacConsumerService]]
             [puppetlabs.i18n.core :refer [trs]]))
 
 (defprotocol AuthorizationService
@@ -15,7 +16,8 @@
 
 (defservice authorization-service
   AuthorizationService
-  [[:ConfigService get-in-config]]
+  {:required [[:ConfigService get-in-config]]
+   :optional [RbacConsumerService]}
   (init
    [this context]
    (let [config (get-in-config [:authorization])
