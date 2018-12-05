@@ -5,6 +5,9 @@
             [puppetlabs.i18n.core :refer [trs]]))
 
 ;; Schemas
+(def RBACRule
+  "Schema for defining an RBAC Permission"
+  {:permission schema/Str})
 
 (def OIDMap
   "Mapping of string OIDs to shortname keywords. Used to update an incoming
@@ -57,6 +60,7 @@
 (def ACEConfig
   "Schema for representing the configuration of an ACE."
   (schema/pred #(or (nil? (schema/check schema/Str (:certname %)))
+                    (nil? (schema/check RBACRule (:rbac %)))
                     (nil? (schema/check ExtensionRule (:extensions %))))
                "ACE Config Value"))
 
@@ -72,7 +76,7 @@
 (def ACE
   "An authorization entry matching a network or a domain"
   {:auth-type AuthType
-   :match (schema/enum :string :regex :backreference :extensions)
+   :match (schema/enum :string :regex :backreference :extensions :rbac-permission)
    :value ACEValue})
 
 (def ACL
@@ -125,8 +129,13 @@
 (schema/defn ^:always-validate new-domain :- ACE
   "Creates a new ACE for a domain"
   [auth-type :- AuthType
-   {:keys [certname extensions]} :- ACEConfig]
+   {:keys [certname extensions rbac]} :- ACEConfig]
   (cond
+    ;;RBAC permission
+    (map? rbac)
+    {:auth-type auth-type
+     :match :rbac-permission
+     :value (:permission rbac)}
     ;; SSL Extensions
     (map? extensions)
     {:auth-type auth-type
