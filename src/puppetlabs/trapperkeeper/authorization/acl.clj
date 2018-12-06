@@ -5,6 +5,9 @@
             [puppetlabs.i18n.core :refer [trs]]))
 
 ;; Schemas
+(def RBACRule
+  "Schema for defining an RBAC Permission"
+  {:permission schema/Str})
 
 (def OIDMap
   "Mapping of string OIDs to shortname keywords. Used to update an incoming

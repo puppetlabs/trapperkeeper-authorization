@@ -36,9 +36,13 @@
     (when-not (nil? (schema/check schema/Str (:certname config-value)))
       (reject! (trs "certname key should map to a string; got ''{0}''" (:certname config-value)))))
 
-  (when (or (not (or (:extensions config-value) (:certname config-value)))
+  (when (:rbac config-value)
+    (when-not (nil? (schema/check acl/RBACRule (:permission config-value)))
+  (reject! (trs "permission key should map to a string; got ''{0}''" (:permission config-value)))))
+
+  (when (or (not (or (:extensions config-value) (:certname config-value) (:permission config-value)))
             (and (:extensions config-value) (:certname config-value)))
-    (reject! (trs "ACL Definition must contain exactly one of ''certname'' or ''extensions'' keys; got ''{0}''" config-value))))
+    (reject! (trs "ACL Definition must contain exactly one of ''certname'' or ''extensions'' or ''permission'' keys; got ''{0}''" config-value))))
 
 (schema/defn canonicalize-acl :- acl/ACEConfig
   [config-value]

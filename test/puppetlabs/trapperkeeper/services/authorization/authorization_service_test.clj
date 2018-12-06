@@ -118,7 +118,7 @@
      :method "get"
      :type "path"}
     :allow
-      { :rbac "get:test:*" }
+      { :rbac {:permission "get:test:*" }}
     :sort-order 500
     :name "rbac-test"}])
 
