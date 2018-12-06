@@ -6,7 +6,7 @@
 
   :min-lein-version "2.7.1"
 
-  :parent-project {:coords [puppetlabs/clj-parent "0.6.1"]
+  :parent-project {:coords [puppetlabs/clj-parent "2.4.1"]
                    :inherit [:managed-dependencies]}
 
   ;; Abort when version ranges or version conflicts are detected in
@@ -15,10 +15,14 @@
   :pedantic? :abort
 
   :dependencies [[org.clojure/clojure]
+
+                 ;; See SERVER-2216
+                 [org.clojure/tools.nrepl "0.2.13"]
+
                  [org.clojure/tools.logging]
                  [slingshot]
                  [prismatic/schema]
-                 [ring-mock]
+                 [ring/ring-mock]
 
                  [puppetlabs/kitchensink]
                  [puppetlabs/trapperkeeper]
@@ -39,7 +43,8 @@
                    :source-paths ["examples/ring_app/src"]
                    :dependencies [[puppetlabs/trapperkeeper-webserver-jetty9]
                                   [puppetlabs/trapperkeeper nil :classifier "test" :scope "test"]
-                                  [puppetlabs/kitchensink nil :classifier "test" :scope "test"]]}
+                                  [puppetlabs/kitchensink nil :classifier "test" :scope "test"]
+                                  [org.clojure/tools.namespace "0.2.11"]]}
              :testutils {:source-paths ^:replace ["test"]}}
 
   ;; this plugin is used by jenkins jobs to interrogate the project version
