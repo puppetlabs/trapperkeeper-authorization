@@ -60,6 +60,7 @@
 (def ACEConfig
   "Schema for representing the configuration of an ACE."
   (schema/pred #(or (nil? (schema/check schema/Str (:certname %)))
+                    (nil? (schema/check RBACRule (:rbac %)))
                     (nil? (schema/check ExtensionRule (:extensions %))))
                "ACE Config Value"))
 
