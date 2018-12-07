@@ -76,7 +76,7 @@
 (def ACE
   "An authorization entry matching a network or a domain"
   {:auth-type AuthType
-   :match (schema/enum :string :regex :backreference :extensions)
+   :match (schema/enum :string :regex :backreference :extensions :rbac-permission)
    :value ACEValue})
 
 (def ACL
@@ -129,8 +129,13 @@
 (schema/defn ^:always-validate new-domain :- ACE
   "Creates a new ACE for a domain"
   [auth-type :- AuthType
-   {:keys [certname extensions]} :- ACEConfig]
+   {:keys [certname extensions rbac]} :- ACEConfig]
   (cond
+    (map? rbac)
+    {:auth-type auth-type
+     :match :rbac-permission
+     :value (:permission rbac)
+     }
     ;; SSL Extensions
     (map? extensions)
     {:auth-type auth-type
