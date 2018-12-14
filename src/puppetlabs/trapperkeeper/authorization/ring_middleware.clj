@@ -234,6 +234,15 @@
       request
       (ring-params/assoc-query-params request encoding))))
 
+(schema/defn add-rbac-subject
+  [token->subject :- (schema/maybe IFn)
+   request]
+  (if token->subject
+    (if-let [token (get-in request [:headers "x-authentication"])]
+      (assoc request :rbac-subject (token->subject token))
+      request)
+    request))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
 
@@ -244,14 +253,23 @@
   ([request :- ring/Request
     rules :- [rules/Rule]
     allow-header-cert-info :- schema/Bool]
-   (authorization-check request rules {} allow-header-cert-info))
+   (authorization-check request rules {} allow-header-cert-info nil nil))
+  ([request :- ring/Request
+    rules :- [rules/Rule]
+    allow-header-cert-info :- schema/Bool
+    rbac-is-permitted? :- (schema/maybe IFn)
+    token->subject :- (schema/maybe IFn)]
+   (authorization-check request rules {} allow-header-cert-info rbac-is-permitted? token->subject))
   ([request :- ring/Request
     rules :- [rules/Rule]
     oid-map :- acl/OIDMap
-    allow-header-cert-info :- schema/Bool]
+    allow-header-cert-info :- schema/Bool
+    rbac-is-permitted? :- (schema/maybe IFn)
+    token->subject :- (schema/maybe IFn)]
    (->> (assoc-query-params request)
         (add-authinfo allow-header-cert-info oid-map)
-        (rules/allowed? rules oid-map))))
+        (add-rbac-subject token->subject)
+        (rules/allowed? rules oid-map rbac-is-permitted?))))
 
 (schema/defn wrap-authorization-check :- IFn
   "Middleware that checks if the request is allowed by the provided rules,
@@ -259,14 +277,22 @@
   ([handler :- IFn
     rules :- [rules/Rule]
     allow-header-cert-info :- schema/Bool]
-   (wrap-authorization-check handler rules {} allow-header-cert-info))
+   (wrap-authorization-check handler rules {} allow-header-cert-info nil nil))
+  ([handler :- IFn
+    rules :- [rules/Rule]
+    allow-header-cert-info :- schema/Bool
+    rbac-is-permitted? :- (schema/maybe IFn)
+    token->subject :- (schema/maybe IFn)]
+   (wrap-authorization-check handler rules {} allow-header-cert-info rbac-is-permitted? token->subject))
   ([handler :- IFn
     rules :- [rules/Rule]
     oid-map :- acl/OIDMap
-    allow-header-cert-info :- schema/Bool]
+    allow-header-cert-info :- schema/Bool
+    rbac-is-permitted? :- (schema/maybe IFn)
+    token->subject :- (schema/maybe IFn)]
    (fn [req]
      (let [{:keys [authorized message request]}
-           (authorization-check req rules oid-map allow-header-cert-info)]
+           (authorization-check req rules oid-map allow-header-cert-info rbac-is-permitted? token->subject)]
        (if (true? authorized)
          (handler request)
          (-> (ring-response/response message)

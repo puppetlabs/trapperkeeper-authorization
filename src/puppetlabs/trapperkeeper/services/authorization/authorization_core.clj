@@ -38,7 +38,7 @@
 
   (when (:rbac config-value)
     (when-not (nil? (schema/check acl/RBACRule (:rbac config-value)))
-      (reject! (trs "permission key should map to a string; got ''{0}''" (:rbac config-value)))))
+      (reject! (trs "permission key should map to a string of form ''object_type:action:instance''; got ''{0}''" (:rbac config-value)))))
 
   (when (or (not (or (:extensions config-value) (:certname config-value) (:rbac config-value)))
             (and (:extensions config-value) (:certname config-value)))

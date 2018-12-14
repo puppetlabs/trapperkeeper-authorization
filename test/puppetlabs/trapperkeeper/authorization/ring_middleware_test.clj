@@ -362,7 +362,7 @@
           cert (testutils/create-certificate "tea.leaves.thwart.net" exts)
 
           req (testutils/request "/foo/bar" :get "127.0.0.1" cert)
-          auth-check (fn [rules] (ring-middleware/authorization-check req rules oid-map false))]
+          auth-check (fn [rules] (ring-middleware/authorization-check req rules oid-map false nil nil))]
 
 
       (testing "extensions are set properly"

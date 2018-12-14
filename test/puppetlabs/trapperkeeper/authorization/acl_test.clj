@@ -216,3 +216,12 @@
         (is (!allowed? (challenge "new.confessional.org" {:style "slam" :author "plath"})))
         (is (!allowed? (challenge "new.confessional.org" {:style "sonnet" :author "gioia"})))
         (is (!allowed? (challenge "neo.formalism.com" {:style "haiku" :author "plath"})))))))
+
+(deftest test-rbac-allowed
+  (let [is-permitted? (fn [subject permission] (and (= permission "let:me:in") (= subject "good")))
+        acl #{(acl/new-domain :allow {:rbac {:permission "12:34:56"}})
+              (acl/new-domain :allow {:rbac {:permission "let:me:in"}})}]
+    (testing "allows"
+      (is (acl/rbac-allowed? acl "good" is-permitted?)))
+    (testing "denies"
+      (is (not (acl/rbac-allowed? acl "bad" is-permitted?))))))

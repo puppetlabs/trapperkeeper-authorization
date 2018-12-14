@@ -1,13 +1,14 @@
 (ns puppetlabs.trapperkeeper.authorization.acl
   (:require [clojure.set :refer [intersection]]
-            [schema.core :as schema]
+            [puppetlabs.i18n.core :refer [trs]]
             [puppetlabs.ssl-utils.core :refer [subject-alt-name-oid]]
-            [puppetlabs.i18n.core :refer [trs]]))
+            [schema.core :as schema])
+  (:import clojure.lang.IFn))
 
 ;; Schemas
 (def RBACRule
   "Schema for defining an RBAC Permission"
-  {:permission schema/Str})
+  {:permission (schema/constrained schema/Str #(re-matches #".*:.*:.*" %))})
 
 (def OIDMap
   "Mapping of string OIDs to shortname keywords. Used to update an incoming
@@ -338,3 +339,15 @@
       (if match
         (allow? match)
         false))))
+
+(schema/defn rbac-allowed? :- schema/Bool
+  "Returns true if the acl permits the rbac subject via rbac permissions"
+  [acl :- ACL
+   subject
+   rbac-is-permitted? :- (schema/maybe IFn)]
+  (if (and subject rbac-is-permitted?)
+    (let [rbac-rules (filter #(= (:match %) :rbac-permission) acl)]
+      (if-let [match (first (filter #(rbac-is-permitted? subject (:value %)) rbac-rules))]
+        (allow? match)
+        false))
+    false))
