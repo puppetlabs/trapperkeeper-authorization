@@ -158,7 +158,7 @@
 (defn build-ring-handler
   [rules allow-header-cert-info]
   (-> base-handler
-      (ring-middleware/wrap-authorization-check rules allow-header-cert-info)))
+      (ring-middleware/wrap-authorization-check rules {} allow-header-cert-info nil nil)))
 
 (deftest wrap-authorization-check-for-allow-header-cert-info-false-tests
   (testing "wrap-authorization-check for allow-header-cert-info false results in"
@@ -244,12 +244,15 @@
 
 (deftest authorization-map-wrapped-into-authorized-request
   (testing "Authorization map wrapped into authorized request when"
-    (let [build-ring-handler (partial
-                              ring-middleware/wrap-authorization-check
-                              (fn [request]
-                                (ring-response/response request))
-                              [(-> (testutils/new-rule :regex "/.*/")
-                                   (assoc :allow-unauthenticated true))])
+    (let [build-ring-handler (fn [allow-header-cert-info]
+                               (ring-middleware/wrap-authorization-check
+                                (fn [request]
+                                  (ring-response/response request))
+                                [(-> (testutils/new-rule :regex "/.*/")
+                                     (assoc :allow-unauthenticated true))]
+                                {}
+                                allow-header-cert-info
+                                nil nil))
           ring-handler-with-allow-header-cert-info-false (build-ring-handler false)
           ring-handler-with-allow-header-cert-info-true (build-ring-handler true)]
       (testing "SSL certificate provided and allow-header-cert-info false"
@@ -310,16 +313,20 @@
       (is (rules/authorized? (ring-middleware/authorization-check
                               (ring-mock/query-string request "baz=qux")
                               rules
-                              false)))
+                              {}
+                              false
+                              nil nil)))
       (logutils/with-test-logging
         (is (not (rules/authorized? (ring-middleware/authorization-check
                                      request
                                      rules
-                                     false))))))
+                                     {}
+                                     false
+                                     nil nil))))))
 
     (testing "appends authorization info to the request"
       (let [result (-> (ring-mock/query-string request "baz=qux")
-                       (ring-middleware/authorization-check rules false))]
+                       (ring-middleware/authorization-check rules {} false nil nil))]
         (is (not (nil? (:request result))))
         (is (not (nil? (get-in result [:request :authorization]))))
         (is (= "test.domain.org" (ring/authorized-name (:request result))))
