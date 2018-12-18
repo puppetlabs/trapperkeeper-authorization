@@ -131,19 +131,19 @@
         (let [rules (build-rules ["/path/to/resource" "*.domain.org"]
                                  ["/stairway/to/heaven" "*.domain.org"])
               request (ring/set-authorized-name request "test.domain.org")]
-          (is (rules/authorized? (rules/allowed? rules request)))))
+          (is (rules/authorized? (rules/allowed? request rules {} nil)))))
       (testing "global deny"
         (let [rules (build-rules ["/path/to/resource" "*.domain.org"]
                                  ["/path/to/other" "*.domain.org"])
               request (ring/set-authorized-name request "www.domain.org")]
-          (is (not (rules/authorized? (rules/allowed? rules request))))
-          (is (= (:message (rules/allowed? rules request))
+          (is (not (rules/authorized? (rules/allowed? request rules {} nil))))
+          (is (= (:message (rules/allowed? request rules {} nil))
                  "global deny all - no rules matched"))))
       (testing "rule not allowing"
         (let [rules (build-rules ["/path/to/resource" "*.domain.org"]
                                  ["/stairway/to/heaven" "*.domain.org"])
               request (ring/set-authorized-name request "www.test.org")
-              rules-allowed (rules/allowed? rules request)]
+              rules-allowed (rules/allowed? request rules {} nil)]
           (is (not (rules/authorized? rules-allowed )))
           (is (= (:message rules-allowed)
                  (str "Forbidden request: /stairway/to/heaven (method :get)."
@@ -158,7 +158,7 @@
                          (build-rules ["/path/to/resource" "*.domain.org"]
                                       ["/stairway/to/heaven" "*.domain.org"]))
               request (ring/set-authorized-name request "www.test.org")
-              rules-allowed (rules/allowed? rules request)]
+              rules-allowed (rules/allowed? request rules {} nil)]
           (is (not (rules/authorized? rules-allowed)))
           (is (= (:message rules-allowed)
                  (str "Forbidden request: /stairway/to/heaven (method :get)."
@@ -179,7 +179,7 @@
           request (-> (testutils/request "/foo")
                       (ring/set-authorized-authenticated true)
                       (ring/set-authorized-name "test.org"))]
-      (is (rules/authorized? (rules/allowed? rules request)))))
+      (is (rules/authorized? (rules/allowed? request rules {} nil)))))
   (testing "rules checked in order of name when sort-order is the same"
     (let [rules (rules/sort-rules
                  [(-> (rules/new-rule :path "/foo" :any 1 "bbb")
@@ -189,4 +189,4 @@
           request (-> (testutils/request "/foo")
                       (ring/set-authorized-authenticated true)
                       (ring/set-authorized-name "test.org"))]
-      (is (rules/authorized? (rules/allowed? rules request))))))
+      (is (rules/authorized? (rules/allowed? request rules {} nil))))))

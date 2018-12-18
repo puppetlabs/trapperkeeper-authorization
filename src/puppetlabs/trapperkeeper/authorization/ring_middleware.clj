@@ -206,9 +206,9 @@
 
 (schema/defn add-authinfo :- ring/Request
   "Add authentication information to the ring request."
-  [allow-header-cert-info :- schema/Bool
-   oid-map :- acl/OIDMap
-   request :- ring/Request]
+  [request :- ring/Request
+   allow-header-cert-info :- schema/Bool
+   oid-map :- acl/OIDMap]
   (let [name (request->name request allow-header-cert-info)
         extensions (request->extensions request
                                         allow-header-cert-info
@@ -235,8 +235,8 @@
       (ring-params/assoc-query-params request encoding))))
 
 (schema/defn add-rbac-subject
-  [token->subject :- (schema/maybe IFn)
-   request]
+  [request :- ring/Request
+   token->subject :- (schema/maybe IFn)]
   (if token->subject
     (if-let [token (get-in request [:headers "x-authentication"])]
       (assoc request :rbac-subject (token->subject token))
@@ -256,10 +256,11 @@
    allow-header-cert-info :- schema/Bool
    rbac-is-permitted? :- (schema/maybe IFn)
    token->subject :- (schema/maybe IFn)]
-  (->> (assoc-query-params request)
-       (add-authinfo allow-header-cert-info oid-map)
-       (add-rbac-subject token->subject)
-       (rules/allowed? rules oid-map rbac-is-permitted?)))
+  (-> request
+      assoc-query-params
+      (add-authinfo allow-header-cert-info oid-map)
+      (add-rbac-subject token->subject)
+      (rules/allowed? rules oid-map rbac-is-permitted?)))
 
 (schema/defn wrap-authorization-check :- IFn
   "Middleware that checks if the request is allowed by the provided rules,
