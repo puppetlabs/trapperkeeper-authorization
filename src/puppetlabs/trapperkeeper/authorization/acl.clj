@@ -2,6 +2,7 @@
   (:require [clojure.set :refer [intersection]]
             [puppetlabs.i18n.core :refer [trs]]
             [puppetlabs.ssl-utils.core :refer [subject-alt-name-oid]]
+            [slingshot.slingshot :refer [throw+]]
             [schema.core :as schema])
   (:import clojure.lang.IFn))
 
@@ -134,9 +135,14 @@
   (cond
     ;;RBAC permission
     (map? rbac)
-    {:auth-type auth-type
-     :match :rbac-permission
-     :value (:permission rbac)}
+    (if (= :deny auth-type)
+      (throw+
+        {:kind :rbac-deny
+         :msg (trs "RBAC permissions cannot be used to deny access. Permission: ''{0}''" (:permission rbac))})
+      {:auth-type auth-type
+       :match :rbac-permission
+       :value (:permission rbac)})
+
     ;; SSL Extensions
     (map? extensions)
     {:auth-type auth-type
@@ -181,7 +187,9 @@
      :value (clojure.string/replace certname #"^/(.*)/$" "$1")}
 
     :else
-    (throw (Exception. (trs "invalid domain value: {0}" certname)))))
+    (throw+
+      {:kind :invalid-domain
+       :msg (trs "invalid domain value: {0}" certname)})))
 
 ;; ACE matching
 

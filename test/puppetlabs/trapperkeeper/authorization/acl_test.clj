@@ -2,6 +2,7 @@
   (:require [clojure.test :refer :all]
             [puppetlabs.trapperkeeper.authorization.acl :as acl]
             [clojure.string :as str]
+            [slingshot.test :refer :all]
             [schema.test :as schema-test]))
 
 (use-fixtures :once schema-test/validate-schemas)
@@ -225,3 +226,13 @@
       (is (acl/rbac-allowed? acl "good" is-permitted?)))
     (testing "denies"
       (is (not (acl/rbac-allowed? acl "bad" is-permitted?))))))
+
+(deftest test-bad-rbac-rules
+  (testing "deny ACE with rbac permission throws"
+    (is (thrown+?
+         [:kind :rbac-deny
+          :msg "RBAC permissions cannot be used to deny access. Permission: 'keep:me:out'"]
+         (acl/new-domain :deny {:rbac {:permission "keep:me:out"}}))))
+
+  (testing "RBAC permission string formatted wrong"
+    (is (thrown? RuntimeException (acl/new-domain :allow {:rbac {:permission "badpermission"}})))))
