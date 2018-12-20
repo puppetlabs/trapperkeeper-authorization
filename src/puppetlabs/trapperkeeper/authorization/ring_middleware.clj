@@ -239,8 +239,18 @@
    token->subject :- (schema/maybe IFn)]
   (if token->subject
     (if-let [token (get-in request [:headers "x-authentication"])]
-      (assoc request :rbac-subject (token->subject token))
-      request)
+      (sling/try+
+        (assoc request :rbac-subject (token->subject token))
+        (catch [:kind :puppetlabs.rbac/token-revoked] {:keys [msg]}
+          (log/error "Failure validating RBAC token:" msg)
+          request)
+        (catch [:kind :puppetlabs.rbac/token-expired] {:keys [msg]}
+          (log/error "Failure validating RBAC token:" msg)
+          request)
+        (catch [:kind :puppetlabs.rbac-client/connection-failure] {:keys [msg]}
+          (log/error "Failure validating RBAC token:" msg)
+          request))
+        request)
     request))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
