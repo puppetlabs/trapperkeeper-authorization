@@ -243,14 +243,14 @@
         (assoc request :rbac-subject (token->subject token))
         (catch [:kind :puppetlabs.rbac/token-revoked] {:keys [msg]}
           (log/error "Failure validating RBAC token:" msg)
-          request)
+          (assoc request :rbac-error msg))
         (catch [:kind :puppetlabs.rbac/token-expired] {:keys [msg]}
           (log/error "Failure validating RBAC token:" msg)
-          request)
+          (assoc request :rbac-error msg))
         (catch [:kind :puppetlabs.rbac-client/connection-failure] {:keys [msg]}
           (log/error "Failure validating RBAC token:" msg)
-          request))
-        request)
+          (assoc request :rbac-error msg)))
+      request)
     request))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

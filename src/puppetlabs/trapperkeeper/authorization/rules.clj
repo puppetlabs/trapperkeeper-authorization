@@ -161,9 +161,13 @@
 (defn- request->resp-description
   [request rule]
   (let [path (:uri request)
-        method (:request-method request)]
-    (tru "Forbidden request: {0} (method {1}). Please see the server logs for details."
-         path method)))
+        method (:request-method request)
+        rbac-message (:rbac-error request)]
+    (if rbac-message
+      (tru "Forbidden request: {0} (method {1}). RBAC Message: {2} Please see the server logs for details."
+         path method rbac-message)
+      (tru "Forbidden request: {0} (method {1}). Please see the server logs for details."
+         path method))))
 
 (schema/defn allow-request :- AuthorizationResult
   "Logs debugging information about the request and rule at the TRACE level
