@@ -234,6 +234,14 @@
       request
       (ring-params/assoc-query-params request encoding))))
 
+(defn- rbac-error?
+  "Return true if an exception comes from puppetlabs-rbac* libraries (rbac or rbac-client)"
+  [err]
+  (some-> err
+          :kind
+          namespace
+          (str/starts-with? "puppetlabs.rbac")))
+
 (schema/defn add-rbac-subject
   [request :- ring/Request
    token->subject :- (schema/maybe IFn)]
@@ -241,13 +249,7 @@
     (if-let [token (get-in request [:headers "x-authentication"])]
       (sling/try+
         (assoc request :rbac-subject (token->subject token))
-        (catch [:kind :puppetlabs.rbac/token-revoked] {:keys [msg]}
-          (log/error "Failure validating RBAC token:" msg)
-          (assoc request :rbac-error msg))
-        (catch [:kind :puppetlabs.rbac/token-expired] {:keys [msg]}
-          (log/error "Failure validating RBAC token:" msg)
-          (assoc request :rbac-error msg))
-        (catch [:kind :puppetlabs.rbac-client/connection-failure] {:keys [msg]}
+        (catch rbac-error? {:keys [msg]}
           (log/error "Failure validating RBAC token:" msg)
           (assoc request :rbac-error msg)))
       request)
