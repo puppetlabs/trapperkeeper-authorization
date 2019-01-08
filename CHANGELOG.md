@@ -1,3 +1,8 @@
+### 1.0.0
+
+  * [TK-474](https://tickets.puppetlabs.com/browse/TK-474) Support
+    rules based on RBAC permissions
+
 ### 0.7.0
 
  * [TK-352](https://tickets.puppetlabs.com/browse/TK-352) Support
