@@ -1,10 +1,15 @@
 (ns puppetlabs.trapperkeeper.authorization.acl
   (:require [clojure.set :refer [intersection]]
-            [schema.core :as schema]
+            [puppetlabs.i18n.core :refer [trs]]
             [puppetlabs.ssl-utils.core :refer [subject-alt-name-oid]]
-            [puppetlabs.i18n.core :refer [trs]]))
+            [slingshot.slingshot :refer [throw+]]
+            [schema.core :as schema])
+  (:import clojure.lang.IFn))
 
 ;; Schemas
+(def RBACRule
+  "Schema for defining an RBAC Permission"
+  {:permission (schema/constrained schema/Str #(re-matches #".*:.*:.*" %))})
 
 (def OIDMap
   "Mapping of string OIDs to shortname keywords. Used to update an incoming
@@ -57,6 +62,7 @@
 (def ACEConfig
   "Schema for representing the configuration of an ACE."
   (schema/pred #(or (nil? (schema/check schema/Str (:certname %)))
+                    (nil? (schema/check RBACRule (:rbac %)))
                     (nil? (schema/check ExtensionRule (:extensions %))))
                "ACE Config Value"))
 
@@ -72,7 +78,7 @@
 (def ACE
   "An authorization entry matching a network or a domain"
   {:auth-type AuthType
-   :match (schema/enum :string :regex :backreference :extensions)
+   :match (schema/enum :string :regex :backreference :extensions :rbac-permission)
    :value ACEValue})
 
 (def ACL
@@ -125,8 +131,18 @@
 (schema/defn ^:always-validate new-domain :- ACE
   "Creates a new ACE for a domain"
   [auth-type :- AuthType
-   {:keys [certname extensions]} :- ACEConfig]
+   {:keys [certname extensions rbac]} :- ACEConfig]
   (cond
+    ;;RBAC permission
+    (map? rbac)
+    (if (= :deny auth-type)
+      (throw+
+        {:kind :rbac-deny
+         :msg (trs "RBAC permissions cannot be used to deny access. Permission: ''{0}''" (:permission rbac))})
+      {:auth-type auth-type
+       :match :rbac-permission
+       :value (:permission rbac)})
+
     ;; SSL Extensions
     (map? extensions)
     {:auth-type auth-type
@@ -171,7 +187,9 @@
      :value (clojure.string/replace certname #"^/(.*)/$" "$1")}
 
     :else
-    (throw (Exception. (trs "invalid domain value: {0}" certname)))))
+    (throw+
+      {:kind :invalid-domain
+       :msg (trs "invalid domain value: {0}" certname)})))
 
 ;; ACE matching
 
@@ -329,3 +347,15 @@
       (if match
         (allow? match)
         false))))
+
+(schema/defn rbac-allowed? :- schema/Bool
+  "Returns true if the acl permits the rbac subject via rbac permissions"
+  [acl :- ACL
+   subject
+   rbac-is-permitted? :- (schema/maybe IFn)]
+  (if (and subject rbac-is-permitted?)
+    (let [rbac-rules (filter #(= (:match %) :rbac-permission) acl)]
+      (if-let [match (first (filter #(rbac-is-permitted? subject (:value %)) rbac-rules))]
+        (allow? match)
+        false))
+    false))

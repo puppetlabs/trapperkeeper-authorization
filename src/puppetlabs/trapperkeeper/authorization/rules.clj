@@ -1,11 +1,11 @@
 (ns puppetlabs.trapperkeeper.authorization.rules
   (:require [clojure.tools.logging :as log]
-            [puppetlabs.ssl-utils.core :refer [get-extensions]]
+            [puppetlabs.i18n.core :refer [trs tru]]
             [puppetlabs.trapperkeeper.authorization.acl :as acl]
             [puppetlabs.trapperkeeper.authorization.ring :as ring]
-            [schema.core :as schema]
-            [puppetlabs.i18n.core :refer [trs tru]])
-  (:import java.util.regex.Pattern))
+            [schema.core :as schema])
+  (:import clojure.lang.IFn
+           java.util.regex.Pattern))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Schemas
@@ -161,9 +161,13 @@
 (defn- request->resp-description
   [request rule]
   (let [path (:uri request)
-        method (:request-method request)]
-    (tru "Forbidden request: {0} (method {1}). Please see the server logs for details."
-         path method)))
+        method (:request-method request)
+        rbac-message (:rbac-error request)]
+    (if rbac-message
+      (tru "Forbidden request: {0} (method {1}). RBAC Message: {2} Please see the server logs for details."
+         path method rbac-message)
+      (tru "Forbidden request: {0} (method {1}). Please see the server logs for details."
+         path method))))
 
 (schema/defn allow-request :- AuthorizationResult
   "Logs debugging information about the request and rule at the TRACE level
@@ -208,25 +212,24 @@
 (schema/defn allowed? :- AuthorizationResult
   "Checks if a request is allowed access given the list of rules. Rules
    will be checked in the given order; use `sort-rules` to first sort them."
-  ([rules :- [Rule]
-    request :- ring/Request]
-   (allowed? rules {} request))
-  ([rules :- [Rule]
-    oid-map :- acl/OIDMap
-    request :- ring/Request]
-   (if-let [{:keys [rule matches]} (some #(match? % request) rules)]
-     (if (true? (:allow-unauthenticated rule))
-       (allow-request request rule "allow-unauthenticated is true - allowed")
-       (if (and (true? (ring/authorized-authenticated request))
-                (acl/allowed? (:acl rule)
-                              {:certname (ring/authorized-name request)
-                               :extensions (ring/authorized-extensions request)}
-                              {:oid-map oid-map
-                               :captures matches}))
-         (allow-request request rule "")
-         (deny-request request rule (request->log-description request rule)
-                       (request->resp-description request rule))))
-     (deny-request request nil "global deny all - no rules matched"))))
+  [request :- ring/Request
+   rules :- [Rule]
+   oid-map :- acl/OIDMap
+   rbac-is-permitted? :- (schema/maybe IFn)]
+  (if-let [{:keys [rule matches]} (some #(match? % request) rules)]
+    (if (true? (:allow-unauthenticated rule))
+      (allow-request request rule "allow-unauthenticated is true - allowed")
+      (if (or (and (true? (ring/authorized-authenticated request))
+                   (acl/allowed? (:acl rule)
+                                 {:certname (ring/authorized-name request)
+                                  :extensions (ring/authorized-extensions request)}
+                                 {:oid-map oid-map
+                                  :captures matches}))
+              (acl/rbac-allowed? (:acl rule) (:rbac-subject request) rbac-is-permitted?))
+        (allow-request request rule "")
+        (deny-request request rule (request->log-description request rule)
+                      (request->resp-description request rule))))
+    (deny-request request nil "global deny all - no rules matched")))
 
 (schema/defn authorized? :- schema/Bool
   [result :- AuthorizationResult]

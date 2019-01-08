@@ -2,6 +2,7 @@
   (:require [clojure.test :refer :all]
             [puppetlabs.trapperkeeper.authorization.acl :as acl]
             [clojure.string :as str]
+            [slingshot.test :refer :all]
             [schema.test :as schema-test]))
 
 (use-fixtures :once schema-test/validate-schemas)
@@ -216,3 +217,22 @@
         (is (!allowed? (challenge "new.confessional.org" {:style "slam" :author "plath"})))
         (is (!allowed? (challenge "new.confessional.org" {:style "sonnet" :author "gioia"})))
         (is (!allowed? (challenge "neo.formalism.com" {:style "haiku" :author "plath"})))))))
+
+(deftest test-rbac-allowed
+  (let [is-permitted? (fn [subject permission] (and (= permission "let:me:in") (= subject "good")))
+        acl #{(acl/new-domain :allow {:rbac {:permission "12:34:56"}})
+              (acl/new-domain :allow {:rbac {:permission "let:me:in"}})}]
+    (testing "allows"
+      (is (acl/rbac-allowed? acl "good" is-permitted?)))
+    (testing "denies"
+      (is (not (acl/rbac-allowed? acl "bad" is-permitted?))))))
+
+(deftest test-bad-rbac-rules
+  (testing "deny ACE with rbac permission throws"
+    (is (thrown+?
+         [:kind :rbac-deny
+          :msg "RBAC permissions cannot be used to deny access. Permission: 'keep:me:out'"]
+         (acl/new-domain :deny {:rbac {:permission "keep:me:out"}}))))
+
+  (testing "RBAC permission string formatted wrong"
+    (is (thrown? RuntimeException (acl/new-domain :allow {:rbac {:permission "badpermission"}})))))

@@ -206,9 +206,9 @@
 
 (schema/defn add-authinfo :- ring/Request
   "Add authentication information to the ring request."
-  [allow-header-cert-info :- schema/Bool
-   oid-map :- acl/OIDMap
-   request :- ring/Request]
+  [request :- ring/Request
+   allow-header-cert-info :- schema/Bool
+   oid-map :- acl/OIDMap]
   (let [name (request->name request allow-header-cert-info)
         extensions (request->extensions request
                                         allow-header-cert-info
@@ -234,6 +234,27 @@
       request
       (ring-params/assoc-query-params request encoding))))
 
+(defn- rbac-error?
+  "Return true if an exception comes from puppetlabs-rbac* libraries (rbac or rbac-client)"
+  [err]
+  (some-> err
+          :kind
+          namespace
+          (str/starts-with? "puppetlabs.rbac")))
+
+(schema/defn add-rbac-subject
+  [request :- ring/Request
+   token->subject :- (schema/maybe IFn)]
+  (if token->subject
+    (if-let [token (get-in request [:headers "x-authentication"])]
+      (sling/try+
+        (assoc request :rbac-subject (token->subject token))
+        (catch rbac-error? {:keys [msg]}
+          (log/error "Failure validating RBAC token:" msg)
+          (assoc request :rbac-error msg)))
+      request)
+    request))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Public
 
@@ -241,34 +262,32 @@
   "Checks that the request is allowed by the provided rules and returns an
    authorization result map containing the request with authorization info
    added, whether the request is authorized, and a message."
-  ([request :- ring/Request
-    rules :- [rules/Rule]
-    allow-header-cert-info :- schema/Bool]
-   (authorization-check request rules {} allow-header-cert-info))
-  ([request :- ring/Request
-    rules :- [rules/Rule]
-    oid-map :- acl/OIDMap
-    allow-header-cert-info :- schema/Bool]
-   (->> (assoc-query-params request)
-        (add-authinfo allow-header-cert-info oid-map)
-        (rules/allowed? rules oid-map))))
+  [request :- ring/Request
+   rules :- [rules/Rule]
+   oid-map :- acl/OIDMap
+   allow-header-cert-info :- schema/Bool
+   rbac-is-permitted? :- (schema/maybe IFn)
+   token->subject :- (schema/maybe IFn)]
+  (-> request
+      assoc-query-params
+      (add-authinfo allow-header-cert-info oid-map)
+      (add-rbac-subject token->subject)
+      (rules/allowed? rules oid-map rbac-is-permitted?)))
 
 (schema/defn wrap-authorization-check :- IFn
   "Middleware that checks if the request is allowed by the provided rules,
    and if not returns a 403 response with a user-friendly message."
-  ([handler :- IFn
-    rules :- [rules/Rule]
-    allow-header-cert-info :- schema/Bool]
-   (wrap-authorization-check handler rules {} allow-header-cert-info))
-  ([handler :- IFn
-    rules :- [rules/Rule]
-    oid-map :- acl/OIDMap
-    allow-header-cert-info :- schema/Bool]
-   (fn [req]
-     (let [{:keys [authorized message request]}
-           (authorization-check req rules oid-map allow-header-cert-info)]
-       (if (true? authorized)
-         (handler request)
-         (-> (ring-response/response message)
-             (ring-response/status 403)))))))
+  [handler :- IFn
+   rules :- [rules/Rule]
+   oid-map :- acl/OIDMap
+   allow-header-cert-info :- schema/Bool
+   rbac-is-permitted? :- (schema/maybe IFn)
+   token->subject :- (schema/maybe IFn)]
+  (fn [req]
+    (let [{:keys [authorized message request]}
+          (authorization-check req rules oid-map allow-header-cert-info rbac-is-permitted? token->subject)]
+      (if (true? authorized)
+        (handler request)
+        (-> (ring-response/response message)
+            (ring-response/status 403))))))
 

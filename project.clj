@@ -26,6 +26,7 @@
 
                  [puppetlabs/kitchensink]
                  [puppetlabs/trapperkeeper]
+                 [puppetlabs/rbac-client]
                  [puppetlabs/ring-middleware]
                  [puppetlabs/ssl-utils]
                  [puppetlabs/i18n]]
