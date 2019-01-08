@@ -1,12 +1,13 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR Puppet <docs@puppet.com>
-# This file is distributed under the same license as the puppetlabs.trapperkeeper_authorization package.
+# This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: puppetlabs.trapperkeeper_authorization \n"
+"X-Git-Ref: 342bdf5449de2e3aaa78989fc3bc931938705ea7\n"
 "Report-Msgid-Bugs-To: docs@puppet.com\n"
 "POT-Creation-Date: \n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -16,6 +17,10 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+
+#: src/puppetlabs/trapperkeeper/authorization/acl.clj
+msgid "RBAC permissions cannot be used to deny access. Permission: ''{0}''"
+msgstr ""
 
 #: src/puppetlabs/trapperkeeper/authorization/acl.clj
 msgid "invalid domain value: {0}"
@@ -84,6 +89,12 @@ msgstr ""
 
 #: src/puppetlabs/trapperkeeper/authorization/rules.clj
 msgid ""
+"Forbidden request: {0} (method {1}). RBAC Message: {2} Please see the server "
+"logs for details."
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/rules.clj
+msgid ""
 "Forbidden request: {0} (method {1}). Please see the server logs for details."
 msgstr ""
 
@@ -113,8 +124,14 @@ msgstr ""
 
 #: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
 msgid ""
-"ACL Definition must contain exactly one of ''certname'' or ''extensions'' "
-"keys; got ''{0}''"
+"permission key should map to a string of form ''object_type:action:"
+"instance''; got ''{0}''"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
+msgid ""
+"ACL Definition must contain exactly one of ''certname'' or ''extensions'' or "
+"''rbac'' keys; got ''{0}''"
 msgstr ""
 
 #: src/puppetlabs/trapperkeeper/services/authorization/authorization_core.clj
