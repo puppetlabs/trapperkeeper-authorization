@@ -1,4 +1,4 @@
-(defproject puppetlabs/trapperkeeper-authorization "1.0.1-SNAPSHOT"
+(defproject puppetlabs/trapperkeeper-authorization "2.0.0-SNAPSHOT"
   :description "Trapperkeeper authorization system"
   :url "http://github.com/puppetlabs/trapperkeeper-authorization"
   :license {:name "Apache License, Version 2.0"
@@ -50,7 +50,7 @@
 
   ;; this plugin is used by jenkins jobs to interrogate the project version
   :plugins [[lein-parent "0.3.9"]
-            [puppetlabs/i18n "0.9.3"]]
+            [puppetlabs/i18n "0.9.2"]]
 
   :lein-release        {:scm          :git
                         :deploy-via   :lein-deploy}
