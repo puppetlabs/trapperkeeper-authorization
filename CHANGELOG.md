@@ -1,3 +1,12 @@
+### 2.0.0
+  * Require java 11 or 17 (clj-parent 5.3.0, bouncycastle test dependencies)
+  * Update clj-parent to 5.3.0 to modernize the dependencies
+  * Move ring-mock into the dev dependencies
+  * Remove dependency on n-repl
+  * Adds ring-codec as a dependency (it was moved out of ring-core in 1.2)
+  * Changes a test expectation since ring-codec no longer uses java URL Decoder
+  * fix for clj-rbac-client dependency (Thanks @jcharaou!)
+
 ### 1.0.0
 
   * [TK-474](https://tickets.puppetlabs.com/browse/TK-474) Support
