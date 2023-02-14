@@ -161,6 +161,7 @@
   (are-permitted? [this subject perm-strs]
     (vec (repeat (count perm-strs) true)))
   (cert-whitelisted? [this ssl-client-cn] true)
+  (cert-allowed? [this ssl-client-cn] true)
   (cert->subject [this ssl-client-cn]
     {:id #uuid "af94921f-bd76-4b58-b5ce-e17c029a2790"
      :login "api_user"})
