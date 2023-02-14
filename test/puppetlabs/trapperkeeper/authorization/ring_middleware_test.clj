@@ -128,8 +128,7 @@
                                     testutils/test-domain-cert))))))
       (testing "fails as expected when cert not properly URL encoded"
         (is (thrown+? [:kind :bad-request
-                       :msg (str "Unable to URL decode the x-client-cert header: "
-                                     "For input string: \"1%\"")]
+                       :msg "No certs found in PEM read from x-client-cert"]
                       (cert-from-request "%1%2"))))
       (testing "fails as expected when URL encoded properly but base64 content malformed"
         (is (thrown+? [:kind :bad-request

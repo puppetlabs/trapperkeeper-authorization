@@ -6,7 +6,7 @@
 
   :min-lein-version "2.7.1"
 
-  :parent-project {:coords [puppetlabs/clj-parent "2.4.1"]
+  :parent-project {:coords [puppetlabs/clj-parent "5.3.0"]
                    :inherit [:managed-dependencies]}
 
   ;; Abort when version ranges or version conflicts are detected in
@@ -16,13 +16,10 @@
 
   :dependencies [[org.clojure/clojure]
 
-                 ;; See SERVER-2216
-                 [org.clojure/tools.nrepl "0.2.13"]
-
                  [org.clojure/tools.logging]
                  [slingshot]
                  [prismatic/schema]
-                 [ring/ring-mock]
+                 [ring/ring-codec]
 
                  [puppetlabs/kitchensink]
                  [puppetlabs/trapperkeeper]
@@ -45,12 +42,15 @@
                    :dependencies [[puppetlabs/trapperkeeper-webserver-jetty9]
                                   [puppetlabs/trapperkeeper nil :classifier "test" :scope "test"]
                                   [puppetlabs/kitchensink nil :classifier "test" :scope "test"]
-                                  [org.clojure/tools.namespace "0.2.11"]]}
+                                  [org.clojure/tools.namespace "1.4.1"]
+                                  [org.bouncycastle/bcprov-jdk18on]
+                                  [org.bouncycastle/bcpkix-jdk18on]
+                                  [ring/ring-mock]]}
              :testutils {:source-paths ^:replace ["test"]}}
 
   ;; this plugin is used by jenkins jobs to interrogate the project version
-  :plugins [[lein-parent "0.3.1"]
-            [puppetlabs/i18n "0.8.0"]]
+  :plugins [[lein-parent "0.3.9"]
+            [puppetlabs/i18n "0.9.3"]]
 
   :lein-release        {:scm          :git
                         :deploy-via   :lein-deploy}
