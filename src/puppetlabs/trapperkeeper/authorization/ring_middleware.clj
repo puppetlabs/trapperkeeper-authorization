@@ -59,8 +59,8 @@
   "Log a warning message if the supplied common-name is empty (nil or empty
   string."
   [common-name empty-message]
-  (if (empty? common-name)
-    (log/warnf (format "%s  %s" empty-message (trs "Treating client as ''unauthenticated''."))))
+  (when (empty? common-name)
+    (log/warn (trs "{0} Treating client as ''unauthenticated''." empty-message)))
   common-name)
 
 (defn request->name*
