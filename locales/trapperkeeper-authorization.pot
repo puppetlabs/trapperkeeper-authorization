@@ -1,13 +1,13 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR Puppet <docs@puppet.com>
-# This file is distributed under the same license as the PACKAGE package.
+# This file is distributed under the same license as the puppetlabs.trapperkeeper_authorization package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: puppetlabs.trapperkeeper_authorization \n"
-"X-Git-Ref: 342bdf5449de2e3aaa78989fc3bc931938705ea7\n"
+"X-Git-Ref: 048d5191bca050b32211679dc2b20737e84b7705\n"
 "Report-Msgid-Bugs-To: docs@puppet.com\n"
 "POT-Creation-Date: \n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -33,7 +33,7 @@ msgid ""
 msgstr ""
 
 #: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
-msgid "Treating client as ''unauthenticated''."
+msgid "{0} Treating client as ''unauthenticated''."
 msgstr ""
 
 #: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
