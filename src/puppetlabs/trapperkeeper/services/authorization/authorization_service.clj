@@ -35,7 +35,7 @@
                          (partial rbac/is-permitted? rbac-service))
          token->subject (if-let [rbac-service (maybe-get-service this :RbacConsumerService)]
                           (partial rbac/valid-token->subject rbac-service))]
-     (log/debug (trs "Transformed auth.conf rules:\n{0}") (ks/pprint-to-string rules))
+     (log/debug (trs "Transformed auth.conf rules:\n{0}" (ks/pprint-to-string rules)))
      (-> context
          (assoc :is-permitted? is-permitted?)
          (assoc :token->subject token->subject)
