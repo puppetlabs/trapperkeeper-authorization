@@ -1,5 +1,6 @@
 (ns puppetlabs.trapperkeeper.authorization.acl
   (:require [clojure.set :refer [intersection]]
+            [clojure.string :as string]
             [puppetlabs.i18n.core :refer [trs]]
             [puppetlabs.ssl-utils.core :refer [subject-alt-name-oid]]
             [slingshot.slingshot :refer [throw+]]
@@ -124,8 +125,8 @@
   matching."
   [domain :- schema/Str]
   (-> domain
-      (clojure.string/lower-case)
-      (clojure.string/split #"\.")
+      (string/lower-case)
+      (string/split #"\.")
       reverse))
 
 (schema/defn ^:always-validate new-domain :- ACE
@@ -184,7 +185,7 @@
     (re-matches #"^/.*/$" certname)
     {:auth-type auth-type
      :match :regex
-     :value (clojure.string/replace certname #"^/(.*)/$" "$1")}
+     :value (string/replace certname #"^/(.*)/$" "$1")}
 
     :else
     (throw+
@@ -206,7 +207,7 @@
   "substiture $1, $2... by the same index in the captures vector"
   [in :- schema/Str
    captures :- [schema/Str]]
-  (clojure.string/replace in #"\$(\d+)" #(nth captures (- (read-string (second %)) 1))))
+  (string/replace in #"\$(\d+)" #(nth captures (- (read-string (second %)) 1))))
 
 (schema/defn interpolate-backreference :- ACE
   "change all possible backreferences in ace patterns to values from the
@@ -215,7 +216,7 @@
    captures :- [schema/Str]]
   (if (= match :backreference)
     (new-domain auth-type
-                {:certname (clojure.string/join "." (map #(substitute-backreference % captures)
+                {:certname (string/join "." (map #(substitute-backreference % captures)
                                                          (reverse (ace :value))))})
     ace))
 
@@ -263,8 +264,7 @@
                           ;; potentially translate from oid -> shortname
                           k' (get oid-map' (name k) k)
                           ext-value (get extensions k' false)
-                          given-names-match? (fn [k] (not
-                                                      (empty?
+                          given-names-match? (fn [k] (some? (seq
                                                        (intersection (set (get ext-value k))
                                                                      (set (wrap-scalar
                                                                            (get ace-value k)))))))]

@@ -1,13 +1,14 @@
 (ns examples.ring-app.repl
   (:require
+    [clojure.pprint :refer [pprint]]
+    [clojure.tools.namespace.repl :refer [refresh]]
+    [examples.ring-app.ring-app :refer [hello-service]]
+    [puppetlabs.trapperkeeper.app :as tka]
+    [puppetlabs.trapperkeeper.core :as tk]
     [puppetlabs.trapperkeeper.services.authorization.authorization-service
      :refer [authorization-service]]
     [puppetlabs.trapperkeeper.services.webserver.jetty9-service
-     :refer [jetty9-service]]
-    [examples.ring-app.ring-app :refer [hello-service]]
-    [puppetlabs.trapperkeeper.core :as tk]
-    [puppetlabs.trapperkeeper.app :as tka]
-    [clojure.tools.namespace.repl :refer (refresh)]))
+     :refer [jetty9-service]]))
 
 ;; This namespace shows an example of the "reloaded" clojure workflow
 ;; ( http://thinkrelevance.com/blog/2013/06/04/clojure-workflow-reloaded )
@@ -81,7 +82,7 @@
   @(tka/app-context system))
 
 (defn print-context []
-  (clojure.pprint/pprint (context)))
+  (pprint (context)))
 
 (defn reset []
   (stop)

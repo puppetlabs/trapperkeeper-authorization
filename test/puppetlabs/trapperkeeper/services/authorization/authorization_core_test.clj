@@ -1,8 +1,8 @@
 (ns puppetlabs.trapperkeeper.services.authorization.authorization-core-test
   (:require [clojure.test :refer :all]
-            [puppetlabs.trapperkeeper.services.authorization.authorization-core :refer :all]
-            [schema.test]
-            [puppetlabs.kitchensink.core :refer [dissoc-in]]))
+            [puppetlabs.kitchensink.core :refer [dissoc-in]]
+            [puppetlabs.trapperkeeper.services.authorization.authorization-core :refer [config->rule validate-auth-config! validate-auth-config-rule!]]
+            [schema.test]))
 
 (use-fixtures :once schema.test/validate-schemas)
 
@@ -268,8 +268,8 @@
             {:match-request {:path "/some/(thing)" :type "regex"}
              :deny "$1$2"
              :sort-order 500
-             :name "base-regex-auth"})))
-    ))
+             :name "base-regex-auth"})))))
+
 
 (deftest config->rule-test
   (testing "Given a basic allow rule against a string path"

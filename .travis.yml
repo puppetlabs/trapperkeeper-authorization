@@ -1,8 +1,0 @@
-language: clojure
-lein: 2.10.0
-jdk:
-  - openjdk17
-  - openjdk11
-script: ./ext/travisci/test.sh
-notifications:
-  email: false

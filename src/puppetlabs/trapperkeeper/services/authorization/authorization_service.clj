@@ -1,7 +1,6 @@
 (ns puppetlabs.trapperkeeper.services.authorization.authorization-service
   (:require [clojure.tools.logging :as log]
             [puppetlabs.i18n.core :refer [trs]]
-            [puppetlabs.kitchensink.core :as ks]
             [puppetlabs.rbac-client.protocols.rbac
              :as
              rbac
@@ -17,7 +16,7 @@
              [maybe-get-service service-context]]
             [puppetlabs.trapperkeeper.services.authorization.authorization-core
              :refer
-             :all]))
+             [transform-config validate-auth-config!]]))
 
 (defprotocol AuthorizationService
   (wrap-with-authorization-check [this handler] [this handler options])
@@ -31,18 +30,20 @@
    [this context]
    (let [config (get-in-config [:authorization])
          rules (-> config validate-auth-config! :rules transform-config)
-         is-permitted? (if-let [rbac-service (maybe-get-service this :RbacConsumerService)]
+         is-permitted? (when-let [rbac-service (maybe-get-service this :RbacConsumerService)]
                          (partial rbac/is-permitted? rbac-service))
-         token->subject (if-let [rbac-service (maybe-get-service this :RbacConsumerService)]
-                          (partial rbac/valid-token->subject rbac-service))]
-     (log/debug (trs "Transformed auth.conf rules:\n{0}" (ks/pprint-to-string rules)))
-     (-> context
-         (assoc :is-permitted? is-permitted?)
-         (assoc :token->subject token->subject)
-         (assoc-in [:rules] rules)
-         (assoc-in [:allow-header-cert-info] (get config
-                                                  :allow-header-cert-info
-                                                  false)))))
+         token->subject (when-let [rbac-service (maybe-get-service this :RbacConsumerService)]
+                          (partial rbac/valid-token->subject rbac-service))
+         result (-> context
+                    (assoc :is-permitted? is-permitted?)
+                    (assoc :token->subject token->subject)
+                    (assoc-in [:rules] rules)
+                    (assoc-in [:allow-header-cert-info] (get config
+                                                             :allow-header-cert-info
+                                                             false)))]
+     (log/debug (trs "Transformed auth.conf rules:\n{0}" (pr-str rules)))
+     (log/debug (trs "Configuration:\n {0}" (pr-str result)))
+     result))
 
   (authorization-check [this request]
    (authorization-check this request {:oid-map {}}))
