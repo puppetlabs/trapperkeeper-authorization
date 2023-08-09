@@ -129,7 +129,7 @@
 
 (def base-request
   "A basic request to feed into the tests"
-  (testutils/request "/" :get "127.0.0.1" (testutils/create-certificate "test.domain.org") ))
+  (testutils/request "/" :get "127.0.0.1" (testutils/create-certificate "test.domain.org")))
 
 (def unauthenticated-request
   "A basic unauthenticated request to feed into the tests"
@@ -253,10 +253,10 @@
         (is (= 200 status) ":ssl-client-cert with nil value works")
         (is (= body "Prefix: ")))
       (let [req (assoc unauthenticated-request :uri "/not/covered/by/rules")
-            {:keys [status body]} (app req)]
+            {:keys [status _body]} (app req)]
         (is (= status 403)))
       (let [req (assoc unauthenticated-request :uri "/puppet/v3/status")
-            {:keys [status body]} (app req)]
+            {:keys [status _body]} (app req)]
         (is (= status 403) "Unauthentic requests are denied with allow-unauthenticated false"))))
   (testing "With a minimal config of an empty list of rules"
     (let [app (build-ring-handler [])
@@ -329,7 +329,7 @@
                   (assoc :uri "/puppet/v3/environments")
                   (assoc :body "Hello World!")
                   (update-in [:headers] assoc "x-client-cert" "NOCERTS"))
-          {:keys [status body headers]} (app req)]
+          {:keys [status body _headers]} (app req)]
       (is (= status 400))
       (is (= "No certs found in PEM read from x-client-cert" body)))))
 

@@ -6,7 +6,7 @@
 
   :min-lein-version "2.7.1"
 
-  :parent-project {:coords [puppetlabs/clj-parent "5.3.0"]
+  :parent-project {:coords [puppetlabs/clj-parent "5.5.0"]
                    :inherit [:managed-dependencies]}
 
   ;; Abort when version ranges or version conflicts are detected in
@@ -50,6 +50,7 @@
 
   ;; this plugin is used by jenkins jobs to interrogate the project version
   :plugins [[lein-parent "0.3.9"]
+            [jonase/eastwood "1.2.2" :exclusions [org.clojure/clojure]]
             [puppetlabs/i18n "0.9.2"]]
 
   :lein-release        {:scm          :git

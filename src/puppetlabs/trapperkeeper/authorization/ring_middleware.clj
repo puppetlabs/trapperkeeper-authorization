@@ -1,21 +1,21 @@
 (ns puppetlabs.trapperkeeper.authorization.ring-middleware
-  (:require [schema.core :as schema]
+  (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
+            [puppetlabs.i18n.core :refer [trs tru]]
+            [puppetlabs.ring-middleware.utils :as ringutils]
+            [puppetlabs.ssl-utils.core :as ssl-utils]
+            [puppetlabs.trapperkeeper.authorization.acl :as acl]
+            [puppetlabs.trapperkeeper.authorization.ring :as ring]
+            [puppetlabs.trapperkeeper.authorization.rules :as rules]
             [ring.middleware.params :as ring-params]
             [ring.util.codec :as ring-codec]
             [ring.util.request :as ring-request]
             [ring.util.response :as ring-response]
-            [slingshot.slingshot :as sling]
-            [puppetlabs.ring-middleware.utils :as ringutils]
-            [puppetlabs.trapperkeeper.authorization.rules :as rules]
-            [puppetlabs.trapperkeeper.authorization.ring :as ring]
-            [puppetlabs.ssl-utils.core :as ssl-utils]
-            [clojure.tools.logging :as log]
-            [clojure.string :as str]
-            [puppetlabs.trapperkeeper.authorization.acl :as acl]
-            [puppetlabs.i18n.core :refer [trs tru]])
+            [schema.core :as schema]
+            [slingshot.slingshot :as sling])
   (:import (clojure.lang IFn)
-           (java.security.cert X509Certificate)
-           (java.io StringReader)))
+           (java.io StringReader)
+           (java.security.cert X509Certificate)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private
@@ -38,7 +38,7 @@
 (defn warn-if-header-value-non-nil
   "Log a warning message if the supplied header-val is non-empty."
   [header-name header-val]
-  (if header-val
+  (when header-val
     (log/warn (trs "The HTTP header {0} was specified with {1} but the allow-header-cert-info was either not set, or was set to false. This header will be ignored." header-name header-val))))
 
 (defn legacy-openssl-dn->cn
@@ -52,15 +52,16 @@
   nil."
   [dn]
   (when-not (nil? dn)
-    (some #(if (= "CN" (first %1)) (second %1))
+    (some #(when (= "CN" (first %1)) (second %1))
           (map #(str/split %1 #"=" 2) (str/split dn #"/")))))
 
 (defn warn-for-empty-common-name
   "Log a warning message if the supplied common-name is empty (nil or empty
   string."
   [common-name empty-message]
-  (when (empty? common-name)
-    (log/warn (trs "{0} Treating client as ''unauthenticated''." empty-message)))
+  (if (empty? common-name)
+    (log/warn (trs "{0} Treating client as ''unauthenticated''." empty-message))
+    (log/trace (trs "Common name is {0}" common-name)))
   common-name)
 
 (defn request->name*
@@ -75,10 +76,11 @@
         (warn-if-header-value-non-nil header-dn-name header-dn-val)
         (if-let [certificate (:ssl-client-cert request)]
           (let [error-message (trs "CN could not be found in certificate DN")
-                cert-dn (-> certificate (.getSubjectDN) (.getName))]
+                cert-dn (ssl-utils/get-subject-from-x509-certificate certificate)]
             (warn-for-empty-common-name
              (ssl-utils/get-cn-from-x509-certificate certificate)
-             (format "%s: %s." error-message cert-dn)))))
+             (format "%s: %s." error-message cert-dn)))
+          (log/debug (trs "No certificate found in request for name resolution."))))
     (empty? header-dn-val)
       nil
     (ssl-utils/valid-x500-name? header-dn-val)
@@ -118,6 +120,7 @@
   [request name allow-header-cert-info]
   (let [header-client-verify-val (get-in request
                                          [:headers header-client-verify-name])]
+    (log/trace (trs "header-client-verify-val: " header-client-verify-val))
     (cond
       (not allow-header-cert-info)
         (do
@@ -127,9 +130,9 @@
       (= header-client-verify-val "SUCCESS") true
       :else
         (do
-          (if (not (empty? name))
+          (when (seq name)
             ; Translator note: {1} is the header name, {2} is the header value
-            (log/errorf (trs "Client with CN ''{0}'' was not verified by ''{1}'' header: ''{2}''"
+            (log/error (trs "Client with CN ''{0}'' was not verified by ''{1}'' header: ''{2}''"
                              name
                              header-client-verify-name
                              header-client-verify-val)))
@@ -158,7 +161,7 @@
   "Return an X509Certificate or nil from a string encoded for transmission
   in an HTTP header."
   [header-cert-val]
-  (if header-cert-val
+  (when header-cert-val
     (let [pem        (header-cert->pem header-cert-val)
           certs      (pem->certs pem)
           cert-count (count certs)]
@@ -213,6 +216,8 @@
         extensions (request->extensions request
                                         allow-header-cert-info
                                         oid-map)]
+    (log/trace (trs "Authorized name: {0}" name))
+    (log/trace (trs "Allow-header-cert-info: {0}" allow-header-cert-info))
     (->
       request
       (ring/set-authorized-name name)
@@ -221,7 +226,7 @@
                                            (verified? request
                                                       name
                                                       allow-header-cert-info)
-                                           (not (empty? name))))
+                                           (some? (seq name))))
       (ring/set-authorized-certificate (request->cert request
                                                       allow-header-cert-info)))))
 

@@ -12,7 +12,7 @@
 
 (def Type (schema/enum :path :regex))
 (def Method (schema/enum :get :post :put :delete :head :any))
-(def Methods (schema/either Method [Method]))
+(def Methods (schema/cond-pre Method [Method]))
 
 (def Rule
   {:type Type
@@ -76,7 +76,7 @@
    match, and the values are sets of strings of acceptable values."
   [rule :- Rule
    param :- schema/Keyword
-   value :- (schema/either schema/Str [schema/Str])]
+   value :- (schema/cond-pre schema/Str [schema/Str])]
   (update-in rule [:query-params param] (comp set into) (flatten [value])))
 
 (schema/defn ^:always-validate allow :- Rule
@@ -138,8 +138,8 @@
    any capture groups of the Rule pattern if there are any."
   [rule :- Rule
    request :- ring/Request]
-  (if (and (method-match? (:request-method request) (:method rule))
-           (query-params-match? (:query-params request) (:query-params rule)))
+  (when (and (method-match? (:request-method request) (:method rule))
+             (query-params-match? (:query-params request) (:query-params rule)))
     (if-let [matches (re-find* (:path rule) (:uri request))]
       {:rule rule :matches (into [] (rest matches))}
       (log/trace
@@ -159,7 +159,7 @@
            from path method authenticated? (:name rule)))))
 
 (defn- request->resp-description
-  [request rule]
+  [request _rule]
   (let [path (:uri request)
         method (:request-method request)
         rbac-message (:rbac-error request)]

@@ -4,7 +4,7 @@
             [schema.core :as schema]
             [puppetlabs.trapperkeeper.authorization.rules :as rules]
             [puppetlabs.trapperkeeper.authorization.acl :as acl]
-            [puppetlabs.i18n.core :refer [trs tru]])
+            [puppetlabs.i18n.core :refer [trs]])
   (:import (java.util.regex PatternSyntaxException)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -23,7 +23,8 @@
 ;;; Private
 
 (defn ^:private reject! [& strings]
-  (throw (IllegalArgumentException. (apply str strings))))
+  (let [strings (apply str strings)]
+    (throw (IllegalArgumentException. ^String strings))))
 
 (schema/defn validate-ace-config-map!
   [config-value :- (schema/pred map? "map?")]
@@ -188,7 +189,7 @@
                   (pprint-rule rule))
              (trs "It should be a number from 1 to 999.")))
   (if (:allow-unauthenticated rule)
-    (if (some #{:deny :allow} (keys rule))
+    (when (some #{:deny :allow} (keys rule))
       (reject! (trs "Authorization rule specified as {0} cannot have allow or deny if allow-unauthenticated."
                     (pprint-rule rule))))
     (when-not (some #{:deny :allow} (keys rule))
