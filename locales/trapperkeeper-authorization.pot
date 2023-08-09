@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: puppetlabs.trapperkeeper_authorization \n"
-"X-Git-Ref: 048d5191bca050b32211679dc2b20737e84b7705\n"
+"X-Git-Ref: 2f3ccce3014a7483cf1182ce44cad1f53cd7955a\n"
 "Report-Msgid-Bugs-To: docs@puppet.com\n"
 "POT-Creation-Date: \n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -37,7 +37,15 @@ msgid "{0} Treating client as ''unauthenticated''."
 msgstr ""
 
 #: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
+msgid "Common name is {0}"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
 msgid "CN could not be found in certificate DN"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
+msgid "No certificate found in request for name resolution."
 msgstr ""
 
 #: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
@@ -46,6 +54,10 @@ msgstr ""
 
 #: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
 msgid "CN could not be found in DN provided by HTTP header"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
+msgid "header-client-verify-val: "
 msgstr ""
 
 #. Translator note: {1} is the header name, {2} is the header value
@@ -67,6 +79,14 @@ msgstr ""
 
 #: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
 msgid "Only 1 PEM should be supplied for {0} but {1} found"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
+msgid "Authorized name: {0}"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/authorization/ring_middleware.clj
+msgid "Allow-header-cert-info: {0}"
 msgstr ""
 
 #: src/puppetlabs/trapperkeeper/authorization/rules.clj
@@ -277,4 +297,8 @@ msgstr ""
 
 #: src/puppetlabs/trapperkeeper/services/authorization/authorization_service.clj
 msgid "Transformed auth.conf rules:n{0}"
+msgstr ""
+
+#: src/puppetlabs/trapperkeeper/services/authorization/authorization_service.clj
+msgid "Configuration:n {0}"
 msgstr ""
