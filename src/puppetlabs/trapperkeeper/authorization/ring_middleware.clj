@@ -183,9 +183,7 @@
   (let [header-cert-val (get-in request [:headers header-cert-name])]
     (if allow-header-cert-info
       (header->cert header-cert-val)
-      (do
-        (warn-if-header-value-non-nil header-cert-name header-cert-val)
-        (:ssl-client-cert request)))))
+      (:ssl-client-cert request))))
 
 (schema/defn request->extensions :- acl/Extensions
   "Given a request, return a map of shortname -> value for all of the extensions
