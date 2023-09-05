@@ -1,4 +1,4 @@
-(defproject puppetlabs/trapperkeeper-authorization "2.0.1-SNAPSHOT"
+(defproject puppetlabs/trapperkeeper-authorization "2.0.1"
   :description "Trapperkeeper authorization system"
   :url "http://github.com/puppetlabs/trapperkeeper-authorization"
   :license {:name "Apache License, Version 2.0"
