@@ -1,3 +1,6 @@
+### 2.0.1
+  * Remove verbose warning for cert presence when proxying
+
 ### 2.0.0
   * Require java 11 or 17 (clj-parent 5.3.0, bouncycastle test dependencies)
   * Update clj-parent to 5.3.0 to modernize the dependencies
