@@ -131,9 +131,11 @@
                        :msg "No certs found in PEM read from x-client-cert"]
                       (cert-from-request "%1%2"))))
       (testing "fails as expected when URL encoded properly but base64 content malformed"
-        (is (thrown+? [:kind :bad-request
-                       :msg (str "Unable to parse x-client-cert into "
-                                     "certificate: -----END CERTIFICATE not found")]
+        (is (thrown+? #(and
+                (= (:kind %) :bad-request)
+                (re-matches
+                  #"Unable to parse x-client-cert into certificate: -----END CERTIFICATE(-----)? not found"
+                  (:msg %)))
                       (cert-from-request
                        "-----BEGIN%20CERTIFICATE-----%0AM"))))
       (testing "fails when cert not in the payload"
